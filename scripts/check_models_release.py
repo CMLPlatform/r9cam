@@ -27,17 +27,25 @@ def find_drift(version: str, published: set[str], *, tag_exists: bool) -> str | 
     )
 
 
-def main() -> int:
-    """Compare the workspace version with PyPI and the local tags."""
-    version = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["project"]["version"]
+def fetch_published_versions() -> set[str]:
+    """Return every r9cam-models version released on PyPI."""
     with urllib.request.urlopen(PYPI_URL, timeout=30) as response:
-        published = set(json.load(response)["releases"])
+        return set(json.load(response)["releases"])
+
+
+def release_tag_exists(version: str) -> bool:
+    """Return whether the release tag for the version exists in the local clone."""
     tag = f"refs/tags/{TAG_PREFIX}{version}"
     # Fixed git argv with no shell, so there is no untrusted input to inject.
     git = ["git", "rev-parse", "-q", "--verify", tag]
-    tag_exists = subprocess.run(git, capture_output=True, check=False).returncode == 0  # noqa: S603
+    return subprocess.run(git, capture_output=True, check=False).returncode == 0  # noqa: S603
 
-    problem = find_drift(version, published, tag_exists=tag_exists)
+
+def main(pyproject: Path = PYPROJECT) -> int:
+    """Compare the workspace version with PyPI and the local tags."""
+    version = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+    published = fetch_published_versions()
+    problem = find_drift(version, published, tag_exists=release_tag_exists(version))
     if problem:
         sys.stderr.write(problem + "\n")
         return 1
