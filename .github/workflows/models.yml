@@ -13,6 +13,7 @@ on:
     paths:
       - 'r9cam_models/**'
       - 'tests/unit/core/test_contract_package.py'
+      - 'scripts/check_models_release.py'
       - 'pyproject.toml'
       - 'uv.lock'
       - '.github/workflows/models.yml'
@@ -22,6 +23,7 @@ on:
     paths:
       - 'r9cam_models/**'
       - 'tests/unit/core/test_contract_package.py'
+      - 'scripts/check_models_release.py'
       - 'pyproject.toml'
       - 'uv.lock'
       - '.github/workflows/models.yml'
@@ -40,3 +42,22 @@ jobs:
     uses: ./.github/workflows/models-check-reusable.yml
     with:
       python_version: "3.13"
+
+  # Main only: a version bump is tagged after it merges, so a PR run would always fail.
+  release-drift:
+    name: Models version vs PyPI
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # the check looks for the release tag locally
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.15"
+
+      - name: Check the workspace version is published or tagged
+        run: python scripts/check_models_release.py
