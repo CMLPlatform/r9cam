@@ -55,6 +55,20 @@ jobs:
       # bump to a newer Python breaks that silently. This catches it.
       - name: Smoke-test imports
         run: docker run --rm --entrypoint python r9cam:${{ github.sha }} -c "import fastapi, picamera2"
+      # The import check above skips the CMD, settings and logging setup. The app
+      # cannot answer HTTP here: it opens the camera at startup and the runner has
+      # none. So run the real CMD and pass only if startup got as far as the camera.
+      - name: Smoke-test startup
+        env:
+          IMAGE: r9cam:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          logs=$(timeout 60 docker run --rm "$IMAGE" 2>&1 || true)
+          printf '%s\n' "$logs" | tail -n 20
+          if ! grep -q CameraInitializationError <<<"$logs"; then
+            echo "::error::the app stopped before it tried to open the camera"
+            exit 1
+          fi
       # A base-image CVE is a "somebody act this week" event, not a "block this
       # merge" one: advisories land faster than Debian rebuilds the image, so a
       # blocking PR gate fails continuously and stops being read. It failed 27 of

@@ -48,6 +48,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # A newer interpreter here silently hides both from ``import``.
 FROM python:3.13-slim-trixie@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f AS runtime
 
+# The source label links a pushed GHCR package to this repository.
+LABEL org.opencontainers.image.source="https://github.com/CMLPlatform/r9cam" \
+      org.opencontainers.image.title="r9cam" \
+      org.opencontainers.image.description="Raspberry Pi Camera plugin for R9lab platform" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
+
 WORKDIR /app
 
 # Configure Raspberry Pi repository and install runtime dependencies.
