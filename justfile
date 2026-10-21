@@ -21,6 +21,9 @@ test-integration:
 test-slowest:
     uv run pytest --durations=20 -q
 
+bench:
+    uv run pytest tests/benchmarks --codspeed
+
 typecheck:
     uv run ty check .
 

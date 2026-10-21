@@ -55,7 +55,7 @@
     "ruff>=0.9.6",
     "ty>=0.0.29",
   ]
-  test = ["pytest>=8.0", "pytest-asyncio>=0.25", "pytest-cov>=6.0", { include-group = "s3" }]
+  test = ["pytest>=8.0", "pytest-asyncio>=0.25", "pytest-codspeed>=5.0.3", "pytest-cov>=6.0", { include-group = "s3" }]
 
   s3 = ["aioboto3>=13.0"]
 
