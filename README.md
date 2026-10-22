@@ -6,6 +6,7 @@
 [![Security](https://github.com/CMLPlatform/r9cam/actions/workflows/security.yml/badge.svg)](https://github.com/CMLPlatform/r9cam/actions/workflows/security.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/CMLPlatform/r9cam/badge)](https://scorecard.dev/viewer/?uri=github.com/CMLPlatform/r9cam)
 [![codecov](https://codecov.io/gh/CMLPlatform/r9cam/graph/badge.svg)](https://codecov.io/gh/CMLPlatform/r9cam)
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/CMLPlatform/r9cam?utm_source=badge)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![release](https://img.shields.io/github/v/release/CMLPlatform/r9cam)](https://github.com/CMLPlatform/r9cam/releases/latest)
 
