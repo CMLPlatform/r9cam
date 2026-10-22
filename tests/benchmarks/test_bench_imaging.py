@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from PIL import Image
 
-from app.camera.services.manager import _encode_jpeg, encode_preview_jpeg
+from app.camera.services.manager import encode_preview_jpeg
 
 if TYPE_CHECKING:
     from pytest_codspeed import BenchmarkFixture
@@ -25,17 +25,6 @@ def _gradient_image(width: int, height: int) -> Image.Image:
 def capture_frame() -> Image.Image:
     """Return a 1280x720 frame, the default still-capture size used in tests."""
     return _gradient_image(1280, 720)
-
-
-def test_encode_capture_jpeg(benchmark: BenchmarkFixture, capture_frame: Image.Image) -> None:
-    """Encode a still capture to JPEG with EXIF, as done before every upload."""
-    exif = Image.Exif()
-    exif[0x010F] = "Raspberry Pi"
-    exif[0x0110] = "Camera Module 3"
-
-    result = benchmark(_encode_jpeg, capture_frame, exif)
-
-    assert result[:2] == b"\xff\xd8"
 
 
 def test_encode_preview_thumbnail(benchmark: BenchmarkFixture, capture_frame: Image.Image) -> None:

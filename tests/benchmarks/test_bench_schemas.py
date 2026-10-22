@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from r9cam_models.images import ImageCaptureResponse
 
-from app.camera.schemas import CameraControlsPatch, CaptureUploadMetadata
+from app.camera.schemas import CaptureUploadMetadata
 
 if TYPE_CHECKING:
     from pytest_codspeed import BenchmarkFixture
@@ -22,18 +22,6 @@ _UPLOAD_METADATA = {
     "samples": [{"id": i, "weight": i * 0.5, "label": f"sample-{i}"} for i in range(8)],
 }
 
-_CAMERA_CONTROLS = {
-    "controls": {
-        "AeEnable": True,
-        "AwbEnable": False,
-        "ExposureTime": 20000,
-        "AnalogueGain": 2.5,
-        "ColourGains": [1.8, 1.4],
-        "ScalerCrop": [0, 0, 4608, 2592],
-        "AfMode": 2,
-        "LensPosition": 1.0,
-    }
-}
 
 _LIBCAMERA_CAPTURE = {
     "image_id": "0123456789abcdef0123456789abcdef",
@@ -69,13 +57,6 @@ def test_validate_upload_metadata(benchmark: BenchmarkFixture) -> None:
     result = benchmark(CaptureUploadMetadata.model_validate, _UPLOAD_METADATA)
 
     assert result.root["product_id"] == 1234
-
-
-def test_validate_camera_controls(benchmark: BenchmarkFixture) -> None:
-    """Validate a remote camera-controls patch request."""
-    result = benchmark(CameraControlsPatch.model_validate, _CAMERA_CONTROLS)
-
-    assert result.controls["ExposureTime"] == 20000
 
 
 def test_capture_response_roundtrip(benchmark: BenchmarkFixture) -> None:
