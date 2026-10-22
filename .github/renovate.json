@@ -4,9 +4,12 @@
     "config:best-practices",
     ":approveMajorUpdates",
     ":enablePreCommit",
-    ":maintainLockFilesWeekly",
-    ":preserveSemverRanges",
-    "schedule:weekly"
+    ":preserveSemverRanges"
+  ],
+  "description": "Branches open on Mondays, all day. A before-4am window can be missed for weeks, and the weekly lock refresh is how patched transitive versions arrive.",
+  "timezone": "Europe/Amsterdam",
+  "schedule": [
+    "* * * * 1"
   ],
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
@@ -18,6 +21,9 @@
     "labels": [
       "manual-review",
       "security-sensitive"
+    ],
+    "schedule": [
+      "* * * * 1"
     ]
   },
   "ignorePaths": [
