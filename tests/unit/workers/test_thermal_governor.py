@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from r9cam_models.telemetry import TelemetrySnapshot, ThermalState
 
+from app.camera.services.backend import StreamingCameraBackend
 from app.workers import thermal_governor as thermal_governor_mod
 from app.workers.thermal_governor import ThermalGovernor
 
@@ -51,7 +52,7 @@ def governor(pipeline: MagicMock) -> ThermalGovernor:
         sustain_drop_s=0.0,
         sustain_restore_s=0.0,
     )
-    gov._backend = MagicMock(is_open=True)
+    gov._backend = MagicMock(spec=StreamingCameraBackend, is_open=True)
     return gov
 
 
@@ -164,7 +165,7 @@ class TestLifecycle:
         monkeypatch.setattr(thermal_governor_mod, "collect_telemetry", AsyncMock(return_value=_snapshot(50.0)))
 
         gov = ThermalGovernor(pipeline, poll_interval_s=0.01, sustain_drop_s=0.0, sustain_restore_s=0.0)
-        gov.configure(backend=MagicMock(is_open=True))
+        gov.configure(backend=MagicMock(spec=StreamingCameraBackend, is_open=True))
         task = asyncio.create_task(gov.run_forever())
 
         await asyncio.sleep(0.05)

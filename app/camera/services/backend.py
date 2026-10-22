@@ -1,12 +1,11 @@
 """Backend abstraction for hardware-specific camera implementations.
 
 The core ``CameraBackend`` Protocol covers what every camera must do: open,
-capture a still and a preview frame, attach and detach the lores H264 encoder
-that feeds the LL-HLS preview, and clean up. Backends for non-standard sensors
-(infrared, hyperspectral, etc.) must satisfy all of this core, including the
-encoder hooks. Backends that also do live video streaming additionally
-implement ``StreamingCameraBackend``; the camera manager uses ``isinstance``
-checks to gate streaming operations.
+capture a still and a preview frame, and clean up. Backends for non-standard
+sensors (infrared, hyperspectral, etc.) only need this core. Backends that also
+do live video streaming implement ``StreamingCameraBackend``, which includes
+the lores H264 encoder hooks that feed the LL-HLS preview. The camera manager
+and the preview pipeline use ``isinstance`` checks to gate streaming operations.
 """
 
 from __future__ import annotations
@@ -46,6 +45,13 @@ class StreamStartResult:
     url: AnyUrl
 
 
+class StreamingNotSupportedError(RuntimeError):
+    """Raised when a streaming operation is attempted on a non-streaming backend."""
+
+    def __init__(self, backend: object) -> None:
+        super().__init__(f"Backend {type(backend).__name__} does not support live streaming")
+
+
 @runtime_checkable
 class CameraBackend(Protocol):
     """Core behaviour required from every camera backend."""
@@ -64,12 +70,6 @@ class CameraBackend(Protocol):
     @property
     def is_open(self) -> bool:
         """Whether the camera has been opened and is ready for use."""
-
-    async def start_lores_encoder(self, encoder: object, output: object) -> None:
-        """Attach the lores H264 encoder to the camera pipeline."""
-
-    async def stop_lores_encoder(self, encoder: object) -> None:
-        """Detach the lores H264 encoder from the camera pipeline."""
 
     async def cleanup(self) -> None:
         """Release backend resources."""
@@ -92,6 +92,12 @@ class StreamingCameraBackend(CameraBackend, Protocol):
 
     async def get_stream_metadata(self) -> tuple[dict[str, Any], dict[str, Any]]:
         """Return camera properties and current stream capture metadata."""
+
+    async def start_lores_encoder(self, encoder: object, output: object) -> None:
+        """Attach the lores H264 encoder to the camera pipeline."""
+
+    async def stop_lores_encoder(self, encoder: object) -> None:
+        """Detach the lores H264 encoder from the camera pipeline."""
 
 
 @runtime_checkable
