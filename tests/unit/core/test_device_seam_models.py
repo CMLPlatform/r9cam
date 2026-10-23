@@ -6,6 +6,7 @@ import secrets
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
+from r9cam_models.device_seam import _normalize_relay_path
 
 from r9cam_models import (
     PAIRING_CODE_ALPHABET,
@@ -190,6 +191,33 @@ def test_relay_command_policy_decodes_paths_before_allowlist_check() -> None:
 def test_relay_command_policy_rejects_out_of_scope_commands(method: str, path: str) -> None:
     """Shared command policy should reject relative paths and non-allowlisted operations."""
     assert not relay_command_is_allowed(method, path)
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("/", "/"),
+        ("//", "/"),
+        ("/camera/", "/camera"),
+        ("/camera ", "/camera "),
+        ("/cameraX", "/cameraX"),
+        ("/preview/hls/X", "/preview/hls/X"),
+    ],
+)
+def test_relay_path_normalization_only_strips_trailing_slashes(path: str, expected: str) -> None:
+    """Only trailing slashes are dropped, and the root path stays the root path."""
+    assert _normalize_relay_path(path) == expected
+
+
+def test_relay_command_policy_accepts_trailing_slash() -> None:
+    """A trailing slash should reach the same allowlist entry as the bare path."""
+    assert relay_command_is_allowed("GET", "/camera/")
+
+
+@pytest.mark.parametrize("path", ["/camera ", "/camera\t", "/cameraX", "/camera/X"])
+def test_relay_command_policy_rejects_near_miss_suffixes(path: str) -> None:
+    """Trailing whitespace or letters must not normalize into an allowlisted path."""
+    assert not relay_command_is_allowed("GET", path)
 
 
 @pytest.mark.parametrize(
