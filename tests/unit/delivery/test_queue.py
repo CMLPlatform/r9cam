@@ -130,6 +130,41 @@ class TestEnqueue:
 
         assert await asyncio.to_thread(sample_image.exists)
 
+    async def test_failed_attempt_does_not_push_queue_past_byte_limit(
+        self,
+        queue_root: Path,
+        sample_image: Path,
+        sink: _FakeSink,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A capture enqueued on a whole second must not grow its sidecar when a retry is scheduled."""
+        clock = [datetime(2026, 1, 1, tzinfo=UTC)]
+
+        class _Clock:
+            @staticmethod
+            def now(tz: object = None) -> datetime:
+                del tz
+                return clock[0]
+
+            fromisoformat = staticmethod(datetime.fromisoformat)
+
+        monkeypatch.setattr(upload_queue_mod, "datetime", _Clock)
+        capture_id = image_id(1)
+        payload = upload_queue_mod._metadata_payload(
+            image_id=capture_id, capture_metadata={}, upload_metadata={}, attempts=0, next_attempt_at=clock[0]
+        )
+        image_bytes = (await asyncio.to_thread(sample_image.stat)).st_size
+        limit = image_bytes + len(upload_queue_mod.json.dumps(payload, indent=2).encode())
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), max_pending_bytes=limit)
+        entry = await queue.enqueue(
+            image_id=capture_id, image_path=sample_image, capture_metadata={}, upload_metadata={}
+        )
+
+        clock[0] += timedelta(microseconds=250_000)
+        await queue.mark_attempt_failed(entry)
+
+        assert upload_queue_mod._directory_bytes(queue_root) <= limit
+
 
 class TestIterPending:
     """Tests for iter_pending ordering + resilience."""
