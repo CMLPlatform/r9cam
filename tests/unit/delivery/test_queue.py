@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from typing import TYPE_CHECKING, cast
@@ -129,6 +130,93 @@ class TestEnqueue:
             )
 
         assert await asyncio.to_thread(sample_image.exists)
+
+    async def test_failed_attempt_does_not_push_queue_past_byte_limit(
+        self,
+        queue_root: Path,
+        sample_image: Path,
+        sink: _FakeSink,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A capture enqueued on a whole second must not grow its sidecar when a retry is scheduled."""
+        clock = [datetime(2026, 1, 1, tzinfo=UTC)]
+
+        class _Clock:
+            @staticmethod
+            def now(tz: object = None) -> datetime:
+                del tz
+                return clock[0]
+
+            fromisoformat = staticmethod(datetime.fromisoformat)
+
+        monkeypatch.setattr(upload_queue_mod, "datetime", _Clock)
+        capture_id = image_id(1)
+        payload = upload_queue_mod._metadata_payload(
+            image_id=capture_id, capture_metadata={}, upload_metadata={}, attempts=0, next_attempt_at=clock[0]
+        )
+        image_bytes = (await asyncio.to_thread(sample_image.stat)).st_size
+        limit = image_bytes + len(upload_queue_mod.json.dumps(payload, indent=2).encode())
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), max_pending_bytes=limit)
+        entry = await queue.enqueue(
+            image_id=capture_id, image_path=sample_image, capture_metadata={}, upload_metadata={}
+        )
+
+        clock[0] += timedelta(microseconds=250_000)
+        await queue.mark_attempt_failed(entry)
+
+        assert upload_queue_mod._directory_bytes(queue_root) <= limit
+
+    async def test_concurrent_enqueues_respect_byte_limit(
+        self,
+        queue_root: Path,
+        tmp_path: Path,
+        sink: _FakeSink,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """With room for exactly one capture, two simultaneous enqueues admit one and reject one."""
+        second_image = tmp_path / "second.jpg"
+        second_image.write_bytes(_jpeg_bytes())
+        first_image = tmp_path / "first.jpg"
+        first_image.write_bytes(_jpeg_bytes())
+        payload = upload_queue_mod._metadata_payload(
+            image_id=image_id(1), capture_metadata={}, upload_metadata={}, attempts=0, next_attempt_at=datetime.now(UTC)
+        )
+        limit = len(_jpeg_bytes()) + len(upload_queue_mod.json.dumps(payload, indent=2).encode())
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), max_pending_bytes=limit)
+        real_move = upload_queue_mod.shutil.move
+
+        def slow_move(src: str, dst: str) -> object:
+            # Holds the first move open so the second enqueue's capacity check runs before it lands.
+            time.sleep(0.2)
+            return real_move(src, dst)
+
+        monkeypatch.setattr(upload_queue_mod.shutil, "move", slow_move)
+
+        results = await asyncio.gather(
+            *(
+                queue.enqueue(image_id=image_id(n), image_path=path, capture_metadata={}, upload_metadata={})
+                for n, path in ((1, first_image), (2, second_image))
+            ),
+            return_exceptions=True,
+        )
+
+        assert sum(isinstance(r, upload_queue_mod.UploadQueueFullError) for r in results) == 1
+        assert upload_queue_mod._directory_bytes(queue_root) <= limit
+
+    async def test_queue_already_over_limit_on_disk_rejects_new_captures(
+        self,
+        queue_root: Path,
+        sample_image: Path,
+        sink: _FakeSink,
+    ) -> None:
+        """Bytes already on disk at startup count against the cap."""
+        await asyncio.to_thread(queue_root.mkdir, parents=True)
+        await asyncio.to_thread((queue_root / f"{image_id(9)}.jpg").write_bytes, b"x" * 1000)
+
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), max_pending_bytes=500)
+
+        with pytest.raises(upload_queue_mod.UploadQueueFullError):
+            await queue.enqueue(image_id=image_id(1), image_path=sample_image, capture_metadata={}, upload_metadata={})
 
 
 class TestIterPending:

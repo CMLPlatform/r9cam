@@ -31,7 +31,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from app.camera.services.backend import CameraBackend
+from app.camera.services.backend import CameraBackend, StreamingCameraBackend
 from app.camera.streaming.preview_pipeline import PreviewPipelineManager
 from app.core.settings import settings
 from app.observability.logging import build_log_extra
@@ -127,6 +127,9 @@ class PreviewSleeper:
     async def _tick(self) -> None:
         if self._backend is None or not self._backend.is_open:
             # No camera yet (e.g. initial startup race). Try again next tick.
+            return
+        if not isinstance(self._backend, StreamingCameraBackend):
+            # This backend has no lores encoder, so there is nothing to wake or hibernate.
             return
 
         desired = self.should_be_running()
