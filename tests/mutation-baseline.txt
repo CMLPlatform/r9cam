@@ -1,6 +1,6 @@
 # Accepted mutmut survivors for `just mutation`.
 # One mutant name per line. A trailing comment marks an equivalent mutant and says why.
-# Names without a comment are real gaps I accept for now; a new survivor not listed here is a regression.
+# Names without a comment are real test gaps, accepted for now; a new survivor not listed here is a regression.
 # _normalize_relay_path, relay_command_is_allowed and _is_valid_image_id must never appear here.
 app.delivery.factory.x__build_s3_sink__mutmut_13
 app.delivery.factory.x__build_s3_sink__mutmut_17
