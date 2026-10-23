@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.camera.services.backend import StreamingCameraBackend, StreamingNotSupportedError
 from app.camera.streaming import preview_pipeline as preview_pipeline_mod
 from app.camera.streaming.preview_pipeline import PreviewPipelineManager
 
@@ -22,8 +23,8 @@ def stub_encoder_and_output(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 
 @pytest.fixture
 def backend() -> MagicMock:
-    """A mock CameraBackend with async encoder methods."""
-    b = MagicMock()
+    """A mock StreamingCameraBackend with async encoder methods."""
+    b = MagicMock(spec=StreamingCameraBackend)
     b.start_lores_encoder = AsyncMock()
     b.stop_lores_encoder = AsyncMock()
     return b
@@ -126,3 +127,35 @@ class TestSetBitrate:
         new_encoder = backend.start_lores_encoder.await_args.args[0]
         assert new_encoder is not first_encoder
         assert new_encoder.bitrate == 200_000
+
+
+class _StillOnlyBackend:
+    """A core-only backend, like an infrared sensor, with no lores encoder hooks."""
+
+    current_mode = None
+    is_open = True
+
+    async def open(self, mode: object) -> None:
+        """Open the camera."""
+
+    async def capture_image(self) -> object:
+        """Capture a still."""
+
+    async def capture_preview_frame(self) -> object:
+        """Capture a preview frame."""
+
+    async def cleanup(self) -> None:
+        """Release resources."""
+
+
+class TestNonStreamingBackend:
+    """A backend without the streaming protocol gets a clean error, not an AttributeError."""
+
+    async def test_start_raises_streaming_not_supported(self) -> None:
+        """``start`` names the backend and the missing capability."""
+        manager = PreviewPipelineManager()
+
+        with pytest.raises(StreamingNotSupportedError, match="_StillOnlyBackend does not support live streaming"):
+            await manager.start(_StillOnlyBackend())  # ty: ignore[invalid-argument-type]
+
+        assert manager.is_running is False

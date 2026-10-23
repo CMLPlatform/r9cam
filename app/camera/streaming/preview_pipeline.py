@@ -26,6 +26,7 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Protocol, cast
 
+from app.camera.services.backend import StreamingCameraBackend, StreamingNotSupportedError
 from app.camera.services.hardware_stubs import H264EncoderStub
 from app.camera.streaming.stream import build_rtsp_ffmpeg_output
 from app.observability.logging import build_log_extra
@@ -46,6 +47,13 @@ logger = logging.getLogger(__name__)
 # is a plain loopback address (see compose.yml).
 DEFAULT_MEDIAMTX_URL = "rtsp://localhost:8554/cam-preview"
 _DEFAULT_LORES_BITRATE = 500_000
+
+
+def _require_streaming(backend: CameraBackend) -> StreamingCameraBackend:
+    """Narrow to a backend that owns the lores encoder hooks, or raise."""
+    if not isinstance(backend, StreamingCameraBackend):
+        raise StreamingNotSupportedError(backend)
+    return backend
 
 
 class _EncoderWithBitrate(Protocol):
@@ -79,16 +87,21 @@ class PreviewPipelineManager:
         return self._encoder is not None
 
     async def start(self, backend: CameraBackend) -> None:
-        """Start the always-on lores preview encoder. Idempotent."""
+        """Start the always-on lores preview encoder. Idempotent.
+
+        Raises ``StreamingNotSupportedError`` when the backend has no lores encoder hooks.
+        """
+        streaming = _require_streaming(backend)
         async with self._lock:
             if self._encoder is None:
-                await self._start(backend)
+                await self._start(streaming)
 
     async def stop(self, backend: CameraBackend) -> None:
         """Stop the lores preview encoder (used on cleanup/shutdown)."""
+        streaming = _require_streaming(backend)
         async with self._lock:
             if self._encoder is not None:
-                await self._stop(backend)
+                await self._stop(streaming)
 
     async def set_bitrate(self, backend: CameraBackend, bitrate: int) -> None:
         """Swap the active encoder with one at a new bitrate.
@@ -102,11 +115,12 @@ class PreviewPipelineManager:
             self._bitrate = bitrate
             if self._encoder is None:
                 return
+            streaming = _require_streaming(backend)
             logger.info("Reconfiguring lores preview encoder to %d bps", bitrate, extra=build_log_extra())
-            await self._stop(backend)
-            await self._start(backend)
+            await self._stop(streaming)
+            await self._start(streaming)
 
-    async def _start(self, backend: CameraBackend) -> None:
+    async def _start(self, backend: StreamingCameraBackend) -> None:
         logger.info(
             "Starting lores preview pipeline → %s @ %d bps",
             self._target_url,
@@ -123,7 +137,7 @@ class PreviewPipelineManager:
         await backend.start_lores_encoder(encoder, output)
         self._encoder = encoder
 
-    async def _stop(self, backend: CameraBackend) -> None:
+    async def _stop(self, backend: StreamingCameraBackend) -> None:
         logger.info("Stopping lores preview pipeline", extra=build_log_extra())
         encoder = self._encoder
         self._encoder = None

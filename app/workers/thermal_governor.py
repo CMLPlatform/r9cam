@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from app.camera.services.backend import CameraBackend
+from app.camera.services.backend import CameraBackend, StreamingCameraBackend
 from app.camera.streaming.preview_pipeline import PreviewPipelineManager
 from app.observability.logging import build_log_extra
 from app.observability.telemetry import collect_telemetry
@@ -137,7 +137,8 @@ class ThermalGovernor:
         self._below_threshold_since = None
 
     async def _apply_bitrate(self, bitrate: int) -> None:
-        if self._backend is None:
+        # A backend without the lores encoder hooks has no preview bitrate to govern.
+        if not isinstance(self._backend, StreamingCameraBackend):
             return
         # No is_open guard: set_bitrate remembers the bitrate and applies it on
         # the next start(), so throttle state can't desync from the encoder.

@@ -21,7 +21,12 @@ from app.camera.schemas import (
     FocusControlRequest,
     YoutubeStreamConfig,
 )
-from app.camera.services.backend import CameraBackend, ControllableCameraBackend, StreamingCameraBackend
+from app.camera.services.backend import (
+    CameraBackend,
+    ControllableCameraBackend,
+    StreamingCameraBackend,
+    StreamingNotSupportedError,
+)
 from app.camera.services.picamera2_backend import Picamera2Backend
 from app.camera.streaming.stream_state import ActiveStreamState
 from app.core.settings import CAMERA_BACKEND_PICAMERA2, settings
@@ -41,13 +46,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 _CAPTURE_ID_BYTES = 16
-
-
-class StreamingNotSupportedError(RuntimeError):
-    """Raised when a streaming operation is attempted on a non-streaming backend."""
-
-    def __init__(self, backend: CameraBackend) -> None:
-        super().__init__(f"Backend {type(backend).__name__} does not support live streaming")
 
 
 class CameraControlsNotSupportedError(RuntimeError):

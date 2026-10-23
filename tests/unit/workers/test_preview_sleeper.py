@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.camera.services.backend import StreamingCameraBackend
 from app.camera.streaming.preview_pipeline import PreviewPipelineManager
 from app.relay.state import RelayRuntimeState
 from app.workers.preview_sleeper import PreviewSleeper
@@ -24,8 +25,8 @@ def pipeline() -> MagicMock:
 
 @pytest.fixture
 def backend() -> MagicMock:
-    """A mock CameraBackend that reports as open."""
-    b = MagicMock()
+    """A mock StreamingCameraBackend that reports as open."""
+    b = MagicMock(spec=StreamingCameraBackend)
     b.is_open = True
     return b
 
@@ -225,6 +226,19 @@ class TestTick:
 
         pipeline.start.assert_not_called()
         pipeline.stop.assert_not_called()
+
+    async def test_tick_is_noop_for_backend_without_lores_encoder(
+        self,
+        pipeline: MagicMock,
+        relay_state: RelayRuntimeState,
+    ) -> None:
+        """A core-only backend has no encoder to wake, so the tick leaves the pipeline alone."""
+        sleeper = PreviewSleeper(pipeline=pipeline, relay_state=relay_state, hibernate_after_s=0)
+        sleeper._backend = MagicMock(spec=["is_open", "current_mode"], is_open=True)
+
+        await sleeper._tick()
+
+        pipeline.start.assert_not_called()
 
     async def test_tick_swallows_start_runtime_errors(
         self,
