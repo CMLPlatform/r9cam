@@ -14,9 +14,9 @@ Anyone can propose a change by opening an issue or a pull request. Proposals are
 
 ## Access
 
-- Several members of the RELab team at CML have write and admin access to the repository. The maintainer decides who is added.
+- Several members of the RELab team at CML have write and admin access to the repository.
 - The release workflows publish the plugin app and, through a PyPI trusted publisher, `r9cam_models`. The release workflow pushes the version bump commit and the tag.
-- Changes are made through pull requests, and CI runs on them. The `main` branch cannot be force-pushed or deleted.
+- Changes normally go through pull requests, which run CI. Nothing requires a pull request or passing checks: the `main` ruleset only blocks force-pushes and deletion.
 - Renovate opens the dependency pull requests.
 
 ## Changes to This Document
