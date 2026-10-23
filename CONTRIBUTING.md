@@ -180,7 +180,7 @@ Before submitting:
 
 ## Sign Off Your Commits
 
-Every commit in a pull request carries a `Signed-off-by:` line. It says you wrote the change or have the right to submit it under the project's licenses (AGPL-3.0-or-later for the plugin, Apache-2.0 for `r9cam_models` and the API specification): the [Developer Certificate of Origin 1.1](https://developercertificate.org/). `git commit -s` adds it; `git rebase --signoff origin/main` adds it to commits you already made. The `dco` workflow fails a pull request from an outside contributor with a commit that lacks it. The maintainers' and the dependency bots' pull requests skip it.
+Every commit in a pull request carries a `Signed-off-by:` line. It says you wrote the change or have the right to submit it under the project's licenses (AGPL-3.0-or-later for the plugin, Apache-2.0 for `r9cam_models` and the API specification): the [Developer Certificate of Origin 1.1](https://developercertificate.org/). `git commit -s` adds it; `git rebase --signoff upstream/main` (the branch you started from) adds it to commits you already made. The `dco` workflow fails a pull request from an outside contributor with a commit that lacks it. Organisation members' and the dependency bots' pull requests skip it.
 
 ## Release Process
 
@@ -207,6 +207,6 @@ The publish workflow verifies the tag version, runs package-focused checks, buil
 
 ## Who Maintains This
 
-Simon van Lierde ([@simonvanlierde](https://github.com/simonvanlierde)) maintains the plugin, in the Department of Industrial Ecology at the Institute of Environmental Sciences (CML), Leiden University. He reviews and merges pull requests and cuts releases. Only maintainers merge to `main`, and only through a pull request whose checks pass. A new maintainer would be named here first.
+Simon van Lierde ([@simonvanlierde](https://github.com/simonvanlierde)) maintains the plugin, in the Department of Industrial Ecology at the Institute of Environmental Sciences (CML), Leiden University. He reviews and merges pull requests and cuts releases. Only maintainers can merge to `main`. A new maintainer would be named here first.
 
 If Simon cannot continue, Franco Donati ([@FDonati](https://github.com/FDonati)) takes over. If nobody can continue, the README says so and the repository is archived; anyone may fork it under its licenses.
