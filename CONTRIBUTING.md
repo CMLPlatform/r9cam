@@ -2,6 +2,8 @@
 
 This document is for developers changing the plugin. For operator setup, see [INSTALL.md](INSTALL.md). For internal design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+Everyone taking part follows the [Code of Conduct](.github/CODE_OF_CONDUCT.md). [GOVERNANCE.md](GOVERNANCE.md) says who maintains the project and how decisions are made, and [ROADMAP.md](ROADMAP.md) says what is planned.
+
 ## Local Development
 
 Prepare the development environment:
