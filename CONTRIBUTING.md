@@ -31,7 +31,12 @@ just test-integration
 just test-slowest
 just bench
 just check
+just mutation
 ```
+
+`just mutation` mutation-tests the relay seam and the upload queue.
+It writes survivors to `reports/mutation/survivors.txt`.
+Compare them with `tests/mutation-baseline.txt`, and add a one-line reason for each equivalent mutant you accept.
 
 ## Code Quality
 
