@@ -378,7 +378,9 @@ def _metadata_payload(
         "capture_metadata": dict(capture_metadata),
         "upload_metadata": dict(upload_metadata),
         "attempts": attempts,
-        "next_attempt_at": next_attempt_at.isoformat(),
+        # isoformat() drops microseconds when they are zero. A fixed width keeps the sidecar
+        # the same size on every rewrite, so a retry cannot push the queue past its byte cap.
+        "next_attempt_at": next_attempt_at.isoformat(timespec="microseconds"),
     }
 
 
