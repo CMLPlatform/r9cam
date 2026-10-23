@@ -84,6 +84,8 @@ class UploadQueue:
         self._max_pending_entries = max_pending_entries
         self._max_pending_bytes = max_pending_bytes
         self._dead_max_entries = dead_max_entries
+        # Serialises the capacity check with the file moves, so two uploads cannot both pass the check.
+        self._enqueue_lock = asyncio.Lock()
         self._root.mkdir(parents=True, exist_ok=True)
         self._dead_root.mkdir(parents=True, exist_ok=True)
 
@@ -110,11 +112,10 @@ class UploadQueue:
             attempts=0,
             next_attempt_at=now,
         )
-        self._ensure_capacity_for(image_path=image_path, metadata_payload=metadata_payload)
-
-        await asyncio.to_thread(shutil.move, str(image_path), str(target_image))
-
-        await asyncio.to_thread(target_metadata.write_text, json.dumps(metadata_payload, indent=2))
+        async with self._enqueue_lock:
+            self._ensure_capacity_for(image_path=image_path, metadata_payload=metadata_payload)
+            await asyncio.to_thread(shutil.move, str(image_path), str(target_image))
+            await asyncio.to_thread(target_metadata.write_text, json.dumps(metadata_payload, indent=2))
 
         logger.info("Enqueued capture %s for backend retry", image_id, extra=build_log_extra())
         return QueuedCapture(
@@ -378,7 +379,9 @@ def _metadata_payload(
         "capture_metadata": dict(capture_metadata),
         "upload_metadata": dict(upload_metadata),
         "attempts": attempts,
-        "next_attempt_at": next_attempt_at.isoformat(),
+        # isoformat() drops microseconds when they are zero. A fixed width keeps the sidecar
+        # the same size on every rewrite, so a retry cannot push the queue past its byte cap.
+        "next_attempt_at": next_attempt_at.isoformat(timespec="microseconds"),
     }
 
 
