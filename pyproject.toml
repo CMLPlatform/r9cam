@@ -55,7 +55,7 @@
     "ruff>=0.9.6",
     "ty>=0.0.29",
   ]
-  test = ["hypothesis>=6.170.2", "pytest>=8.0", "pytest-asyncio>=0.25", "pytest-codspeed>=5.0.3", "pytest-cov>=6.0", { include-group = "s3" }]
+  test = ["hypothesis>=6.170.2", "mutmut==3.8.0", "pytest>=8.0", "pytest-asyncio>=0.25", "pytest-codspeed>=5.0.3", "pytest-cov>=6.0", { include-group = "s3" }]
 
   s3 = ["aioboto3>=13.0"]
 
@@ -89,6 +89,16 @@
   version_files            = ["app/__version__.py", "openapi.r9cam.json:\"version\"", "CITATION.cff:^version", "codemeta.json:\"version\""]
   version_provider         = "pep621"
   version_scheme           = "semver2"
+
+[tool.mutmut]
+  # The relay trust boundary and the upload queue. `just mutation` runs this from a
+  # staged copy where r9cam_models sits under src/, so mutmut derives the same module
+  # names the tests import.
+  also_copy                          = ["scripts", "typings"]
+  only_mutate                        = ["app/delivery/*", "app/relay/*", "src/r9cam_models/*"]
+  pytest_add_cli_args                = ["-q", "-p", "no:cacheprovider", "-p", "no:codspeed"]
+  pytest_add_cli_args_test_selection = ["tests/unit", "tests/integration"]
+  source_paths                       = ["app", "src/r9cam_models"]
 
 [tool.ruff]
   fix            = true

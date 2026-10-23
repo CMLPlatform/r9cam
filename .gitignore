@@ -64,3 +64,8 @@ compose.override.yml
 
 # Websocket connection credentials
 **/relay_credentials.json
+
+# Mutation testing scratch space and reports
+.mutation/
+mutants/
+reports/
