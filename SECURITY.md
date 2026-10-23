@@ -16,7 +16,7 @@ Please include:
 - How to reproduce it, or a proof of concept.
 - The impact you expect, for example on the Pi, its camera or the paired R9lab platform.
 
-We acknowledge a report within 5 business days, then tell you whether we can reproduce it and when we expect a fix. This matches the [R9lab platform policy](https://github.com/CMLPlatform/relab/blob/main/.github/SECURITY.md).
+We acknowledge a report within 5 business days, then tell you whether we can reproduce it and when we expect a fix. This matches the [R9lab platform policy](https://github.com/CMLPlatform/r9lab/blob/main/.github/SECURITY.md).
 
 ## Fixes and disclosure
 
@@ -35,5 +35,5 @@ In scope:
 Out of scope:
 
 - A vulnerability in a dependency, such as FastAPI, MediaMTX, ffmpeg or Raspberry Pi OS. Report it upstream; a pin or setting this repository should change is in scope.
-- A weakness in the R9lab platform itself. Report it as the [platform policy](https://github.com/CMLPlatform/relab/blob/main/.github/SECURITY.md) says.
+- A weakness in the R9lab platform itself. Report it as the [platform policy](https://github.com/CMLPlatform/r9lab/blob/main/.github/SECURITY.md) says.
 - A deployment that exposes the plugin to the internet without the access controls [INSTALL.md](INSTALL.md) describes, or physical access to the Pi.
