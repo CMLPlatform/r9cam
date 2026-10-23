@@ -2,6 +2,8 @@
 
 This document is for developers changing the plugin. For operator setup, see [INSTALL.md](INSTALL.md). For internal design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+Everyone taking part follows the [Code of Conduct](.github/CODE_OF_CONDUCT.md). [GOVERNANCE.md](GOVERNANCE.md) says who maintains the project and how decisions are made, and [ROADMAP.md](ROADMAP.md) says what is planned.
+
 To report a bug, open an [issue](https://github.com/CMLPlatform/r9cam/issues) and say what you did, what you expected, what happened, and the plugin version. Report a vulnerability as [SECURITY.md](SECURITY.md) says, not in an issue.
 
 ## Local Development
