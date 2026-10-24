@@ -209,6 +209,6 @@ The publish workflow verifies the tag version, runs package-focused checks, buil
 
 ## Who Maintains This
 
-Simon van Lierde ([@simonvanlierde](https://github.com/simonvanlierde)) maintains the plugin, in the Department of Industrial Ecology at the Institute of Environmental Sciences (CML), Leiden University. He reviews and merges pull requests and cuts releases. Only maintainers can merge to `main`. A new maintainer would be named here first.
+Simon van Lierde ([@simonvanlierde](https://github.com/simonvanlierde)) maintains the plugin, in the Department of Industrial Ecology at the Institute of Environmental Sciences (CML), Leiden University. He reviews and merges pull requests and cuts releases. Only maintainers merge to `main`. A new maintainer would be named here first.
 
 If Simon cannot continue, Franco Donati ([@FDonati](https://github.com/FDonati)) takes over. If nobody can continue, the README says so and the repository is archived; anyone may fork it under its licenses.
