@@ -1517,7 +1517,6 @@ s3 = [
 test = [
     { name = "aioboto3" },
     { name = "hypothesis" },
-    { name = "mutmut" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-codspeed" },
@@ -1557,7 +1556,6 @@ s3 = [{ name = "aioboto3", specifier = ">=13.0" }]
 test = [
     { name = "aioboto3", specifier = ">=13.0" },
     { name = "hypothesis", specifier = ">=6.170.2" },
-    { name = "mutmut", specifier = "==3.8.0" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-asyncio", specifier = ">=0.25" },
     { name = "pytest-codspeed", specifier = ">=5.0.3" },

@@ -51,11 +51,12 @@
     { include-group = "test" },
     { include-group = "s3" },
     "commitizen>=4.8.3",
+    "mutmut==3.8.0",
     "prek>=0.4.11",
     "ruff>=0.9.6",
     "ty>=0.0.29",
   ]
-  test = ["hypothesis>=6.170.2", "mutmut==3.8.0", "pytest>=8.0", "pytest-asyncio>=0.25", "pytest-codspeed>=5.0.3", "pytest-cov>=6.0", { include-group = "s3" }]
+  test = ["hypothesis>=6.170.2", "pytest>=8.0", "pytest-asyncio>=0.25", "pytest-codspeed>=5.0.3", "pytest-cov>=6.0", { include-group = "s3" }]
 
   s3 = ["aioboto3>=13.0"]
 
@@ -96,7 +97,8 @@
   # names the tests import.
   also_copy                          = ["scripts", "typings"]
   only_mutate                        = ["app/delivery/*", "app/relay/*", "src/r9cam_models/*"]
-  pytest_add_cli_args                = ["-q", "-p", "no:cacheprovider", "-p", "no:codspeed"]
+  # A fixed Hypothesis seed also turns off its example database, so each mutant gets the same verdict every run.
+  pytest_add_cli_args                = ["-q", "-p", "no:cacheprovider", "-p", "no:codspeed", "--hypothesis-seed=0"]
   pytest_add_cli_args_test_selection = ["tests/unit", "tests/integration"]
   source_paths                       = ["app", "src/r9cam_models"]
 

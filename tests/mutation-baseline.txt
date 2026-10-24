@@ -1,6 +1,8 @@
 # Accepted mutmut survivors for `just mutation`.
 # One mutant name per line. A trailing comment marks an equivalent mutant and says why.
-# Names without a comment are real test gaps, accepted for now. mutmut numbers mutants by position in their function, so editing a function renumbers its lines: compare survivor counts per function (sed 's/__mutmut_[0-9]*//' | uniq -c) and read any new one with mutmut show.
+# Names without a comment are real test gaps, accepted for now.
+# Timeouts count as caught: the tests did not pass in time. They are not listed.
+# mutmut numbers mutants by position in their function, so editing a function renumbers them. `just mutation` therefore compares survivor counts per function, not names.
 # _normalize_relay_path, relay_command_is_allowed and _is_valid_image_id must never appear here.
 app.delivery.factory.x__build_s3_sink__mutmut_13
 app.delivery.factory.x__build_s3_sink__mutmut_17
@@ -28,8 +30,6 @@ app.delivery.queue.x__dead_letter_entries__mutmut_14
 app.delivery.queue.x__dead_letter_entries__mutmut_23
 app.delivery.queue.x__dead_letter_entries__mutmut_7
 app.delivery.queue.x__dead_letter_entries__mutmut_8
-app.delivery.queue.x__directory_bytes__mutmut_4
-app.delivery.queue.x__directory_bytes__mutmut_5
 app.delivery.queue.x__directory_bytes__mutmut_7
 app.delivery.queue.x__directory_bytes__mutmut_8
 app.delivery.queue.x__metadata_payload__mutmut_1

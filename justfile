@@ -31,9 +31,11 @@ mutation:
     cp -r app scripts tests typings pyproject.toml uv.lock .mutation/
     cp -r r9cam_models/src/r9cam_models .mutation/src/
     cd .mutation && uv run --project .. mutmut run --max-children "$(nproc)"
-    cd .mutation && uv run --project .. mutmut results | sed 's/^ *//; s/: .*//' | LC_ALL=C sort > ../reports/mutation/survivors.txt
+    cd .mutation && uv run --project .. mutmut results | grep -E ': (survived|no tests)$' | sed 's/^ *//; s/: .*//' | LC_ALL=C sort > ../reports/mutation/survivors.txt
     @echo "Survivors and untested: $(wc -l < reports/mutation/survivors.txt)"
-    @echo "Compare with tests/mutation-baseline.txt to see new survivors."
+    @echo "Survivor counts per function that differ from tests/mutation-baseline.txt (< baseline, > this run):"
+    @sed 's/ *#.*//; /^$/d; s/__mutmut_[0-9]*$//' tests/mutation-baseline.txt | uniq -c > .mutation/baseline-counts.txt
+    @sed 's/__mutmut_[0-9]*$//' reports/mutation/survivors.txt | uniq -c | diff .mutation/baseline-counts.txt -
 
 typecheck:
     uv run ty check .
@@ -66,7 +68,7 @@ build:
     uv build
 
 clean:
-    rm -rf dist/ .venv/ .pytest_cache/ __pycache__/
+    rm -rf dist/ .venv/ .pytest_cache/ __pycache__/ .mutation/ reports/
 
 # Print the local direct-connection API key from the local key endpoint.
 show-key:
