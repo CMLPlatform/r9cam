@@ -51,6 +51,7 @@
     { include-group = "test" },
     { include-group = "s3" },
     "commitizen>=4.8.3",
+    "mutmut==3.8.0",
     "prek>=0.4.11",
     "ruff>=0.9.6",
     "ty>=0.0.29",
@@ -89,6 +90,17 @@
   version_files            = ["app/__version__.py", "openapi.r9cam.json:\"version\"", "CITATION.cff:^version", "codemeta.json:\"version\""]
   version_provider         = "pep621"
   version_scheme           = "semver2"
+
+[tool.mutmut]
+  # The relay trust boundary and the upload queue. `just mutation` runs this from a
+  # staged copy where r9cam_models sits under src/, so mutmut derives the same module
+  # names the tests import.
+  also_copy                          = ["scripts", "typings"]
+  only_mutate                        = ["app/delivery/*", "app/relay/*", "src/r9cam_models/*"]
+  # A fixed Hypothesis seed also turns off its example database, so each mutant gets the same verdict every run.
+  pytest_add_cli_args                = ["-q", "-p", "no:cacheprovider", "-p", "no:codspeed", "--hypothesis-seed=0"]
+  pytest_add_cli_args_test_selection = ["tests/unit", "tests/integration"]
+  source_paths                       = ["app", "src/r9cam_models"]
 
 [tool.ruff]
   fix            = true

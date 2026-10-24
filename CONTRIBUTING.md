@@ -35,7 +35,14 @@ just test-integration
 just test-slowest
 just bench
 just check
+just mutation
 ```
+
+`just mutation` mutation-tests the relay seam and the upload queue.
+It writes survivors to `reports/mutation/survivors.txt` and lists each function whose survivor count differs from `tests/mutation-baseline.txt`.
+When one does, the recipe fails.
+Read a new survivor with `uv run mutmut show <name>` from `.mutation/`, then kill it with a test or record it in the baseline.
+Give each equivalent mutant you accept a one-line reason.
 
 ## Code Quality
 
