@@ -25,17 +25,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  # Pull-request findings are uploaded to the Security tab rather than failing
-  # the job; that needs write access to code scanning.
-  security-events: write
+permissions: {}
 
 jobs:
   container-scan:
     name: Container Scan
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      contents: read
+      # Pull-request findings are uploaded to the Security tab rather than failing
+      # the job; that needs write access to code scanning.
+      security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
