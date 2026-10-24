@@ -29,13 +29,14 @@ while [ "$#" -gt 0 ]; do
 	esac
 done
 
-# Install uv if not already installed
+# Install uv if not already installed. The version matches the Dockerfile's uv 0.13 line.
+UV_VERSION=0.13.5
 if ! command -v uv >/dev/null 2>&1; then
 	echo "Installing uv (https://astral.sh/uv)..."
 	if command -v curl >/dev/null 2>&1; then
-		curl -fsSL https://astral.sh/uv/install.sh | sh
+		curl -fsSL https://astral.sh/uv/${UV_VERSION}/install.sh | sh
 	elif command -v wget >/dev/null 2>&1; then
-		wget -qO- https://astral.sh/uv/install.sh | sh
+		wget -qO- https://astral.sh/uv/${UV_VERSION}/install.sh | sh
 	else
 		echo "Error: curl or wget required to install uv" >&2
 		exit 1
