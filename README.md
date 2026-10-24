@@ -17,6 +17,7 @@ Device-side software for automated image capture on Raspberry Pi, integrated wit
 - **[Installation Guide](INSTALL.md)** - hardware setup, pairing, Docker, standalone mode, and troubleshooting
 - **[Architecture](ARCHITECTURE.md)** - runtime design, relay flow, auth boundaries, and configuration model
 - **[Contributing](CONTRIBUTING.md)** - local development, tests, quality checks, and release workflow
+- **[Roadmap](ROADMAP.md)**, **[Governance](GOVERNANCE.md)** and **[Code of Conduct](.github/CODE_OF_CONDUCT.md)** - what is planned, who decides, and how we work together
 - **[Platform Docs](https://docs.r9lab.io/user-guides/rpi-cam/)** - camera management in R9lab
 
 ## What It Does
