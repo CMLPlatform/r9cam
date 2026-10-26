@@ -31,13 +31,40 @@
   ],
   "packageRules": [
     {
+      "description": "Dev tooling merges itself once every check on the branch passes: Lint & Test runs prek and the tests on these changes, and none of them ships to the Pi. A week's wait first gives a hijacked release time to be yanked. Runtime dependencies, Docker images and lock refreshes stay manual, since CI cannot run the camera. Renovate merges these itself (platformAutomerge off) because main requires an approval that only Renovate's ruleset bypass skips.",
+      "matchManagers": [
+        "pre-commit",
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest",
+        "pinDigest"
+      ],
+      "minimumReleaseAge": "7 days",
+      "automerge": true
+    },
+    {
+      "description": "uv_build is the build backend: uv sync --locked builds the project with it in Lint & Test, so it merges itself like the tooling above.",
+      "matchPackageNames": [
+        "uv_build"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "minimumReleaseAge": "7 days",
+      "automerge": true
+    },
+    {
       "groupName": "github-actions",
       "matchManagers": [
         "github-actions"
       ],
       "labels": [
         "github-actions",
-        "manual-review",
         "security-sensitive"
       ]
     },
@@ -64,5 +91,6 @@
   "labels": [
     "dependencies",
     "renovate"
-  ]
+  ],
+  "platformAutomerge": false
 }
