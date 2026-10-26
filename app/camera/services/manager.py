@@ -37,7 +37,7 @@ from app.utils.file_policy import JPEG_CAPTURE_POLICY
 from app.utils.files import cleanup_images
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
+    from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping
     from pathlib import Path
 
     from PIL.Image import Exif
@@ -153,7 +153,7 @@ class CameraManager:
         return self._stream
 
     @contextlib.asynccontextmanager
-    async def _locked(self, timeout_s: float | None = None) -> AsyncIterator[None]:
+    async def _locked(self, timeout_s: float | None = None) -> AsyncGenerator[None]:
         """Acquire the camera lock with a timeout, then yield inside the critical section.
 
         Callers should use ``async with self._locked():`` so exceptions, early returns,

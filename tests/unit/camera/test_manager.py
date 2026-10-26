@@ -100,7 +100,7 @@ class ProbeCameraManager(CameraManager):
         self.get_stream_info_mock = AsyncMock(return_value=None)
 
     @property
-    def stream(self) -> ProbeStreamState:
+    def stream(self) -> ProbeStreamState:  # ty: ignore[invalid-property-type-override]
         """Return mutable stream state for tests."""
         return self.stream_probe
 

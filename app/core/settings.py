@@ -53,7 +53,7 @@ def _parse_list_env(v: object) -> list[str]:
     if isinstance(v, list):
         return cast("list[str]", v)
     if not isinstance(v, str):
-        return cast("list[str]", list(v)) if isinstance(v, Iterable) else []
+        return list(v) if isinstance(v, Iterable) else []
     stripped = v.strip()
     if not stripped:
         return []
