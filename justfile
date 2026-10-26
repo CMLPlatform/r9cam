@@ -37,6 +37,11 @@ mutation:
     @sed 's/ *#.*//; /^$/d; s/__mutmut_[0-9]*$//' tests/mutation-baseline.txt | uniq -c > .mutation/baseline-counts.txt
     @sed 's/__mutmut_[0-9]*$//' reports/mutation/survivors.txt | uniq -c | diff .mutation/baseline-counts.txt -
 
+# Fuzz the relay trust boundary. Flags go to libFuzzer, for example `just fuzz -runs=20000 -seed=1`.
+fuzz *flags="-max_total_time=60":
+    mkdir -p reports/fuzz
+    uv run --group fuzz python fuzz/relay_frames.py -artifact_prefix=reports/fuzz/ {{flags}}
+
 typecheck:
     uv run ty check .
 
