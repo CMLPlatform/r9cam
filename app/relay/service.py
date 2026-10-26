@@ -241,9 +241,11 @@ async def _handle_relay_message(
         logger.warning("Unexpected binary frame from backend; ignoring.", extra=build_log_extra())
         return
 
+    # ValueError also covers an integer past the 4300-digit conversion limit, and
+    # deep nesting raises RecursionError. Both fit in one frame.
     try:
         msg = json.loads(raw)
-    except json.JSONDecodeError:
+    except (ValueError, RecursionError):
         logger.warning("Received invalid JSON from backend; ignoring.", extra=build_log_extra())
         return
 
@@ -407,5 +409,14 @@ async def _handle_command(
 
 
 async def _send_error(ws: ClientConnection, msg_id: str, status: int, detail: str) -> None:
-    response = RelayResponseEnvelope(id=msg_id, status=status, has_binary=False, data={"detail": detail})
+    # A malformed command can carry an id the response envelope rejects. The
+    # backend could not match a reply to that id anyway, so drop the reply
+    # instead of letting the command task die on the error.
+    try:
+        response = RelayResponseEnvelope(id=msg_id, status=status, has_binary=False, data={"detail": detail})
+    except ValidationError:
+        logger.warning(
+            "Relay command id is not a valid response id; dropping the error reply.", extra=build_log_extra()
+        )
+        return
     await ws.send(response.model_dump_json())
