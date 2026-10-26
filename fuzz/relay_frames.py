@@ -19,7 +19,6 @@ Run it with ``uv run --group fuzz python fuzz/relay_frames.py -runs=20000 -seed=
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import logging
 import sys
@@ -32,6 +31,7 @@ import atheris
 with atheris.instrument_imports(include=["app", "r9cam_models"]):
     import httpx
     from pydantic import ValidationError
+    from starlette.routing import Match
 
     from app.main import app
     from app.relay.service import _handle_relay_message
@@ -45,7 +45,7 @@ with atheris.instrument_imports(include=["app", "r9cam_models"]):
     )
 
 if TYPE_CHECKING:
-    from starlette.types import Message, Receive, Scope, Send
+    from starlette.types import Receive, Scope, Send
 
 _TRACE_HEADERS = frozenset({"traceparent", "tracestate", "baggage"})
 _METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "get", "pOsT", "")
@@ -81,25 +81,30 @@ class _FakeWebSocket:
 class _RouteProbe:
     """ASGI app that resolves each dispatched request against the real router.
 
-    It calls the router without the middleware stack, so FastAPI stops before it
-    runs an endpoint. The route it matched is left in the scope, which is all the
-    harness needs. Every request then gets an empty 200 so the command finishes.
+    It only matches routes and never calls an endpoint. The first full match wins,
+    else the first partial one (a wrong method), as in Starlette's router. The
+    match is left in a scope copy, which is all the harness needs. Every request
+    then gets an empty 200 so the command finishes.
     """
 
     def __init__(self) -> None:
         self.dispatched: list[tuple[str, str, Scope]] = []
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+    async def __call__(self, scope: Scope, _receive: Receive, send: Send) -> None:
         if scope["type"] != _HTTP_SCOPE:
             return
         route_scope = dict(scope)
-
-        async def _discard(_message: Message) -> None:
-            return None
-
-        # Routing outcomes (404, 405, the missing middleware stack) all raise here.
-        with contextlib.suppress(Exception):
-            await app.router(route_scope, receive, _discard)
+        partial: Scope | None = None
+        for route in app.router.routes:
+            match, child_scope = route.matches(scope)
+            if match == Match.FULL:
+                route_scope.update(child_scope)
+                break
+            if match == Match.PARTIAL and partial is None:
+                partial = child_scope
+        else:
+            if partial is not None:
+                route_scope.update(partial)
         self.dispatched.append((scope["method"], scope["raw_path"].decode("latin-1"), route_scope))
         await send({"type": "http.response.start", "status": 200, "headers": [(b"content-type", b"application/json")]})
         await send({"type": "http.response.body", "body": b"{}"})
