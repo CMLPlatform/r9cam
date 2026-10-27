@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Changed
+
+- The image and the install no longer pull in the deploy-only parts of `fastapi[standard]`
+  (the FastAPI Cloud CLI, `email-validator`, `httpx2`, `pydantic-extra-types` and their
+  dependencies). The app asks for what it uses: `fastapi-cli`, `uvicorn[standard]`, `jinja2`
+  and `python-multipart`. The runtime image is about 15 MB smaller.
+
 ### Fixed
 
 - A 2xx upload reply that is not JSON or lacks `image_id` or `image_url` now counts as
