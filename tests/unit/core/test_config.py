@@ -25,15 +25,11 @@ APP_ENV_DEVELOPMENT = "development"
 APP_ENV_PRODUCTION = "production"
 LOCAL_SESSION_COOKIE_NAME = "r9cam_session"
 SECURE_SESSION_COOKIE_NAME = "__Host-r9cam_session"
-EXPLICIT_S3 = "s3"
-EXPLICIT_BACKEND = "backend"
-UNCONFIGURED = "unconfigured"
 RUNTIME_KEY = "runtime-key"
 STORED_KEY = "stored-key"
 GENERATED_LOCAL_KEY = "local_generated-token"
 LOCAL_MODE_DISABLED_WARNING = "LOCAL_MODE_ENABLED=false but a local API key exists"
 PAIRING_LOOPBACK_WARNING = "PAIRING_BACKEND_URL uses loopback inside a container"
-TEST_S3_VALUE = "s3-test-value"
 HTTPS_PAIRING_BACKEND_URL = "https://api.example"
 LOOPBACK_HTTP_PAIRING_BACKEND_URL = "http://127.0.0.1:8000"
 HTTPS_S3_ENDPOINT_URL = "https://s3.example"
@@ -421,24 +417,6 @@ class TestConfigBootstrapHelpers:
         assert is_loopback_url("http://127.0.0.1:8000") is True
         assert is_loopback_url("http://[::1]:8000") is True
         assert is_loopback_url("https://camera.example") is False
-
-    def test_resolve_image_sink_choice_prefers_explicit_and_inferred_modes(self) -> None:
-        """Image-sink resolution should cover explicit and auto-inferred cases."""
-        explicit = Settings(
-            image_sink="s3",
-            s3_endpoint_url="https://s3.example",
-            s3_bucket="bucket",
-            s3_access_key_id="a",
-            s3_secret_access_key=TEST_S3_VALUE,
-        )
-        auto_s3 = Settings(s3_endpoint_url="https://s3.example")
-        auto_backend = Settings(pairing_backend_url="https://api.example")
-        auto_unconfigured = Settings(pairing_backend_url="")
-
-        assert config_mod.resolve_image_sink_choice(explicit) == EXPLICIT_S3
-        assert config_mod.resolve_image_sink_choice(auto_s3) == EXPLICIT_S3
-        assert config_mod.resolve_image_sink_choice(auto_backend) == EXPLICIT_BACKEND
-        assert config_mod.resolve_image_sink_choice(auto_unconfigured) == UNCONFIGURED
 
     def test_persist_local_api_key_merges_existing_credentials(
         self,

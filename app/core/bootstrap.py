@@ -7,9 +7,6 @@ from app.core.runtime_state import RuntimeState
 from app.core.settings import (
     APP_ENV_DEVELOPMENT,
     HTTPS_SCHEME,
-    IMAGE_SINK_AUTO,
-    IMAGE_SINK_BACKEND,
-    IMAGE_SINK_S3,
     PAIRING_LOOPBACK_CONTAINER_ERROR,
     RelayUrlError,
     Settings,
@@ -18,6 +15,7 @@ from app.core.settings import (
     validate_relay_backend_url,
     validate_relay_url_origin,
 )
+from app.delivery.factory import resolve_image_sink
 from app.pairing.services.credentials import (
     _CREDENTIALS_FILE,
     load_relay_credentials,
@@ -64,17 +62,6 @@ def apply_relay_credentials(runtime_state: RuntimeState) -> None:
             # Leave the relay disabled rather than failing startup: the device stays
             # reachable on the LAN and re-pairs against the configured backend.
             logger.exception("Persisted relay credentials rejected; relay disabled")
-
-
-def resolve_image_sink_choice(app_settings: Settings = settings) -> str:
-    """Resolve the effective image sink choice without instantiating it."""
-    if app_settings.image_sink != IMAGE_SINK_AUTO:
-        return app_settings.image_sink
-    if app_settings.s3_endpoint_url:
-        return IMAGE_SINK_S3
-    if app_settings.pairing_backend_url:
-        return IMAGE_SINK_BACKEND
-    return "unconfigured"
 
 
 def _persist_local_api_key(key: str) -> None:
@@ -168,7 +155,7 @@ def bootstrap_runtime_state(runtime_state: RuntimeState, app_settings: Settings 
         )
     apply_relay_credentials(runtime_state)
     apply_local_mode(runtime_state, app_settings)
-    logger.info("Image sink resolved to %s", resolve_image_sink_choice(app_settings))
+    logger.info("Image sink resolved to %s", resolve_image_sink(app_settings))
     if not app_settings.local_mode_enabled and runtime_state.local_api_key:
         logger.warning(
             "LOCAL_MODE_ENABLED=false but a local API key exists; the key remains available for relay bootstrap only."

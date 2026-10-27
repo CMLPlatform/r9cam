@@ -32,19 +32,32 @@ class ImageSinkConfigError(RuntimeError):
     """Raised at startup when image sink configuration is incomplete or inconsistent."""
 
 
+IMAGE_SINK_UNCONFIGURED = "unconfigured"
+
+
+def resolve_image_sink(settings: Settings) -> str:
+    """Return the effective sink choice without building it.
+
+    An explicit ``IMAGE_SINK`` wins. Under ``auto``, S3 config beats the backend URL:
+    if both are set the user almost certainly wants S3.
+    """
+    if settings.image_sink != IMAGE_SINK_AUTO:
+        return settings.image_sink
+    if settings.s3_endpoint_url:
+        return IMAGE_SINK_S3
+    if settings.pairing_backend_url:
+        return IMAGE_SINK_BACKEND
+    return IMAGE_SINK_UNCONFIGURED
+
+
 def get_image_sink(settings: Settings) -> ImageSink:
     """Return the ``ImageSink`` implementation for the current settings."""
-    choice = settings.image_sink
+    choice = resolve_image_sink(settings)
     if choice == IMAGE_SINK_BACKEND:
         return BackendPushSink()
     if choice == IMAGE_SINK_S3:
         return _build_s3_sink(settings)
-    if choice == IMAGE_SINK_AUTO:
-        # Prefer explicit S3 config — if both are set the user almost certainly wants S3.
-        if settings.s3_endpoint_url:
-            return _build_s3_sink(settings)
-        if settings.pairing_backend_url:
-            return BackendPushSink()
+    if choice == IMAGE_SINK_UNCONFIGURED:
         msg = (
             "No image sink configured. Set IMAGE_SINK=backend with PAIRING_BACKEND_URL "
             "for paired-to-R9lab mode, or IMAGE_SINK=s3 with the S3_* variables for "
