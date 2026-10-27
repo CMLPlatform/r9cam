@@ -234,11 +234,11 @@ The API serves HTTPS itself when `TLS_CERT_FILE` and `TLS_KEY_FILE` both point a
    chmod 644 tls/cert.pem && chmod 640 tls/key.pem && sudo chgrp 44 tls/key.pem
    ```
 
-   The app runs as user 1000, group 44 (`video`) in the container, so the key must be readable by one of them.
+   The app runs as user 1000, group 44 (`video`) in the container, so the key must be readable by one of them. The key must be unencrypted (`-nodes` above): the app does not ask for a passphrase.
 
 1. Uncomment the `./tls:/app/tls:ro` volume under `app` in `compose.yml`.
 
-1. Set the files and the HTTPS base URL in `.env`, then run `docker compose up -d`:
+1. Set the files and the HTTPS base URL in the `.env` next to `compose.yml` (Compose passes it to the container, so the healthcheck sees it too), then run `docker compose up -d`:
 
    ```sh
    TLS_CERT_FILE=/app/tls/cert.pem

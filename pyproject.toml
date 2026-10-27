@@ -27,7 +27,7 @@
   # Dependencies and version constraints
   dependencies = [
     "fastapi>=0.115.8",
-    "fastapi-cli>=0.0.32",                      # NOTE: the Dockerfile CMD and `just dev` use `fastapi run|dev`
+    "fastapi-cli>=0.0.32",                      # NOTE: `just dev` runs `fastapi dev`; the image runs app/serve.py
     "httpx>=0.28,<1",
     "jinja2>=3.1.5",                            # NOTE: Jinja2Templates
     "opentelemetry-exporter-otlp-proto-http>=1.38.0",
@@ -40,7 +40,7 @@
     "pyjwt[crypto]>=2.12.1",
     "python-multipart>=0.0.18",                 # NOTE: Form() fields in app/auth/router.py
     "r9cam-models>=0.6.1,<0.7",                 # NOTE: Keep this aligned with the published contract package
-    "uvicorn[standard]>=0.12.0",                # NOTE: the server behind `fastapi run`; [standard] adds uvloop and httptools
+    "uvicorn[standard]>=0.12.0",                # NOTE: app/serve.py runs it; [standard] adds uvloop and httptools
     "websockets>=16.0",
   ]
 
