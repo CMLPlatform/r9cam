@@ -460,12 +460,39 @@ def _dead_letter_entries(dead_root: Path) -> list[tuple[Path, Path, float]]:
             continue
         image_path = dead_root / f"{metadata_path.stem}.jpg"
         if not image_path.exists():
-            metadata_path.unlink(missing_ok=True)
+            _finish_interrupted_requeue(dead_root, metadata_path)
             continue
         mtime = min(_path_mtime(image_path), _path_mtime(metadata_path))
         entries.append((image_path, metadata_path, mtime))
     entries.sort(key=lambda entry: entry[2])
     return entries
+
+
+def _finish_interrupted_requeue(dead_root: Path, dead_metadata: Path) -> None:
+    """Drop a dead sidecar whose image is gone, first saving a capture a requeue left half-moved.
+
+    A crash after the image moved to the live queue and before its sidecar was written leaves
+    the image alone in the live queue, where the orphan sweep would delete it.
+    """
+    live_image = dead_root.parent / f"{dead_metadata.stem}.jpg"
+    live_metadata = dead_root.parent / dead_metadata.name
+    if live_image.exists() and not live_metadata.exists():
+        try:
+            payload = json.loads(dead_metadata.read_text())
+            capture_metadata, upload_metadata = payload["capture_metadata"], payload["upload_metadata"]
+        except (OSError, ValueError, TypeError, KeyError):
+            capture_metadata, upload_metadata = {}, {}
+        write_json_atomic(
+            live_metadata,
+            _metadata_payload(
+                image_id=dead_metadata.stem,
+                capture_metadata=capture_metadata if isinstance(capture_metadata, dict) else {},
+                upload_metadata=upload_metadata if isinstance(upload_metadata, dict) else {},
+                attempts=0,
+                next_attempt_at=datetime.now(UTC),
+            ),
+        )
+    dead_metadata.unlink(missing_ok=True)
 
 
 def _path_mtime(path: Path) -> float:

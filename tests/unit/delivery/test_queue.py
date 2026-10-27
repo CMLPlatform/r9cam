@@ -685,6 +685,23 @@ class TestRequeueDead:
         assert list((queue_root / "dead").iterdir()) == []
         assert await queue.drain_once() == 1
 
+    async def test_restart_finishes_requeue_interrupted_after_image_move(
+        self, queue_root: Path, tmp_path: Path, sink: _FakeSink
+    ) -> None:
+        """A crash between the image move and the live sidecar write must not lose the capture."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        capture_id = image_id(30)
+        await self._dead_letter(queue, capture_id, tmp_path / "c.jpg")
+        (queue_root / "dead" / f"{capture_id}.jpg").rename(queue_root / f"{capture_id}.jpg")
+
+        await queue.requeue_dead()
+
+        [entry] = queue.iter_pending()
+        assert entry.image_id == capture_id
+        assert entry.attempts == 0
+        assert entry.capture_metadata == {"k": "v"}
+        assert list((queue_root / "dead").iterdir()) == []
+
     async def test_requeue_honours_byte_cap(self, queue_root: Path, tmp_path: Path, sink: _FakeSink) -> None:
         """Entries that do not fit under the byte cap stay dead."""
         unlimited = UploadQueue(queue_root, sink=cast("ImageSink", sink))
