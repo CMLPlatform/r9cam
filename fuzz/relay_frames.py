@@ -30,8 +30,8 @@ import atheris
 # first-party code gets coverage instrumentation, which keeps startup short.
 with atheris.instrument_imports(include=["app", "r9cam_models"]):
     import httpx
+    from fastapi.routing import APIRoute
     from pydantic import ValidationError
-    from starlette.routing import Match
 
     from app.main import app
     from app.relay.service import _handle_relay_message
@@ -79,45 +79,52 @@ class _FakeWebSocket:
 
 
 class _RouteProbe:
-    """ASGI app that resolves each dispatched request against the real router.
+    """ASGI app that lets the real router pick the route, then answers itself.
 
-    It only matches routes and never calls an endpoint. The first full match wins,
-    else the first partial one (a wrong method), as in Starlette's router. The
-    match is left in a scope copy, which is all the harness needs. Every request
-    then gets an empty 200 so the command finishes.
+    ``APIRoute.handle`` is swapped for one that records the matched route and
+    sends an empty 200, so no endpoint, dependency or middleware runs. A request
+    no route takes is a 404, and one whose route lacks the method is a 405: both
+    record nothing, since neither reaches an endpoint.
     """
 
     def __init__(self) -> None:
-        self.dispatched: list[tuple[str, str, Scope]] = []
+        self.requests = 0
+        self.dispatched: list[tuple[str, str, APIRoute]] = []
+        probe = self
 
-    async def __call__(self, scope: Scope, _receive: Receive, send: Send) -> None:
+        async def record(route: APIRoute, scope: Scope, _receive: Receive, send: Send) -> None:
+            if scope["method"] in (route.methods or ()):
+                probe.dispatched.append((scope["method"], scope["raw_path"].decode("latin-1"), route))
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"{}"})
+
+        APIRoute.handle = record  # ty: ignore[invalid-assignment]
+        self._check_router()
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != _HTTP_SCOPE:
             return
-        route_scope = dict(scope)
-        partial: Scope | None = None
-        for route in app.router.routes:
-            match, child_scope = route.matches(scope)
-            if match == Match.FULL:
-                route_scope.update(child_scope)
-                break
-            if match == Match.PARTIAL and partial is None:
-                partial = child_scope
-        else:
-            if partial is not None:
-                route_scope.update(partial)
-        self.dispatched.append((scope["method"], scope["raw_path"].decode("latin-1"), route_scope))
-        await send({"type": "http.response.start", "status": 200, "headers": [(b"content-type", b"application/json")]})
-        await send({"type": "http.response.body", "body": b"{}"})
+        self.requests += 1
+        await app.router({**scope, "app": app}, receive, send)
+
+    def _check_router(self) -> None:
+        """Fail at startup if routing no longer reaches the routes, which would make every check pass."""
+
+        async def resolve(method: str, path: str) -> str | None:
+            self.dispatched.clear()
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=self), base_url="http://probe") as client:
+                await client.request(method, path)
+            return self.dispatched[0][2].path if self.dispatched else None
+
+        for method, path in (("GET", "/camera"), ("POST", "/auth/login")):
+            resolved = asyncio.run(resolve(method, path))
+            if resolved != path:
+                msg = f"route probe resolved {method} {path} to {resolved!r}; the router changed"
+                raise RuntimeError(msg)
 
 
-def _route_is_allowlisted(method: str, route_scope: Scope) -> bool:
+def _route_is_allowlisted(method: str, route: APIRoute) -> bool:
     """Return whether the route the router matched is one the allowlist names."""
-    route = route_scope.get("route")
-    if route is None:
-        # No route and no endpoint is a 404. An endpoint without a route is a mount.
-        return route_scope.get("endpoint") is None
-    if method not in (route.methods or set()):
-        return True  # 405: the request never reaches an endpoint.
     if (method, route.path) in RELAY_ALLOWED_EXACT_COMMANDS:
         return True
     return any(method == allowed and route.path.startswith(prefix) for allowed, prefix in RELAY_ALLOWED_PREFIX_COMMANDS)
@@ -228,17 +235,17 @@ class _Harness:
         )
 
     def run(self, frame: str | bytes, *, allowed: bool) -> None:
+        self.probe.requests = 0
         self.probe.dispatched.clear()
         self.loop.run_until_complete(self._one_frame(frame))
         # The sent path can differ from the checked one, since httpx moves a `?` or
         # `#` tail out of the path. So the route check below is the real guard.
-        if self.probe.dispatched and not allowed:
+        if self.probe.requests and not allowed:
             msg = f"dispatched a command the allowlist rejects: {frame!r}"
             raise AssertionError(msg)
-        for method, raw_path, route_scope in self.probe.dispatched:
-            if not _route_is_allowlisted(method, route_scope):
-                target = getattr(route_scope.get("route"), "path", route_scope.get("endpoint"))
-                msg = f"allowlisted {method} {raw_path!r} routed to {target!r}"
+        for method, raw_path, route in self.probe.dispatched:
+            if not _route_is_allowlisted(method, route):
+                msg = f"allowlisted {method} {raw_path!r} routed to {route.path!r}"
                 raise AssertionError(msg)
 
     async def _one_frame(self, frame: str | bytes) -> None:
