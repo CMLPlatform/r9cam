@@ -91,6 +91,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         async def _on_paired() -> None:
             runtime.create_task(runtime.relay_service.run_forever(), name="ws_relay")
             logger.info("Pairing complete — WebSocket relay started")
+            await runtime.camera_manager.upload_queue.requeue_dead()
 
         runtime.create_task(runtime.pairing_service.run_forever(_on_paired), name="pairing")
         runtime.pairing_service.log_mode_started()

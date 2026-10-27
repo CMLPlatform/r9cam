@@ -566,6 +566,54 @@ class TestDeadLetter:
         assert (queue_root / "dead" / f"{new_id}.json").exists()
 
 
+class TestRequeueDead:
+    """Tests for moving dead-lettered entries back after pairing."""
+
+    @staticmethod
+    async def _dead_letter(queue: UploadQueue, capture_id: str, source: Path) -> None:
+        await asyncio.to_thread(source.write_bytes, _jpeg_bytes())
+        entry = await queue.enqueue(
+            image_id=capture_id, image_path=source, capture_metadata={"k": "v"}, upload_metadata={}
+        )
+        for _ in range(upload_queue_mod._MAX_ATTEMPTS):
+            entry = queue.iter_pending()[0]
+            await queue.mark_attempt_failed(entry)
+
+    async def test_requeue_moves_entries_and_resets_attempts(
+        self, queue_root: Path, tmp_path: Path, sink: _FakeSink
+    ) -> None:
+        """Dead entries return to the live queue, due now, with zero attempts."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        capture_id = image_id(20)
+        await self._dead_letter(queue, capture_id, tmp_path / "a.jpg")
+        assert queue.iter_pending() == []
+
+        assert await queue.requeue_dead() == 1
+
+        [entry] = queue.iter_pending()
+        assert entry.image_id == capture_id
+        assert entry.attempts == 0
+        assert entry.capture_metadata == {"k": "v"}
+        assert queue.is_due(entry)
+        assert list((queue_root / "dead").iterdir()) == []
+        assert await queue.drain_once() == 1
+
+    async def test_requeue_honours_byte_cap(self, queue_root: Path, tmp_path: Path, sink: _FakeSink) -> None:
+        """Entries that do not fit under the byte cap stay dead."""
+        unlimited = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        for seed in (21, 22):
+            await self._dead_letter(unlimited, image_id(seed), tmp_path / f"{seed}.jpg")
+        one_entry = upload_queue_mod._directory_bytes(queue_root / "dead") // 2
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), max_pending_bytes=one_entry)
+
+        assert await queue.requeue_dead() == 1
+
+        assert len(queue.iter_pending()) == 1
+        assert upload_queue_mod._directory_bytes(queue_root) <= one_entry
+        assert len(list((queue_root / "dead").glob("*.jpg"))) == 1
+        assert len(list((queue_root / "dead").glob("*.json"))) == 1
+
+
 class TestUploadQueueWorker:
     """Tests for the runtime-owned background worker lifecycle."""
 

@@ -41,6 +41,7 @@ async def _restart_relay_after_pairing(runtime: AppRuntime) -> None:
     """Restart the WebSocket relay once (re-)pairing completes."""
     runtime.create_task(runtime.relay_service.run_forever(), name="ws_relay")
     logger.info("Re-paired — WebSocket relay restarted", extra=build_log_extra())
+    await runtime.camera_manager.upload_queue.requeue_dead()
 
 
 public_router = APIRouter(tags=["setup"])

@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Self
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,6 +14,7 @@ from pydantic import HttpUrl
 from app.auth.dependencies import create_session
 from app.core.runtime import AppRuntime
 from app.core.settings import DEFAULT_PAIRING_BACKEND_URL, settings
+from app.delivery.queue import UploadQueue
 from app.pairing.routers import setup as setup_router
 from tests.constants import (
     COOP_SAME_ORIGIN,
@@ -494,6 +496,22 @@ class TestUnpair:
         assert resp.status_code == 204
         assert deleted == [True]
         assert cleared == [True]
+
+
+class TestRePairing:
+    """Tests for the callback that runs once re-pairing completes."""
+
+    async def test_re_pairing_requeues_dead_letters(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Captures dead-lettered under the old credentials get another try."""
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+        requeue_dead = AsyncMock(return_value=0)
+        monkeypatch.setattr(UploadQueue, "requeue_dead", requeue_dead)
+        runtime = SpyRuntime()
+        runtime.relay_service = FakeRelayService(runtime)
+
+        await setup_router._restart_relay_after_pairing(runtime)
+
+        requeue_dead.assert_awaited_once()
 
 
 class TestPairingCodeRefresh:
