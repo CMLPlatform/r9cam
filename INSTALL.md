@@ -90,7 +90,7 @@ The HTTPS-served R9lab web frontend cannot auto-probe the Pi's plain-HTTP local 
 
 ## Upgrading From 0.6
 
-Upgrade the R9lab backend first. This release needs a backend that serves the `/v1/plugins/r9cam` routes and accepts the `r9cam-relay` token audience. The hosted `api.r9lab.io` does; a self-hosted R9lab v0.5.0 or older does not. Against an older backend the relay handshake is refused, and the relay stays stopped until the app restarts. Pis on 0.6 keep working with a current backend until 2027-01-31, so upgrade them before then.
+Upgrade the R9lab backend first. This release needs a backend that serves the `/v1/plugins/r9cam` routes and accepts the `r9cam-relay` token audience. The hosted `api.r9lab.io` does; a self-hosted R9lab v0.5.0 or older does not. Against an older backend the relay handshake is refused: the relay keeps retrying with backoff and logs the refused status, but never connects. Pis on 0.6 keep working with a current backend until 2027-01-31, so upgrade them before then.
 
 Paired cameras keep their pairing in these cases:
 

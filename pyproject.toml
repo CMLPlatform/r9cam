@@ -26,6 +26,7 @@
   # Dependencies and version constraints
   dependencies = [
     "fastapi[standard]>=0.115.8",
+    "httpx>=0.28,<1",                           # NOTE: the app imports it; do not rely on fastapi[standard] to bring it
     "opentelemetry-exporter-otlp-proto-http>=1.38.0",
     "opentelemetry-instrumentation-fastapi>=0.59b0",
     "opentelemetry-instrumentation-httpx>=0.59b0",
@@ -150,6 +151,10 @@
 
 [tool.ty.environment]
   extra-paths = ["typings"]
+
+[tool.ty.analysis]
+  # atheris is in the fuzz group, which `just install` leaves out (Linux x86_64 wheels only).
+  allowed-unresolved-imports = ["atheris"]
 
 # UV configuration
 [tool.uv]

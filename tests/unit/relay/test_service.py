@@ -221,6 +221,59 @@ class TestWebsocketConnect:
         assert connect.call_args_list[1].kwargs["additional_headers"] == {"Authorization": "Bearer jwt-retry"}
         sleep.assert_awaited_once_with(0.0)
 
+    @pytest.mark.parametrize(
+        ("status", "reason", "hint"),
+        [
+            (401, "Unauthorized", True),
+            (403, "Forbidden", True),
+            (404, "Not Found", False),
+            (429, "Too Many Requests", False),
+        ],
+    )
+    async def test_connection_iterator_retries_refused_handshake_with_backoff(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        status: int,
+        reason: str,
+        *,
+        hint: bool,
+    ) -> None:
+        """A refused handshake should back off and retry, not end the relay loop."""
+        refused = Response(status, reason, Headers(), b"")
+        connect = MagicMock(
+            side_effect=[_HandshakeContextFailure(refused), _HandshakeContextFailure(refused), _Connect(_Conn())]
+        )
+        monkeypatch.setattr(relay_mod, "websocket_connect", connect)
+        monkeypatch.setattr(relay_mod, "build_device_assertion", lambda *_: "jwt")
+        monkeypatch.setattr(relay_mod, "_relay_reconnect_delays", lambda: iter([1.0, 2.0]))
+        sleep = AsyncMock()
+        monkeypatch.setattr(relay_mod.asyncio, "sleep", sleep)
+
+        with caplog.at_level(logging.WARNING, logger=relay_mod.__name__):
+            assert await anext(_iter_websocket_connections(EXAMPLE_RELAY_BACKEND_URL, RuntimeState())) is not None
+
+        assert connect.call_count == 3
+        assert [call.args for call in sleep.await_args_list] == [(1.0,), (2.0,)]
+        warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
+        assert len(warnings) == 2
+        assert all(f"HTTP {status}" in message for message in warnings)
+        assert all(("re-pairing" in message) is hint for message in warnings)
+
+    async def test_connection_iterator_honours_retry_after_on_429(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A 429 Retry-After longer than the backoff step should set the wait."""
+        throttled = Response(429, "Too Many Requests", Headers({"Retry-After": "7"}), b"")
+        connect = MagicMock(side_effect=[_HandshakeContextFailure(throttled), _Connect(_Conn())])
+        monkeypatch.setattr(relay_mod, "websocket_connect", connect)
+        monkeypatch.setattr(relay_mod, "build_device_assertion", lambda *_: "jwt")
+        monkeypatch.setattr(relay_mod, "_relay_reconnect_delays", lambda: iter([1.0]))
+        sleep = AsyncMock()
+        monkeypatch.setattr(relay_mod.asyncio, "sleep", sleep)
+
+        assert await anext(_iter_websocket_connections(EXAMPLE_RELAY_BACKEND_URL, RuntimeState())) is not None
+
+        sleep.assert_awaited_once_with(7.0)
+
 
 class TestReceiveLoop:
     """Tests for relay receive loop behavior."""
@@ -694,29 +747,6 @@ class TestRelayServiceRunForever:
 
         iter_connections.assert_called_once()
 
-    async def test_fatal_handshake_rejection_exits(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Fatal websocket iterator failures should stop the relay loop."""
-        runtime_state = RuntimeState()
-        runtime_state.set_relay_credentials(
-            relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
-            relay_camera_id="cam-1",
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
-            relay_key_id=RELAY_KEY_ID,
-            relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
-        )
-        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state)
-        service.configure(_noop_asgi_app)
-        response = Response(401, "Unauthorized", Headers(), b"unauthorized")
-        monkeypatch.setattr(
-            relay_mod, "_iter_websocket_connections", lambda _url, _state: _HandshakeIteratorFailure(response)
-        )
-
-        with pytest.raises(InvalidStatus):
-            await service.run_forever()
-
 
 class _Conn:
     """Async iterator stand-in for websockets.asyncio ClientConnection."""
@@ -778,16 +808,3 @@ class _HandshakeContextFailure:
 
     async def __aexit__(self, *_: object) -> None:
         return None
-
-
-class _HandshakeIteratorFailure:
-    """Async iterator that raises InvalidStatus before yielding a connection."""
-
-    def __init__(self, response: Response) -> None:
-        self._response = response
-
-    def __aiter__(self) -> AsyncIterator[_Conn]:
-        return self
-
-    async def __anext__(self) -> _Conn:
-        raise InvalidStatus(self._response)
