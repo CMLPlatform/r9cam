@@ -355,6 +355,23 @@ class TestReceiveLoop:
         assert record.outcome == "blocked"
         assert record.status_code == 429
 
+    async def test_rate_limited_request_with_unsafe_id_is_dropped(self) -> None:
+        """An id the response envelope rejects gets no 429 reply instead of ending the receive loop."""
+        ws = AsyncMock()
+
+        await _handle_relay_message(
+            ws,
+            AsyncMock(),
+            json.dumps({"type": "request", "id": "not a safe id", "method": "GET", "path": CAMERA_PATH}),
+            set(),
+            lambda _task: None,
+            asyncio.Semaphore(1),
+            relay_state=RelayRuntimeState(),
+            max_pending_commands=0,
+        )
+
+        ws.send.assert_not_called()
+
 
 class TestHandleCommand:
     """Tests for relay command dispatch."""
