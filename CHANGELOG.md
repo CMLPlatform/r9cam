@@ -38,6 +38,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - `local_setup.sh` installs uv from a release archive it checks against its checksum. ([#68])
 - Installs without Docker keep their pairing across the rename, and `RELAB_CREDENTIALS_FILE`
   still works with a warning.
+- The relay keeps retrying when the backend refuses its handshake (401, 403, 404, 429 and
+  the like), with the usual backoff and a warning that names the status, instead of stopping
+  until the next restart. On a 401 or 403 the warning says the camera may need re-pairing.
 
 ### Security
 
