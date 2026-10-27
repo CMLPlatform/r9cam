@@ -84,11 +84,33 @@ To rotate relay credentials, unpair the camera and pair it again. Unpairing clea
 
 Docker Compose stores runtime credentials in a named volume mounted at `/home/rpicam/.config/r9cam`, so paired credentials survive container restarts.
 
-**Upgrading from a version that used `~/.config/relab`:** pair every existing Pi again, because the relay now expects a new token audience. Credentials now live in `~/.config/r9cam`, and Docker Compose mounts the named volume at `/home/rpicam/.config/r9cam`, so the old files are no longer read.
-
 The relay signing key is stored in `relay_credentials.json` with `0o600` permissions. Against SD-card theft, use full-disk encryption (LUKS); to keep the key off disk entirely, skip pairing and inject `RELAY_PRIVATE_KEY_PEM` (with `RELAY_CAMERA_ID`, `RELAY_KEY_ID`, `RELAY_AUTH_SCHEME`) via env.
 
 The HTTPS-served R9lab web frontend cannot auto-probe the Pi's plain-HTTP local API because browsers block mixed content. Use the native app for pairing and direct-mode setup.
+
+## Upgrading From 0.6
+
+Upgrade the R9lab backend first. This release needs a backend that serves the `/v1/plugins/r9cam` routes and accepts the `r9cam-relay` token audience. The hosted `api.r9lab.io` does; a self-hosted R9lab v0.5.0 or older does not. Against an older backend the relay handshake is refused, and the relay stays stopped until the app restarts. Pis on 0.6 keep working with a current backend until 2027-01-31, so upgrade them before then.
+
+Paired cameras keep their pairing in these cases:
+
+- **Docker Compose, upgraded in place** (`git pull` in the existing checkout): the `relay_credentials` volume keeps its name and is now mounted at `/home/rpicam/.config/r9cam`.
+- **Without Docker:** the app still reads `~/.config/relab/relay_credentials.json` while `~/.config/r9cam/relay_credentials.json` does not exist. The next write moves it to the new path and deletes the old file. `RELAB_CREDENTIALS_FILE` still works when `R9CAM_CREDENTIALS_FILE` is unset, with a warning to rename it.
+
+A fresh clone into an `r9cam/` directory is a new Compose project, so it starts with new, empty volumes: no credentials and no upload queue. Bring the old project down first with `docker compose -p relab-rpi-cam-plugin down`, then pair again, or copy the `relay_credentials` and `app_data` volumes from the old project to the new one.
+
+Renamed in this release:
+
+| What                         | 0.6                         | Now                                                                                                            |
+| ---------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Credentials file override    | `RELAB_CREDENTIALS_FILE`    | `R9CAM_CREDENTIALS_FILE`                                                                                       |
+| mDNS service type            | `_relab-rpi-cam._tcp`       | `_r9cam._tcp` (an existing avahi service file keeps working, since clients reach the Pi at `<hostname>.local`) |
+| OpenTelemetry `service.name` | `relab-rpi-cam-plugin`      | `r9cam`                                                                                                        |
+| `service` in `/healthz`      | `relab-rpi-cam`             | `r9cam`                                                                                                        |
+| Session cookie               | `relab_session`             | `r9cam_session` (signed-in browsers sign in once more)                                                         |
+| Compose image name           | `relab-rpi-cam-plugin`      | `r9cam`                                                                                                        |
+| OpenAPI file                 | `openapi.rpi-cam.json`      | `openapi.r9cam.json`                                                                                           |
+| Default pairing backend      | `https://api.cml-relab.org` | `https://api.r9lab.io`                                                                                         |
 
 ## Standalone Mode
 
@@ -196,7 +218,7 @@ Once running, check:
 For headless operation, read pairing status from:
 
 - Docker Compose: `docker compose logs app`
-- systemd/journald: `journalctl -u r9cam -f`
+- systemd/journald, if you run it under your own unit: `journalctl -u <your-unit> -f`
 - direct shell run: the `PAIRING READY` terminal banner
 
 ## Observability
