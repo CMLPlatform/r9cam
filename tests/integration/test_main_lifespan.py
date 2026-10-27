@@ -17,6 +17,7 @@ import app.main as main_mod
 import app.pairing.services.service as pairing_mod
 from app.core.runtime import AppRuntime
 from app.core.settings import settings
+from app.delivery.queue import UploadQueue
 from tests.constants import EXAMPLE_BACKEND_URL, EXAMPLE_RELAY_BACKEND_URL
 from tests.fakes import (
     FakePairingService,
@@ -163,9 +164,13 @@ class TestLifespan:
         monkeypatch: pytest.MonkeyPatch,
         caplog: pytest.LogCaptureFixture,
         runtime: AppRuntime,
+        tmp_path: Path,
     ) -> None:
         """Test that when no relay credentials are set, the relay is started after pairing."""
         app = FastAPI()
+        requeue_dead = AsyncMock(return_value=0)
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+        monkeypatch.setattr(UploadQueue, "requeue_dead", requeue_dead)
         monkeypatch.setattr(settings, "relay_backend_url", "")
         monkeypatch.setattr(settings, "relay_camera_id", "")
         monkeypatch.setattr(settings, "relay_key_id", "")
@@ -184,6 +189,7 @@ class TestLifespan:
         pairing_service = cast("FakePairingService", runtime.pairing_service)
         assert pairing_service.run_calls == 1
         assert cast("FakeRelayService", runtime.relay_service).run_calls == 1
+        requeue_dead.assert_awaited_once()
         camera_manager = cast("StubCameraManager", runtime.camera_manager)
         assert pairing_service.log_calls == 1
         assert camera_manager.cleanup_calls == [True]

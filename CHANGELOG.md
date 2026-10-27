@@ -42,6 +42,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 ### Fixed
 
 - The upload queue stays under its byte cap when captures arrive at the same time. ([#61])
+- Captures that ran out of upload retries, for example while the Pi was unpaired, are queued
+  again after a successful pairing. Any that no longer fit under the queue's limits stay in
+  `data/queue/dead/`.
 - `local_setup.sh` installs uv from a release archive it checks against its checksum. ([#68])
 - Installs without Docker keep their pairing across the rename, and `RELAB_CREDENTIALS_FILE`
   still works with a warning.

@@ -11,6 +11,10 @@ The queue format is intentionally simple so a human can inspect it:
   data/queue/{image_id}.json              — {capture_metadata, upload_metadata,
                                              attempts, next_attempt_at}
   data/queue/dead/{image_id}.{jpg,json}   — dead-lettered entries
+
+After a successful pairing, ``requeue_dead`` moves dead-lettered entries back
+with a fresh retry budget, since most of them failed for lack of valid
+credentials.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ from app.core.settings import settings
 from app.delivery.base import ImageSink, ImageSinkError
 from app.observability.logging import build_log_extra
 from app.utils.file_policy import JPEG_CAPTURE_POLICY, CaptureFileValidationError
+from app.utils.files import write_json_atomic
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -141,6 +146,24 @@ class UploadQueue:
     async def prune_dead_letters(self) -> None:
         """Apply deterministic dead-letter retention by oldest-over-count."""
         await asyncio.to_thread(self._prune_dead_letters_sync)
+
+    async def requeue_dead(self) -> None:
+        """Move dead-lettered entries back into the live queue with their attempts reset.
+
+        Oldest entries go first. Once the queue's entry or byte cap is reached, the rest
+        stay in ``dead/`` and are logged.
+        """
+        async with self._enqueue_lock:
+            move = asyncio.ensure_future(asyncio.to_thread(self._requeue_dead_sync))
+            try:
+                await asyncio.shield(move)
+            except asyncio.CancelledError:
+                # The thread keeps moving files after a cancel. Hold the lock until it
+                # stops, or a concurrent enqueue checks the byte cap against stale sizes.
+                while not move.done():
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await asyncio.wait({move})
+                raise
 
     def is_due(self, entry: QueuedCapture, *, now: datetime | None = None) -> bool:
         """Whether the entry's next_attempt_at has arrived."""
@@ -309,6 +332,45 @@ class UploadQueue:
         if pending_bytes + incoming_bytes > self._max_pending_bytes:
             msg = f"Upload queue is full: {pending_bytes + incoming_bytes} bytes would exceed limit"
             raise UploadQueueFullError(msg)
+
+    def _requeue_dead_sync(self) -> None:
+        entries = _dead_letter_entries(self._dead_root)
+        requeued = 0
+        for index, (dead_image, dead_metadata, _mtime) in enumerate(entries):
+            try:
+                payload = json.loads(dead_metadata.read_text())
+                metadata_payload = _metadata_payload(
+                    image_id=dead_metadata.stem,
+                    capture_metadata=payload.get("capture_metadata", {}),
+                    upload_metadata=payload.get("upload_metadata", {}),
+                    attempts=0,
+                    next_attempt_at=datetime.now(UTC),
+                )
+                self._ensure_capacity_for(image_path=dead_image, metadata_payload=metadata_payload)
+                # Same order as enqueue: the live sidecar is written last, so a crash
+                # never leaves a live sidecar without its image.
+                shutil.move(str(dead_image), str(self._root / dead_image.name))
+                write_json_atomic(self._root / dead_metadata.name, metadata_payload)
+                dead_metadata.unlink(missing_ok=True)
+            except UploadQueueFullError as exc:
+                logger.warning(
+                    "Upload queue full; %d dead-lettered captures stay in dead/: %s",
+                    len(entries) - index,
+                    exc,
+                    extra=build_log_extra(),
+                )
+                break
+            except (OSError, ValueError, TypeError, AttributeError):
+                # A broken dead entry must not stop the rest, nor fail the pairing that called us.
+                logger.exception(
+                    "Queue: could not requeue dead-lettered capture %s",
+                    dead_metadata.stem,
+                    extra=build_log_extra(),
+                )
+                continue
+            requeued += 1
+        if requeued:
+            logger.info("Requeued %d dead-lettered captures for upload", requeued, extra=build_log_extra())
 
     def _prune_dead_letters_sync(self) -> None:
         entries = _dead_letter_entries(self._dead_root)
