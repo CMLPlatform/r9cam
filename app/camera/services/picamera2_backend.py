@@ -82,7 +82,7 @@ _TUNING_DIR = Path("/usr/share/libcamera/ipa/rpi")
 def tuning_file_sha256(model: str | None) -> str | None:
     """Hash the libcamera tuning file the camera loaded, or return None if it cannot be found.
 
-    shortcut: follows libcamera's lookup only for the override variable and the packaged
+    NOTE: follows libcamera's lookup only for the override variable and the packaged
     ``<isp>/<model>.json`` file. A custom LIBCAMERA_IPA_CONFIG_PATH or libcamera's fallback to
     ``uncalibrated.json`` gives None. Extend this if someone runs either.
     """
