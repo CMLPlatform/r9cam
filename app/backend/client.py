@@ -19,7 +19,7 @@ from urllib.parse import quote
 import httpx
 from pydantic import AnyUrl
 
-from app.backend.plugin_api import send_with_legacy_fallback
+from app.backend.plugin_api import PLUGIN_API_PREFIX
 from app.core.runtime_context import get_active_runtime_state
 from app.core.settings import settings, validate_endpoint_transport
 from app.observability.logging import build_log_extra
@@ -99,8 +99,8 @@ async def _post_file(
     upload_label: str,
 ) -> dict:
     try:
-        response = await send_with_legacy_fallback(
-            lambda path: _get_client().post(f"{base_url}{path}", files=files, data=data, headers=headers), suffix
+        response = await _get_client().post(
+            f"{base_url}{PLUGIN_API_PREFIX}{suffix}", files=files, data=data, headers=headers
         )
     except httpx.HTTPError as exc:
         msg = f"Network error during {upload_label}: {exc}"
@@ -223,9 +223,8 @@ async def notify_self_unpair() -> None:
 
     headers = {"Authorization": f"Bearer {assertion}"}
     try:
-        response = await send_with_legacy_fallback(
-            lambda path: _get_client().delete(f"{base_url}{path}", headers=headers, timeout=_SELF_UNPAIR_TIMEOUT),
-            suffix,
+        response = await _get_client().delete(
+            f"{base_url}{PLUGIN_API_PREFIX}{suffix}", headers=headers, timeout=_SELF_UNPAIR_TIMEOUT
         )
         if response.status_code in (204, 200, 404):
             logger.info(
