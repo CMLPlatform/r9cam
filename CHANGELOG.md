@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Changed
+
+- Release tags are signed: `just release-publish` signs the tag with the maintainer's key
+  and pushes it before drafting the release, instead of GitHub creating an unsigned tag.
+
 ### Fixed
 
 - A 2xx upload reply that is not JSON or lacks `image_id` or `image_url` now counts as
