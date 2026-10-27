@@ -87,7 +87,7 @@ jobs:
       - name: Upload the release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$TAG" dist/*.whl dist/*.tar.gz dist/r9cam.cdx.json --repo "$GITHUB_REPOSITORY"
+        run: gh release upload "$TAG" dist/*.whl dist/*.tar.gz dist/r9cam.cdx.json --clobber --repo "$GITHUB_REPOSITORY"
 
   # The Pi pulls this image instead of building it. Built on an arm64 runner, so no QEMU.
   image:
@@ -129,6 +129,7 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          target: runtime # paired mode; the last stage is the standalone one
           platforms: linux/arm64
           load: true
           pull: true
@@ -151,6 +152,11 @@ jobs:
             echo "::error::the app stopped before it tried to open the camera"
             exit 1
           fi
+          # The release image is paired mode only: the s3 group must not be in it.
+          if docker run --rm --entrypoint python "$TAG" -c "import aioboto3" 2>/dev/null; then
+            echo "::error::the image has aioboto3, so it was built from the standalone target"
+            exit 1
+          fi
 
       - name: Log in to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -167,6 +173,7 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          target: runtime # paired mode; the last stage is the standalone one
           platforms: linux/arm64
           push: true
           pull: true

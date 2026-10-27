@@ -58,10 +58,16 @@ docker compose pull
 docker compose up -d
 ```
 
-`docker compose pull` fetches the signed arm64 image `ghcr.io/cmlplatform/r9cam` that each release publishes, so the Pi does not build it. The tag is `latest` unless `R9CAM_VERSION` in `.env` pins a version such as `0.7.0`. To check that an image was built from this repository by its release workflow, run this anywhere with the GitHub CLI:
+`docker compose pull` fetches the signed arm64 image `ghcr.io/cmlplatform/r9cam` that each release publishes, so the Pi does not build it. The tag is `latest` unless `R9CAM_VERSION` in `.env` pins a version such as `0.7.0`. `latest` is mutable: it moves with each release. To check what the Pi actually pulled, verify the digest of the pulled image, not the tag. Run this on the Pi:
 
 ```sh
-gh attestation verify oci://ghcr.io/cmlplatform/r9cam:0.7.0 --repo CMLPlatform/r9cam
+docker image inspect --format '{{index .RepoDigests 0}}' ghcr.io/cmlplatform/r9cam:0.7.0
+```
+
+Then run this anywhere with the GitHub CLI, with the `ghcr.io/cmlplatform/r9cam@sha256:...` value it printed:
+
+```sh
+gh attestation verify oci://ghcr.io/cmlplatform/r9cam@sha256:<digest> --repo CMLPlatform/r9cam
 ```
 
 To upgrade, run `git pull` (for `compose.yml` and the other config files), then `docker compose pull` and `docker compose up -d`.
@@ -104,6 +110,7 @@ Paired cameras keep their pairing in these cases:
 
 - **Docker Compose, upgraded in place** (`git pull` in the existing checkout): the `relay_credentials` volume keeps its name and is now mounted at `/home/rpicam/.config/r9cam`.
 - **Without Docker:** the app still reads `~/.config/relab/relay_credentials.json` while `~/.config/r9cam/relay_credentials.json` does not exist. The next write moves it to the new path and deletes the old file. `RELAB_CREDENTIALS_FILE` still works when `R9CAM_CREDENTIALS_FILE` is unset, with a warning to rename it.
+- **Standalone installs:** set `R9CAM_IMAGE=r9cam` in `.env`, then run `docker compose build` and `docker compose up -d`. Do not run `docker compose pull`: it fetches the paired image, which has no S3 support, and the S3 sink stops working.
 
 A fresh clone into an `r9cam/` directory is a new Compose project, so it starts with new, empty volumes: no credentials and no upload queue. Bring the old project down first with `docker compose -p relab-rpi-cam-plugin down`, then pair again, or copy the `relay_credentials` and `app_data` volumes from the old project to the new one.
 

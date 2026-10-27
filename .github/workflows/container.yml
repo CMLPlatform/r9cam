@@ -48,6 +48,7 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          target: runtime # what the release publishes
           load: true
           pull: true
           tags: r9cam:${{ github.sha }}
