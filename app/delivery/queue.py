@@ -33,6 +33,7 @@ from app.core.settings import settings
 from app.delivery.base import ImageSink, ImageSinkError
 from app.observability.logging import build_log_extra
 from app.utils.file_policy import JPEG_CAPTURE_POLICY, CaptureFileValidationError
+from app.utils.files import write_json_atomic
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -146,14 +147,23 @@ class UploadQueue:
         """Apply deterministic dead-letter retention by oldest-over-count."""
         await asyncio.to_thread(self._prune_dead_letters_sync)
 
-    async def requeue_dead(self) -> int:
+    async def requeue_dead(self) -> None:
         """Move dead-lettered entries back into the live queue with their attempts reset.
 
         Oldest entries go first. Once the queue's entry or byte cap is reached, the rest
-        stay in ``dead/`` and are logged. Returns the number of entries requeued.
+        stay in ``dead/`` and are logged.
         """
         async with self._enqueue_lock:
-            return await asyncio.to_thread(self._requeue_dead_sync)
+            move = asyncio.ensure_future(asyncio.to_thread(self._requeue_dead_sync))
+            try:
+                await asyncio.shield(move)
+            except asyncio.CancelledError:
+                # The thread keeps moving files after a cancel. Hold the lock until it
+                # stops, or a concurrent enqueue checks the byte cap against stale sizes.
+                while not move.done():
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await asyncio.wait({move})
+                raise
 
     def is_due(self, entry: QueuedCapture, *, now: datetime | None = None) -> bool:
         """Whether the entry's next_attempt_at has arrived."""
@@ -323,7 +333,7 @@ class UploadQueue:
             msg = f"Upload queue is full: {pending_bytes + incoming_bytes} bytes would exceed limit"
             raise UploadQueueFullError(msg)
 
-    def _requeue_dead_sync(self) -> int:
+    def _requeue_dead_sync(self) -> None:
         entries = _dead_letter_entries(self._dead_root)
         requeued = 0
         for index, (dead_image, dead_metadata, _mtime) in enumerate(entries):
@@ -340,7 +350,7 @@ class UploadQueue:
                 # Same order as enqueue: the live sidecar is written last, so a crash
                 # never leaves a live sidecar without its image.
                 shutil.move(str(dead_image), str(self._root / dead_image.name))
-                (self._root / dead_metadata.name).write_text(json.dumps(metadata_payload, indent=2))
+                write_json_atomic(self._root / dead_metadata.name, metadata_payload)
                 dead_metadata.unlink(missing_ok=True)
             except UploadQueueFullError as exc:
                 logger.warning(
@@ -361,7 +371,6 @@ class UploadQueue:
             requeued += 1
         if requeued:
             logger.info("Requeued %d dead-lettered captures for upload", requeued, extra=build_log_extra())
-        return requeued
 
     def _prune_dead_letters_sync(self) -> None:
         entries = _dead_letter_entries(self._dead_root)

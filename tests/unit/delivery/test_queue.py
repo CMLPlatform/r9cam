@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import threading
 import time
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
@@ -588,7 +589,7 @@ class TestRequeueDead:
         await self._dead_letter(queue, capture_id, tmp_path / "a.jpg")
         assert queue.iter_pending() == []
 
-        assert await queue.requeue_dead() == 1
+        await queue.requeue_dead()
 
         [entry] = queue.iter_pending()
         assert entry.image_id == capture_id
@@ -606,12 +607,35 @@ class TestRequeueDead:
         one_entry = upload_queue_mod._directory_bytes(queue_root / "dead") // 2
         queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), max_pending_bytes=one_entry)
 
-        assert await queue.requeue_dead() == 1
+        await queue.requeue_dead()
 
         assert len(queue.iter_pending()) == 1
         assert upload_queue_mod._directory_bytes(queue_root) <= one_entry
         assert len(list((queue_root / "dead").glob("*.jpg"))) == 1
         assert len(list((queue_root / "dead").glob("*.json"))) == 1
+
+    async def test_cancel_holds_lock_until_moves_finish(
+        self, queue_root: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A cancelled requeue keeps the enqueue lock until its file moves are done."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        started, release = threading.Event(), threading.Event()
+
+        def _slow_requeue() -> None:
+            started.set()
+            release.wait(timeout=5)
+
+        monkeypatch.setattr(queue, "_requeue_dead_sync", _slow_requeue)
+        task = asyncio.create_task(queue.requeue_dead())
+        await asyncio.to_thread(started.wait, 5)
+        task.cancel()
+        await asyncio.sleep(0.05)
+
+        assert queue._enqueue_lock.locked()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not queue._enqueue_lock.locked()
 
 
 class TestUploadQueueWorker:

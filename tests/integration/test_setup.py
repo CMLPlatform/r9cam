@@ -510,8 +510,10 @@ class TestRePairing:
         runtime.relay_service = FakeRelayService(runtime)
 
         await setup_router._restart_relay_after_pairing(runtime)
+        await runtime.wait_for_tasks({"requeue_dead"})
 
         requeue_dead.assert_awaited_once()
+        runtime.cancel_tasks()
 
 
 class TestPairingCodeRefresh:
