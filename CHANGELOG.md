@@ -8,6 +8,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Added
+
+- The local API on port 8018 can serve HTTPS. Set `TLS_CERT_FILE` and `TLS_KEY_FILE` to a
+  certificate and key, mount them into the container and use `https` in `BASE_URL`; see
+  "Serve the local API over HTTPS" in INSTALL.md. It is off by default. The app refuses to
+  start when only one is set or the pair does not load. The image now starts with
+  `python -m app.serve` instead of `fastapi run`.
+
 ### Changed
 
 - Release tags are signed: `just release-publish` signs the tag with the maintainer's key

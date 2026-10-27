@@ -45,6 +45,9 @@ services:
       - app_data:/app/data
       - app_logs:/app/logs
       - relay_credentials:/home/r9cam/.config/r9cam
+      # HTTPS for the local API: mount the certificate directory read-only and set
+      # TLS_CERT_FILE and TLS_KEY_FILE in .env (see INSTALL.md).
+      # - ./tls:/app/tls:ro
     env_file:
       - path: .env
         required: false

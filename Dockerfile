@@ -103,14 +103,15 @@ RUN mkdir -p /app/data/images /app/logs /home/r9cam/.config/r9cam && \
 ARG GIT_SHA=""
 ENV R9CAM_GIT_SHA=$GIT_SHA
 
+# With TLS on, probe over HTTPS without verifying: the certificate names the Pi, not localhost.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8018/')" || exit 1
+    CMD python -c "import os, ssl, urllib.request; scheme = 'https' if os.environ.get('TLS_CERT_FILE') else 'http'; urllib.request.urlopen(f'{scheme}://localhost:8018/', context=ssl._create_unverified_context())" || exit 1
 
 EXPOSE 8018
 
 USER 1000:44
 
-CMD ["fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8018", "--forwarded-allow-ips", "127.0.0.1,::1"]
+CMD ["python", "-m", "app.serve"]
 
 # Standalone runtime: identical to the paired runtime but with S3 dependencies.
 # Only the venv differs; all other layers are inherited from the runtime stage.

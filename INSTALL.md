@@ -209,8 +209,8 @@ To rotate the local API key, stop the app, remove `local_api_key` from `~/.confi
 
 Transport security:
 
-- The local API is plain **HTTP** by design — the API key and setup data cross the LAN unencrypted, so keep port `8018` on a trusted network. Outbound traffic (backend, `wss://` relay, S3, OTLP) is always TLS.
-- For TLS, front the API with a reverse proxy and set `BASE_URL=https://<host>` (enables HSTS, silences the plaintext-LAN startup warning).
+- The local API is plain **HTTP** by default: the API key and setup data cross the LAN unencrypted, so keep port `8018` on a trusted network. Outbound traffic (backend, `wss://` relay, S3, OTLP) is always TLS.
+- To encrypt the local API too, see [Serve the local API over HTTPS](#serve-the-local-api-over-https), or front it with a reverse proxy and set `BASE_URL=https://<host>`.
 
 Network notes:
 
@@ -220,13 +220,43 @@ Network notes:
 - USB gadget mode applies to Raspberry Pi Zero 2W and some Raspberry Pi 4 revisions, not Raspberry Pi 5.
 - mDNS is optional. Install `avahi-daemon` and advertise `_r9cam._tcp` on port 8018 to reach the Pi at `<hostname>.local`.
 
+### Serve the local API over HTTPS
+
+The API serves HTTPS itself when `TLS_CERT_FILE` and `TLS_KEY_FILE` both point at PEM files. The app refuses to start if only one is set, or if a file is missing, unreadable or does not match the other. It never falls back to plain HTTP.
+
+1. Make a certificate for the Pi's LAN address. Use one from your own CA if you have one. Otherwise make a self-signed one; clients then need `-k` or must trust the certificate once:
+
+   ```sh
+   mkdir -p tls
+   openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 825 \
+     -subj "/CN=r9cam" -addext "subjectAltName=IP:192.168.1.42,DNS:r9cam.local" \
+     -keyout tls/key.pem -out tls/cert.pem
+   chmod 644 tls/cert.pem && chmod 640 tls/key.pem && sudo chgrp 44 tls/key.pem
+   ```
+
+   The app runs as user 1000, group 44 (`video`) in the container, so the key must be readable by one of them.
+
+1. Uncomment the `./tls:/app/tls:ro` volume under `app` in `compose.yml`.
+
+1. Set the files and the HTTPS base URL in `.env`, then run `docker compose up -d`:
+
+   ```sh
+   TLS_CERT_FILE=/app/tls/cert.pem
+   TLS_KEY_FILE=/app/tls/key.pem
+   BASE_URL=https://192.168.1.42:8018
+   ```
+
+1. Check it: `curl -k https://192.168.1.42:8018/`.
+
+An `https` `BASE_URL` also marks session cookies `Secure` and turns on HSTS. For a direct Python run, set the same variables with paths on the Pi.
+
 ## Direct Python Run
 
 For a non-Docker run on the Pi:
 
 ```sh
 ./scripts/local_setup.sh
-uv run fastapi run app/main.py --host 0.0.0.0 --port 8018 --forwarded-allow-ips 127.0.0.1,::1
+uv run python -m app.serve
 ```
 
 ## Verify The Service
@@ -315,7 +345,7 @@ Check the CSI cable orientation, camera seating, and camera module compatibility
 
 - Check port 8018 availability: `sudo netstat -tlnp | grep :8018`
 - Check logs: `docker compose logs app`
-- For direct runs, start with `uv run fastapi run app/main.py --host 0.0.0.0 --port 8018 --forwarded-allow-ips 127.0.0.1,::1`
+- For direct runs, start with `uv run python -m app.serve`
 
 ### Relay Does Not Connect
 

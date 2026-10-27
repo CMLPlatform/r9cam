@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 from collections.abc import Iterable
 from ipaddress import ip_address
 from pathlib import Path
@@ -105,6 +106,24 @@ def validate_absolute_url_template_transport(value: str, *, setting_name: str, a
     if not parsed.scheme and not parsed.netloc:
         return
     validate_endpoint_transport(value, setting_name=setting_name, app_env=app_env)
+
+
+def validate_tls_files(cert_file: str, key_file: str) -> None:
+    """Require both TLS files or neither, and check the pair loads.
+
+    Loading it here means a missing, unreadable or mismatched file stops startup
+    with a clear message, instead of the API falling back to plain HTTP.
+    """
+    if bool(cert_file) != bool(key_file):
+        msg = "TLS_CERT_FILE and TLS_KEY_FILE must be set together, or both left unset for plain HTTP."
+        raise ValueError(msg)
+    if not cert_file:
+        return
+    try:
+        ssl.create_default_context(ssl.Purpose.CLIENT_AUTH).load_cert_chain(cert_file, key_file)
+    except (OSError, ssl.SSLError) as exc:
+        msg = f"TLS_CERT_FILE and TLS_KEY_FILE could not be loaded: {exc}"
+        raise ValueError(msg) from exc
 
 
 class RelayUrlError(ValueError):
@@ -241,6 +260,9 @@ class Settings(BaseSettings):
     # Extra CORS origins allowed for direct-connect clients, e.g. "http://192.168.1.42"
     # Set it from env as a JSON array string, e.g. '["http://192.168.1.42"]' (same format as authorized_api_keys).
     local_allowed_origins: list[HttpUrl] = []
+    # Serve the local API over HTTPS. Set both paths (PEM files) or neither; neither means plain HTTP.
+    tls_cert_file: str = ""
+    tls_key_file: str = ""
 
     @field_validator("local_allowed_origins", mode="before")
     @classmethod
@@ -277,6 +299,11 @@ class Settings(BaseSettings):
             and self.relay_key_id
             and self.relay_private_key_pem
         )
+
+    @property
+    def tls_enabled(self) -> bool:
+        """Return whether the local API serves HTTPS itself."""
+        return bool(self.tls_cert_file and self.tls_key_file)
 
     @property
     def cookie_secure(self) -> bool:
@@ -371,6 +398,7 @@ class Settings(BaseSettings):
                 setting_name="OTEL_EXPORTER_OTLP_ENDPOINT",
                 app_env=self.app_env,
             )
+        validate_tls_files(self.tls_cert_file, self.tls_key_file)
         if self.image_sink == IMAGE_SINK_BACKEND and not self.pairing_backend_url:
             msg = "IMAGE_SINK=backend requires PAIRING_BACKEND_URL."
             raise ValueError(msg)

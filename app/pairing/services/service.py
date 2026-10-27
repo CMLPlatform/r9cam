@@ -251,7 +251,8 @@ def _lan_setup_url(port: int | None) -> str | None:
     setup_port = port or 8018
     ips = find_lan_ips()
     if ips:
-        return f"http://{ips[0]}:{setup_port}/setup"
+        scheme = "https" if app_settings.tls_enabled else "http"
+        return f"{scheme}://{ips[0]}:{setup_port}/setup"
     return None
 
 

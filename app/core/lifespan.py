@@ -38,7 +38,8 @@ def _log_startup_banner(runtime: AppRuntime) -> None:
     """
     base_url = urlparse(str(settings.base_url))
     setup_port = base_url.port or 8018
-    setup_url = f"http://<this-ip>:{setup_port}/setup"
+    scheme = "https" if settings.tls_enabled else "http"
+    setup_url = f"{scheme}://<this-ip>:{setup_port}/setup"
     mode = connection_mode(runtime.runtime_state, settings)
 
     if mode is ConnectionMode.PAIRED:

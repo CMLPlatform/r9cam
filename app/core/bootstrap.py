@@ -146,11 +146,15 @@ def bootstrap_runtime_state(runtime_state: RuntimeState, app_settings: Settings 
         logger.warning(
             "PAIRING_BACKEND_URL uses loopback inside a container; pairing will rewrite it to host.docker.internal."
         )
-    if app_settings.app_env != APP_ENV_DEVELOPMENT and app_settings.base_url.scheme != HTTPS_SCHEME:
+    if (
+        app_settings.app_env != APP_ENV_DEVELOPMENT
+        and app_settings.base_url.scheme != HTTPS_SCHEME
+        and not app_settings.tls_enabled
+    ):
         logger.warning(
             "BASE_URL uses plain HTTP (%s) in production; the local API key and setup data cross the LAN "
-            "unencrypted. Restrict port 8018 to a trusted network, or front the API with TLS and set "
-            "BASE_URL=https://<host>.",
+            "unencrypted. Restrict port 8018 to a trusted network, or serve the API over TLS "
+            "(TLS_CERT_FILE and TLS_KEY_FILE, or a reverse proxy) and set BASE_URL=https://<host>.",
             app_settings.base_url,
         )
     apply_relay_credentials(runtime_state)
