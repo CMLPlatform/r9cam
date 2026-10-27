@@ -81,6 +81,16 @@ Keep the runtime small and the risky paths easy to spot:
 - Keep `pyproject.toml`, `uv.lock`, Dockerfile and Compose image pins, pinned GitHub Actions, Renovate PRs, `uv audit`, secret scanning, and Trivy current.
 - Pay extra attention to camera capture, preview and streaming, MediaMTX `runOnReady` and ffmpeg, the upload queue, the S3 sink, relay dispatch, and telemetry and log shipping.
 
+## Choosing Dependencies
+
+Add a dependency only when the standard library or an existing dependency cannot do the job. A new one must be:
+
+- maintained, with recent releases and a response to security reports
+- under a licence compatible with AGPL-3.0, such as MIT, BSD, Apache-2.0 or LGPL
+- added with `uv add`, so it lands in `pyproject.toml` and is pinned in `uv.lock`
+
+`exclude-newer = "3 days"` in `pyproject.toml` keeps uv from locking a release younger than three days. Renovate opens the update pull requests, and `uv audit` runs in CI as the required `Dependency Audit` check.
+
 ## Test Suite Policy
 
 The suite has two primary layers:
