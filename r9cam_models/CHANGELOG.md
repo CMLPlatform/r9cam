@@ -7,6 +7,14 @@ are listed only in the GitHub tags (`relab-rpi-cam-models-v*`, and `r9cam-models
 
 ## [Unreleased]
 
+### Added
+
+- `CaptureMetadata` reads libcamera's `LensPosition`, `ColourGains` and `ScalerCrop` into
+  `lens_position`, `color_gains` and `scaler_crop`.
+- `ImageMetadata.provenance`, a `CaptureProvenance` with the plugin version, the commit it
+  was built from and the SHA-256 of the libcamera tuning file. All new fields default to
+  `None`, so payloads without them still validate.
+
 ### Changed
 
 - The `ImageCaptureResponse.image_url` description and the `ImageCaptureStatus` docstring say

@@ -219,6 +219,18 @@ class TestEnqueue:
         with pytest.raises(upload_queue_mod.UploadQueueFullError):
             await queue.enqueue(image_id=image_id(1), image_path=sample_image, capture_metadata={}, upload_metadata={})
 
+    async def test_old_image_without_sidecar_does_not_fill_byte_cap(
+        self, queue_root: Path, sample_image: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A jpg orphaned by a crash before its sidecar was written stops counting against the cap."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), max_pending_bytes=2 * len(_jpeg_bytes()))
+        (queue_root / f"{image_id(1)}.jpg").write_bytes(_jpeg_bytes() * 2)
+        monkeypatch.setattr(upload_queue_mod, "_ORPHAN_IMAGE_GRACE_SECONDS", -1)
+
+        await queue.enqueue(image_id=image_id(2), image_path=sample_image, capture_metadata={}, upload_metadata={})
+
+        assert [e.image_id for e in queue.iter_pending()] == [image_id(2)]
+
 
 class TestIterPending:
     """Tests for iter_pending ordering + resilience."""
@@ -305,6 +317,80 @@ class TestIterPending:
         assert [e.image_id for e in entries] == [good_id]
         # Left in place: unreadable is not the same as invalid, so a human can inspect it.
         assert (queue_root / f"{corrupt_id}.json").exists()
+
+    @pytest.mark.parametrize(
+        "sidecar",
+        [
+            "[]",
+            "null",
+            '{"attempts": null}',
+            '{"attempts": "two"}',
+            '{"attempts": Infinity}',
+            '{"capture_metadata": []}',
+            '{"upload_metadata": "x"}',
+        ],
+    )
+    def test_skips_sidecar_of_the_wrong_shape(self, queue_root: Path, sink: _FakeSink, sidecar: str) -> None:
+        """Valid JSON of the wrong shape is skipped like a truncated sidecar, not raised."""
+        good_id, bad_id = image_id(1), image_id(2)
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        for capture_id in (good_id, bad_id):
+            (queue_root / f"{capture_id}.jpg").write_bytes(_jpeg_bytes())
+        (queue_root / f"{good_id}.json").write_text(f'{{"image_id": "{good_id}"}}')
+        (queue_root / f"{bad_id}.json").write_text(sidecar)
+
+        entries = queue.iter_pending()
+
+        assert [e.image_id for e in entries] == [good_id]
+        assert (queue_root / f"{bad_id}.json").exists()
+
+    @pytest.mark.parametrize(("sidecar", "attempts"), [("{}", 0), ('{"attempts": -3}', 0), ('{"attempts": 2}', 2)])
+    def test_reads_attempts(self, queue_root: Path, sink: _FakeSink, sidecar: str, attempts: int) -> None:
+        """A missing attempt count is zero, and a negative one cannot index past the backoff schedule."""
+        capture_id = image_id(1)
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        (queue_root / f"{capture_id}.jpg").write_bytes(_jpeg_bytes())
+        (queue_root / f"{capture_id}.json").write_text(sidecar)
+
+        [entry] = queue.iter_pending()
+
+        assert entry.attempts == attempts
+
+    def test_reads_naive_timestamp_as_utc(self, queue_root: Path, sink: _FakeSink) -> None:
+        """A next_attempt_at without a timezone is read as UTC, so entries still sort and compare."""
+        naive_id, aware_id = image_id(1), image_id(2)
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        for capture_id in (naive_id, aware_id):
+            (queue_root / f"{capture_id}.jpg").write_bytes(_jpeg_bytes())
+        (queue_root / f"{naive_id}.json").write_text('{"next_attempt_at": "2020-01-01T00:00:00"}')
+        (queue_root / f"{aware_id}.json").write_text('{"next_attempt_at": "2021-01-01T00:00:00+00:00"}')
+
+        entries = queue.iter_pending()
+
+        assert [e.image_id for e in entries] == [naive_id, aware_id]
+        assert entries[0].next_attempt_at == datetime(2020, 1, 1, tzinfo=UTC)
+        assert queue.is_due(entries[0])
+
+    def test_removes_old_image_without_sidecar(
+        self, queue_root: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A jpg left without a sidecar by a crash is removed once the grace period has passed."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        orphan = queue_root / f"{image_id(1)}.jpg"
+        orphan.write_bytes(_jpeg_bytes())
+        monkeypatch.setattr(upload_queue_mod, "_ORPHAN_IMAGE_GRACE_SECONDS", -1)
+
+        assert queue.iter_pending() == []
+        assert not orphan.exists()
+
+    def test_keeps_new_image_without_sidecar(self, queue_root: Path, sink: _FakeSink) -> None:
+        """A jpg whose sidecar is still being written must not be touched."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        in_flight = queue_root / f"{image_id(1)}.jpg"
+        in_flight.write_bytes(_jpeg_bytes())
+
+        assert queue.iter_pending() == []
+        assert in_flight.exists()
 
     def test_cleans_up_metadata_with_invalid_image_id(self, queue_root: Path, sink: _FakeSink) -> None:
         """A sidecar whose stem is not a valid capture id can never be uploaded, so it is removed."""
@@ -598,6 +684,23 @@ class TestRequeueDead:
         assert queue.is_due(entry)
         assert list((queue_root / "dead").iterdir()) == []
         assert await queue.drain_once() == 1
+
+    async def test_restart_finishes_requeue_interrupted_after_image_move(
+        self, queue_root: Path, tmp_path: Path, sink: _FakeSink
+    ) -> None:
+        """A crash between the image move and the live sidecar write must not lose the capture."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        capture_id = image_id(30)
+        await self._dead_letter(queue, capture_id, tmp_path / "c.jpg")
+        (queue_root / "dead" / f"{capture_id}.jpg").rename(queue_root / f"{capture_id}.jpg")
+
+        await queue.requeue_dead()
+
+        [entry] = queue.iter_pending()
+        assert entry.image_id == capture_id
+        assert entry.attempts == 0
+        assert entry.capture_metadata == {"k": "v"}
+        assert list((queue_root / "dead").iterdir()) == []
 
     async def test_requeue_honours_byte_cap(self, queue_root: Path, tmp_path: Path, sink: _FakeSink) -> None:
         """Entries that do not fit under the byte cap stay dead."""

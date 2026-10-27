@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.settings import settings
+from app.core.settings import Settings, settings
 from app.delivery.backend_sink import BackendPushSink
-from app.delivery.factory import ImageSinkConfigError, get_image_sink
+from app.delivery.factory import ImageSinkConfigError, get_image_sink, resolve_image_sink
 from app.delivery.s3_sink import S3CompatibleSink
 
 
@@ -126,3 +126,16 @@ class TestUnknownSinkName:
         monkeypatch.setattr(settings, "image_sink", "garbage")
         with pytest.raises(ImageSinkConfigError, match="Unknown image_sink"):
             get_image_sink(settings)
+
+
+class TestResolveImageSink:
+    """The one rule for which sink is in effect."""
+
+    def test_explicit_choice_wins_and_auto_prefers_s3(self) -> None:
+        """Explicit settings pass through; auto picks S3, then backend, then nothing."""
+        s3_endpoint = "https://s3.example"
+        backend_url = "https://api.example"
+        assert resolve_image_sink(Settings(image_sink="backend", s3_endpoint_url=s3_endpoint)) == "backend"
+        assert resolve_image_sink(Settings(s3_endpoint_url=s3_endpoint, pairing_backend_url=backend_url)) == "s3"
+        assert resolve_image_sink(Settings(pairing_backend_url=backend_url)) == "backend"
+        assert resolve_image_sink(Settings(pairing_backend_url="")) == "unconfigured"

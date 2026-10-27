@@ -7,9 +7,11 @@ import pytest
 from PIL import Image
 from PIL.ExifTags import IFD, Base
 from pydantic import AnyUrl
+from r9cam_models.images import ImageMetadata
 from r9cam_models.stream import StreamMode
 
 from app.__version__ import version
+from app.backend import contract_adapters
 from app.backend.contract_adapters import (
     build_image_metadata,
     build_stream_metadata,
@@ -60,6 +62,50 @@ class TestContractAdapters:
         assert metadata.capture_metadata.color_temperature == 5_000
         assert metadata.capture_metadata.analogue_gain == 1.0
         assert metadata.capture_metadata.lux == 400.0
+
+    def test_build_image_metadata_records_capture_provenance(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Lens position, colour gains, scaler crop and the software build travel with each image."""
+        monkeypatch.setattr(contract_adapters, "git_sha", "abc1234")
+        image = Image.new("RGB", (100, 100), color="red")
+        capture_metadata = {"LensPosition": 2.5, "ColourGains": (1.8, 1.5), "ScalerCrop": (0, 0, 4608, 2592)}
+        metadata = build_image_metadata(
+            image, {"Model": MOCK_CAMERA_MODEL}, capture_metadata, tuning_file_sha256="f" * 64
+        )
+        assert metadata.capture_metadata.lens_position == 2.5
+        assert metadata.capture_metadata.color_gains == (1.8, 1.5)
+        assert metadata.capture_metadata.scaler_crop == (0, 0, 4608, 2592)
+        assert metadata.provenance.plugin_version == version
+        assert metadata.provenance.plugin_git_sha == "abc1234"
+        assert metadata.provenance.tuning_file_sha256 == "f" * 64
+
+    def test_build_image_metadata_leaves_missing_provenance_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Absent controls and an unknown build give None, not an error."""
+        monkeypatch.setattr(contract_adapters, "git_sha", None)
+        metadata = build_image_metadata(Image.new("RGB", (10, 10)), {}, {})
+        assert metadata.capture_metadata.lens_position is None
+        assert metadata.capture_metadata.color_gains is None
+        assert metadata.capture_metadata.scaler_crop is None
+        assert metadata.provenance.plugin_git_sha is None
+        assert metadata.provenance.tuning_file_sha256 is None
+
+    def test_image_metadata_accepts_payload_without_provenance(self) -> None:
+        """A payload from an older plugin, without the provenance fields, still validates."""
+        old = {
+            "image_properties": {"width": 10, "height": 10, "capture_time": "2026-10-01T12:00:00Z"},
+            "camera_properties": {"camera_model": MOCK_CAMERA_MODEL},
+            "capture_metadata": {"exposure_time": 1_000},
+        }
+        metadata = ImageMetadata.model_validate(old)
+        assert metadata.provenance.plugin_version is None
+        assert metadata.capture_metadata.lens_position is None
+
+    def test_image_metadata_round_trips_through_json(self) -> None:
+        """The dump the plugin uploads validates again on the backend side."""
+        image = Image.new("RGB", (10, 10))
+        metadata = build_image_metadata(image, {}, {"ColourGains": (1.8, 1.5), "ScalerCrop": (0, 0, 8, 8)})
+        restored = ImageMetadata.model_validate(metadata.model_dump(mode="json"))
+        assert restored.capture_metadata == metadata.capture_metadata
+        assert restored.provenance == metadata.provenance
 
     def test_image_metadata_to_exif_adds_required_tags(self) -> None:
         """Plugin-local EXIF conversion should remain outside the shared package."""

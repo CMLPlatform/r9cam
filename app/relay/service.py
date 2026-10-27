@@ -213,7 +213,7 @@ def _refusal_hint(exc: InvalidStatus) -> str:
 def _honour_retry_after(exc: InvalidStatus, delay: float) -> float:
     """Stretch a 429 backoff to the server's Retry-After seconds, within the usual cap."""
     retry_after = exc.response.headers.get("Retry-After", "")
-    # shortcut: only the delay-seconds form; an HTTP-date falls back to the normal backoff.
+    # NOTE: only the delay-seconds form; an HTTP-date falls back to the normal backoff.
     if exc.response.status_code == HTTPStatus.TOO_MANY_REQUESTS and retry_after.isdecimal():
         return min(max(delay, float(retry_after)), _RELAY_RECONNECT_MAX_DELAY_S)
     return delay
