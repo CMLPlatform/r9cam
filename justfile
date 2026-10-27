@@ -74,34 +74,58 @@ clean:
 show-key:
     @python3 -c 'import sys; from urllib.request import urlopen; sys.stdout.write(urlopen("http://127.0.0.1:8018/local-key", timeout=2).read().decode("utf-8", "replace").strip() + "\n")'
 
-# Branch release/vX.Y.Z off origin/main and make the bump commit: the version files,
-# uv.lock, CHANGELOG.md and the release dates. No tag: the Release workflow tags the
-# merged commit.
-release-prep:
+# Releases, as in r9lab:
+#
+#   just release-prep 0.7.0      branch release/v0.7.0 from origin/main, set every version
+#                                file and turn CHANGELOG.md's Unreleased into [0.7.0]
+#   (write the section, commit, open a PR and merge it)
+#   just release-publish 0.7.0   draft the GitHub release from that CHANGELOG section
+#
+# Publishing the draft on GitHub creates the tag and starts release.yml, which uploads
+# the wheel, the sdist and the SBOM.
+release-prep version:
     #!/usr/bin/env bash
     set -euo pipefail
+    version={{ quote(version) }}
+    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "expected a version like 0.7.0, got '$version'" >&2; exit 2; }
     [[ -z "$(git status --porcelain)" ]] || { echo "the working tree has changes; commit or stash them first" >&2; exit 1; }
     git fetch --quiet origin main --tags
-    git switch --quiet --detach origin/main
-    previous="$(uv version --short)"
-    # commitizen exits 3 when there are no commits since the last tag and 21 when none of them bump the version.
-    code=0
-    next="$(uv run cz bump --get-next)" || code=$?
-    if [[ $code -eq 3 || $code -eq 21 ]]; then
-        git switch --quiet -
-        echo "No commits since v$previous that call for a release; nothing to do."
-        exit 0
-    fi
-    [[ $code -eq 0 ]] || { git switch --quiet -; exit "$code"; }
-    git switch --quiet --create "release/v$next"
-    uv run cz bump --yes --version-files-only
+    git switch --create "release/v$version" origin/main
+    previous="$(git describe --tags --abbrev=0 --match 'v*' origin/main)"
     today="$(date +%F)"
+    uv run cz bump --files-only --yes "$version"
+    uv lock --quiet
     sed -i -E "s/^date-released: .*/date-released: $today/" CITATION.cff
     sed -i -E "s/(\"datePublished\": )\"[^\"]*\"/\1\"$today\"/" codemeta.json
-    git add pyproject.toml app/__version__.py openapi.r9cam.json CITATION.cff codemeta.json CHANGELOG.md uv.lock
-    git commit --quiet --signoff -m "bump: version $previous → $next"
-    git log --oneline -1
-    echo "Next:"
-    echo "  1. Read the new CHANGELOG.md section. It is built from commit messages, so fix any stale entry and amend: git commit --amend -s"
-    echo "  2. git push -u origin release/v$next and open a pull request. The release notes are that section."
-    echo "  3. After it merges, run the Release workflow on main: gh workflow run release.yml --ref main"
+    # Keep a Changelog: what accumulated under Unreleased becomes this version, under a
+    # fresh, empty Unreleased, and the compare links move along.
+    sed -i "0,/^## \[Unreleased\]$/s//## [Unreleased]\n\n## [$version] - $today/" CHANGELOG.md
+    # mdformat lowercases and sorts the link labels, so match [unreleased] in either case.
+    sed -i -E "s#^\[[Uu]nreleased\]: (.*)/compare/v[0-9.]+\.\.\.HEAD\$#[unreleased]: \1/compare/v$version...HEAD\n[$version]: \1/compare/$previous...v$version#" CHANGELOG.md
+    grep -q "^\[$version\]: " CHANGELOG.md || { echo "CHANGELOG.md has no [unreleased] compare link to move" >&2; exit 1; }
+    git status --short
+    echo "Commits since $previous, to write the [$version] section from:"
+    git log --format='  %s' "$previous..origin/main"
+    echo "Write the [$version] section of CHANGELOG.md, then commit and open a PR."
+
+# Draft the GitHub release for a merged version from its CHANGELOG section.
+release-publish version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version={{ quote(version) }}
+    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "expected a version like 0.7.0, got '$version'" >&2; exit 2; }
+    git fetch --quiet origin main
+    main_version="$(git show origin/main:pyproject.toml | python3 -c 'import sys, tomllib; print(tomllib.load(sys.stdin.buffer)["project"]["version"])')"
+    [[ "$main_version" == "$version" ]] || {
+        echo "origin/main is at $main_version, not $version: merge the release PR first" >&2
+        exit 1
+    }
+    # The section between this version's heading and the next one, heading excluded.
+    notes="$(git show origin/main:CHANGELOG.md | awk -v v="## [$version]" '
+        index($0, v) == 1 { found = 1; next }
+        found && /^## \[/ { exit }
+        found { print }')"
+    [[ -n "${notes//[[:space:]]/}" ]] || { echo "CHANGELOG.md on origin/main has no v$version section" >&2; exit 1; }
+    gh release create "v$version" --draft --target "$(git rev-parse origin/main)" \
+        --title "v$version" --notes "$notes"
+    echo "Review the draft, then publish it: that creates the tag and starts release.yml."

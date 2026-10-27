@@ -197,11 +197,12 @@ Plugin app releases and `r9cam_models` releases are versioned independently.
 
 ### Plugin App
 
-The plugin app release uses `commitizen` and GitHub Actions. Commits follow [Conventional Commits](https://www.conventionalcommits.org/), so `commitizen` can pick the next version from them.
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and is written by hand. A pull request that changes what users see adds its line under `## [Unreleased]`, with upgrade steps first and breaking changes marked **Breaking**.
 
-1. Run `just release-prep` with a clean working tree. It branches `release/vX.Y.Z` off `origin/main` and makes the bump commit. That commit updates `pyproject.toml`, `app/__version__.py`, `openapi.r9cam.json`, `CITATION.cff`, `codemeta.json`, `uv.lock` and `CHANGELOG.md`, and sets the release date in `CITATION.cff` and `codemeta.json` to today. It makes no tag. If no commit since the last tag calls for a release, it says so and stops.
-1. Push the branch and open a pull request. Merge it once its checks pass.
-1. Run the Release workflow on `main` (`gh workflow run release.yml --ref main`). It reads the version from `pyproject.toml`, stops if that tag already exists, and creates the tag and the GitHub release on the merged commit. The release notes are that version's section of `CHANGELOG.md`. A second job builds the wheel, the sdist and a CycloneDX SBOM, attests them, and uploads them to the release.
+1. Run `just release-prep X.Y.Z` with a clean working tree. It branches `release/vX.Y.Z` off `origin/main`, writes the version into `pyproject.toml`, `app/__version__.py`, `openapi.r9cam.json`, `CITATION.cff`, `codemeta.json` and `uv.lock`, sets today's date in `CITATION.cff` and `codemeta.json`, and turns `[Unreleased]` into `[X.Y.Z]` with its compare link. It prints the commits since the last tag.
+1. Finish the `[X.Y.Z]` section, commit, push the branch and open a pull request. Merge it once its checks pass.
+1. Run `just release-publish X.Y.Z`. It checks `main` is at that version and drafts the GitHub release with that section as its notes.
+1. Publish the draft on GitHub. That creates the tag and starts the Release workflow, which checks the tag matches the version files, then builds the wheel, the sdist and a CycloneDX SBOM, attests them, and uploads them to the release.
 
 ### `r9cam_models`
 
