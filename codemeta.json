@@ -3,7 +3,7 @@
   "@type": "SoftwareSourceCode",
   "name": "r9cam",
   "description": "Device-side software for automated image capture on Raspberry Pi, integrated with the R9lab platform. A FastAPI service captures still images with per-capture camera metadata, serves a live preview, pairs to R9lab over an outbound WebSocket relay with device-signed tokens, and uploads captures with a disk-backed retry queue.",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "datePublished": "2026-10-27",
   "license": "https://spdx.org/licenses/AGPL-3.0-or-later",
   "codeRepository": "https://github.com/CMLPlatform/r9cam",

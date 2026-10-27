@@ -8,54 +8,56 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-27
+
 ### Added
 
 - Each capture's metadata records how it was made: the lens position, white-balance gains
   and sensor crop, the plugin version and the commit the release image was built from, and
-  the SHA-256 of the libcamera tuning file. R9lab stores them with the image.
+  the SHA-256 of the libcamera tuning file. R9lab stores them with the image. ([#100])
 
 ### Changed
 
 - Needs r9cam-models 0.6.1, which adds the provenance fields and the stricter paired poll
-  response.
+  response. ([#106])
 - The container image is about 220 MiB smaller unpacked (amd64 build: 750 to 529 MiB of files,
   797 to 556 MB as Docker reports it; the arm64 0.7.0 image was 778 MiB of files). It drops
   Mesa's GPU drivers with LLVM and Z3, which the libav libraries pull in but a headless image
   never loads, and it runs on Debian's Python 3.13 (3.13.5) instead of a second interpreter
-  from the python:3.13-slim base.
+  from the python:3.13-slim base. ([#103])
 
 ### Fixed
 
 - Relayed commands no longer fail with 401 when the relay credentials come from environment
   variables. The key the relay uses to call this camera's own API was never created or
-  authorized on that path, only when credentials were read from the credentials file.
+  authorized on that path, only when credentials were read from the credentials file. ([#96])
 - A relayed command whose reply the relay cannot encode (for example an oversized
   `Content-Type`) now gets a 500 reply at once. Before, the backend waited out its 30 second
-  command timeout.
+  command timeout. ([#97])
 - The release image gets its SBOM and build provenance attestations again. The 0.7.0 image
-  was published without them, because the SBOM step looked for an amd64 image.
+  was published without them, because the SBOM step looked for an amd64 image. ([#95])
 - The citation metadata lists "research data" instead of "computer vision", which r9cam does
   not do.
-- A queued upload whose metadata file is valid JSON of the wrong shape, such as a list, a
-  `null` attempt count, is now skipped. A timestamp without a timezone is read as UTC. It used to stop
-  every queued upload and every new capture.
+- A queued upload whose metadata file is valid JSON of the wrong shape, such as a list or a
+  `null` attempt count, is now skipped instead of stopping every queued upload and every new
+  capture. A timestamp without a timezone is read as UTC. ([#102])
 - A capture left in the upload queue without its metadata file, after a crash or power cut
   during queueing, is now removed after a minute. It used to count against the queue's size
-  limit forever.
+  limit forever. A requeue that a crash interrupted is finished on the next start. ([#102])
 - Unpairing keeps the local API key. Before, it deleted the key with the relay credentials,
-  so the next start made a new one and LAN clients lost access.
+  so the next start made a new one and LAN clients lost access. ([#101])
 - When the camera fails to configure, for example on a memory error, or its start is cancelled
   by a request timeout, it is released, so the next capture or stream opens it again. Before,
-  the camera stayed half set up until a restart.
+  the camera stayed half set up until a restart. ([#101])
 - The preview thumbnail keeps refreshing after an error. Before, one failed refresh stopped
-  the refresh loop until a restart, so the camera card showed an old image.
+  the refresh loop until a restart, so the camera card showed an old image. ([#101])
 - The relay waits before it reconnects when the backend accepts the connection and then drops
   it at once. Before, it reconnected in a tight loop. The wait grows up to 60 seconds and
-  resets after a connection that stays up for 60 seconds.
+  resets after a connection that stays up for 60 seconds. ([#101])
 - A capture the backend accepted is no longer uploaded again when the backend's reply has an
   `image_url` the camera cannot use, such as plain HTTP in production. The camera logs a
   warning and returns the capture without a URL. Before, it queued the capture for retry and
-  the backend stored it twice.
+  the backend stored it twice. ([#101])
 
 ## [0.7.0] - 2026-10-27
 
@@ -235,6 +237,11 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 
 - **tasks**: improve repeat_task function to handle coroutine tasks and logging
 
+[#100]: https://github.com/CMLPlatform/r9cam/pull/100
+[#101]: https://github.com/CMLPlatform/r9cam/pull/101
+[#102]: https://github.com/CMLPlatform/r9cam/pull/102
+[#103]: https://github.com/CMLPlatform/r9cam/pull/103
+[#106]: https://github.com/CMLPlatform/r9cam/pull/106
 [#42]: https://github.com/CMLPlatform/r9cam/pull/42
 [#45]: https://github.com/CMLPlatform/r9cam/pull/45
 [#46]: https://github.com/CMLPlatform/r9cam/pull/46
@@ -249,6 +256,8 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [#86]: https://github.com/CMLPlatform/r9cam/pull/86
 [#87]: https://github.com/CMLPlatform/r9cam/pull/87
 [#90]: https://github.com/CMLPlatform/r9cam/pull/90
+[#96]: https://github.com/CMLPlatform/r9cam/pull/96
+[#97]: https://github.com/CMLPlatform/r9cam/pull/97
 [0.1.0]: https://github.com/CMLPlatform/r9cam/commits/v0.1.1
 [0.1.1]: https://github.com/CMLPlatform/r9cam/releases/tag/v0.1.1
 [0.2.0]: https://github.com/CMLPlatform/r9cam/compare/v0.1.1...v0.2.0
@@ -259,4 +268,5 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [0.6.1]: https://github.com/CMLPlatform/r9cam/compare/v0.6.0...v0.6.1
 [0.6.2]: https://github.com/CMLPlatform/r9cam/compare/v0.6.1...v0.6.2
 [0.7.0]: https://github.com/CMLPlatform/r9cam/compare/v0.6.2...v0.7.0
-[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.7.0...HEAD
+[0.7.1]: https://github.com/CMLPlatform/r9cam/compare/v0.7.0...v0.7.1
+[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.7.1...HEAD
