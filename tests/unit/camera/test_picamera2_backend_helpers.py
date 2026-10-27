@@ -12,7 +12,9 @@ available.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import threading
 from enum import Enum
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, MagicMock
@@ -324,6 +326,50 @@ class TestPicamera2BackendMethods:
 
         with pytest.raises(CameraInitializationError, match=CAMERA_DEVICE_NOT_FOUND):
             await backend.open(CameraMode.VIDEO)
+
+    async def test_open_releases_camera_when_configure_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A failed configure closes the camera so the next open starts from scratch."""
+        broken = MagicMock()
+        broken.configure.side_effect = RuntimeError("dma_heap ENOMEM")
+        working = MagicMock()
+        working.camera_controls = {}
+        monkeypatch.setattr(backend_mod, "Picamera2", MagicMock(side_effect=[broken, working]))
+        backend = Picamera2Backend()
+
+        with pytest.raises(CameraInitializationError, match="ENOMEM"):
+            await backend.open(CameraMode.VIDEO)
+
+        broken.close.assert_called_once()
+        assert not backend.is_open
+        await backend.open(CameraMode.VIDEO)
+        working.start.assert_called_once()
+        assert backend.camera is working
+
+    async def test_open_releases_camera_when_cancelled(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A cancelled open closes the camera, or picamera2 keeps it claimed until restart."""
+        started = threading.Event()
+        release = threading.Event()
+        camera = MagicMock()
+
+        def slow_start() -> None:
+            started.set()
+            release.wait(5)
+
+        camera.start.side_effect = slow_start
+        monkeypatch.setattr(backend_mod, "Picamera2", MagicMock(return_value=camera))
+        backend = Picamera2Backend()
+
+        task = asyncio.create_task(backend.open(CameraMode.VIDEO))
+        await asyncio.to_thread(started.wait, 5)
+        task.cancel()
+        try:
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        finally:
+            release.set()
+
+        camera.close.assert_called_once()
+        assert not backend.is_open
 
     async def test_capture_image_raises_when_metadata_missing(self) -> None:
         """Missing metadata should become a RuntimeError."""

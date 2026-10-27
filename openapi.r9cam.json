@@ -709,7 +709,7 @@
                 "type": "null"
               }
             ],
-            "description": "Backend-hosted URL for the stored image. None when the capture is queued.",
+            "description": "Backend-hosted URL for the stored image. None when the capture is queued, or the backend returned a URL the camera could not use.",
             "title": "Image Url"
           },
           "metadata": {
@@ -730,7 +730,7 @@
         "type": "object"
       },
       "ImageCaptureStatus": {
-        "description": "Delivery state of a captured image.\n\n- UPLOADED: the Pi synchronously pushed the bytes to the backend and the\n  backend has stored them. ``image_url`` points at the backend.\n- QUEUED: the synchronous push failed and the bytes are in the Pi's local\n  upload queue awaiting retry. ``image_url`` is None because nothing is\n  retrievable yet.",
+        "description": "Delivery state of a captured image.\n\n- UPLOADED: the Pi synchronously pushed the bytes to the backend and the\n  backend has stored them. ``image_url`` points at the backend, or is None\n  when the backend returned a URL the camera could not use.\n- QUEUED: the synchronous push failed and the bytes are in the Pi's local\n  upload queue awaiting retry. ``image_url`` is None because nothing is\n  retrievable yet.",
         "enum": [
           "uploaded",
           "queued"

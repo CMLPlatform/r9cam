@@ -15,6 +15,12 @@ are listed only in the GitHub tags (`relab-rpi-cam-models-v*`, and `r9cam-models
   was built from and the SHA-256 of the libcamera tuning file. All new fields default to
   `None`, so payloads without them still validate.
 
+### Changed
+
+- The `ImageCaptureResponse.image_url` description and the `ImageCaptureStatus` docstring say
+  that an uploaded capture can have no URL, when the backend returned one the camera could not
+  use. The models themselves are unchanged.
+
 ### Fixed
 
 - `PairingPollResponse` now rejects a `paired` status that lacks `camera_id`, `ws_url`,

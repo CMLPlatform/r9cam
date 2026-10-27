@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from functools import partial
 from typing import TYPE_CHECKING
 
 from app.backend.client import BackendUploadError, upload_preview_thumbnail
@@ -70,9 +71,19 @@ class PreviewThumbnailWorker:
     async def run_forever(self) -> None:
         """Refresh the cached preview thumbnail on startup, interval, and preview activity."""
         await self._sleep(_STARTUP_DELAY_S)
-        await self.refresh_once(reason="startup")
+        refresh: Callable[[], Awaitable[object]] = partial(self.refresh_once, reason="startup")
         while True:
-            await self._maybe_refresh()
+            # One failed refresh (camera error, full disk) must not end the worker for good;
+            # the poll interval doubles as the back-off before the next try.
+            try:
+                await refresh()
+            except Exception:
+                logger.exception(
+                    "Preview thumbnail refresh failed; retrying in %.0f s",
+                    self._poll_interval_s,
+                    extra=build_log_extra(),
+                )
+            refresh = self._maybe_refresh
             await self._sleep(self._poll_interval_s)
 
     async def refresh_once(self, *, reason: str, upload: bool = True) -> bool:

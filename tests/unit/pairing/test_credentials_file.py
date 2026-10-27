@@ -78,4 +78,14 @@ def test_delete_removes_the_old_file_too(legacy_home: tuple[Path, Path]) -> None
     pairing_credentials.delete_relay_credentials()
 
     assert not legacy.exists()
-    assert pairing_credentials.load_relay_credentials() is None
+    assert pairing_credentials.load_relay_credentials() == {"local_api_key": "old-key"}
+
+
+def test_delete_keeps_the_local_api_key(legacy_home: tuple[Path, Path]) -> None:
+    """Unpairing drops the relay keys but keeps the LAN key, so direct clients keep access after a restart."""
+    new, _ = legacy_home
+    bootstrap._persist_local_api_key("lan-key")
+
+    pairing_credentials.delete_relay_credentials()
+
+    assert json.loads(new.read_text()) == {"local_api_key": "lan-key"}

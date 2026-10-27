@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -47,6 +48,8 @@ if TYPE_CHECKING:
 _RELAY_WS_MAX_QUEUE = 8
 _RELAY_RECONNECT_INITIAL_DELAY_S = 1.0
 _RELAY_RECONNECT_MAX_DELAY_S = 60.0
+# A connection that outlives the longest backoff step counts as stable.
+_RELAY_STABLE_CONNECTION_S = _RELAY_RECONNECT_MAX_DELAY_S
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +131,7 @@ def _format_relay_connection_error(exc: Exception) -> str:
 
 
 def _relay_reconnect_delays() -> Iterator[float]:
-    """Yield bounded exponential reconnect delays for transient handshake failures."""
+    """Yield bounded exponential reconnect delays for failed handshakes and short connections."""
     delay = _RELAY_RECONNECT_INITIAL_DELAY_S
     while True:
         yield delay
@@ -147,8 +150,20 @@ async def _iter_websocket_connections(url: str, runtime_state: RuntimeState) -> 
                 compression=None,
                 additional_headers={"Authorization": f"Bearer {build_device_assertion(runtime_state)}"},
             ) as ws:
-                delays = None
+                connected_at = time.monotonic()
                 yield ws
+            # A backend that accepts and then drops the connection at once must not get a
+            # tight reconnect loop: reset the backoff only after a connection that stayed up.
+            if time.monotonic() - connected_at >= _RELAY_STABLE_CONNECTION_S:
+                delays = None
+                continue
+            if delays is None:
+                delays = _relay_reconnect_delays()
+            delay = next(delays)
+            logger.info(
+                "Relay connection dropped soon after connecting; reconnecting in %.1fs.", delay, extra=build_log_extra()
+            )
+            await asyncio.sleep(delay)
         except Exception as exc:
             # websockets treats a 4xx handshake status as fatal. Retry it anyway: a
             # backend that refuses this camera today can accept it after an upgrade

@@ -40,6 +40,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - A capture left in the upload queue without its metadata file, after a crash or power cut
   during queueing, is now removed after a minute. It used to count against the queue's size
   limit forever.
+- Unpairing keeps the local API key. Before, it deleted the key with the relay credentials,
+  so the next start made a new one and LAN clients lost access.
+- When the camera fails to configure, for example on a memory error, or its start is cancelled
+  by a request timeout, it is released, so the next capture or stream opens it again. Before,
+  the camera stayed half set up until a restart.
+- The preview thumbnail keeps refreshing after an error. Before, one failed refresh stopped
+  the refresh loop until a restart, so the camera card showed an old image.
+- The relay waits before it reconnects when the backend accepts the connection and then drops
+  it at once. Before, it reconnected in a tight loop. The wait grows up to 60 seconds and
+  resets after a connection that stays up for 60 seconds.
+- A capture the backend accepted is no longer uploaded again when the backend's reply has an
+  `image_url` the camera cannot use, such as plain HTTP in production. The camera logs a
+  warning and returns the capture without a URL. Before, it queued the capture for retry and
+  the backend stored it twice.
 
 ## [0.7.0] - 2026-10-27
 
