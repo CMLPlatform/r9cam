@@ -157,6 +157,12 @@ def bootstrap_runtime_state(runtime_state: RuntimeState, app_settings: Settings 
             "(TLS_CERT_FILE and TLS_KEY_FILE, or a reverse proxy) and set BASE_URL=https://<host>.",
             app_settings.base_url,
         )
+    elif app_settings.tls_enabled and app_settings.base_url.scheme != HTTPS_SCHEME:
+        logger.warning(
+            "The local API serves TLS but BASE_URL is %s; set BASE_URL=https://<host> so session cookies "
+            "are marked Secure and HSTS is sent.",
+            app_settings.base_url,
+        )
     apply_relay_credentials(runtime_state)
     apply_local_mode(runtime_state, app_settings)
     logger.info("Image sink resolved to %s", resolve_image_sink(app_settings))

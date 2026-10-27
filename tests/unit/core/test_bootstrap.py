@@ -55,3 +55,4 @@ class TestPlaintextBaseUrlWarning:
         with caplog.at_level(logging.WARNING):
             bootstrap_runtime_state(RuntimeState(), app_settings)
         assert _PLAINTEXT_WARNING not in caplog.text
+        assert "set BASE_URL=https://<host> so session cookies" in caplog.text
