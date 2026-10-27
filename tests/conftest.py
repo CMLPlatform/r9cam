@@ -10,8 +10,10 @@ from httpx import ASGITransport, AsyncClient
 
 from app.auth.dependencies import reload_authorized_keys, verify_request
 from app.camera.services.manager import CameraManager
+from app.core import bootstrap
 from app.core.runtime import AppRuntime, set_active_runtime
 from app.main import app
+from app.pairing.services import credentials as pairing_credentials
 from tests.fakes import build_test_runtime, make_camera_manager
 
 if TYPE_CHECKING:
@@ -45,6 +47,15 @@ def pytest_collection_modifyitems(items: list[Item]) -> None:
             item.add_marker(pytest.mark.integration)
         if any(fragment in item.nodeid for fragment in _SLOW_TEST_FRAGMENTS):
             item.add_marker(pytest.mark.slow)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_credentials_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep every test away from the real credentials file under the user's home."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    credentials_file = tmp_path / ".config" / "r9cam" / "relay_credentials.json"
+    monkeypatch.setattr(pairing_credentials, "_CREDENTIALS_FILE", credentials_file)
+    monkeypatch.setattr(bootstrap, "_CREDENTIALS_FILE", credentials_file)
 
 
 @pytest.fixture
