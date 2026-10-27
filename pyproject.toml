@@ -151,6 +151,10 @@
 [tool.ty.environment]
   extra-paths = ["typings"]
 
+[tool.ty.analysis]
+  # atheris is in the fuzz group, which `just install` leaves out (Linux x86_64 wheels only).
+  allowed-unresolved-imports = ["atheris"]
+
 # UV configuration
 [tool.uv]
   # Mitigate supply chain issues

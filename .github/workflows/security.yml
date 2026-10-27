@@ -41,7 +41,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Run gitleaks
-        uses: gacts/gitleaks@c9a0338361dc45a01aa7ebaaa5330179f3c62873
+        uses: gacts/gitleaks@c9a0338361dc45a01aa7ebaaa5330179f3c62873 # v1.3.2
         with:
           version: 8.30.1
           config-path: .github/gitleaks.toml
