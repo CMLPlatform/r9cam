@@ -36,7 +36,6 @@ jobs:
         with:
           language: python
           sanitizer: address
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # code-change mode fuzzes every target when it has no coverage data, which
       # is the case here, since nothing runs a batch or coverage job.
