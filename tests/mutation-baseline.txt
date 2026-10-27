@@ -38,6 +38,9 @@ app.delivery.queue.x__metadata_payload__mutmut_3
 app.delivery.queue.x__metadata_payload__mutmut_4
 app.delivery.queue.x__metadata_payload__mutmut_6
 app.delivery.queue.x__metadata_payload__mutmut_7
+app.delivery.queue.x__parse_sidecar__mutmut_36  # equivalent: fromisoformat(None) raises TypeError, caught like the ValueError from ""
+app.delivery.queue.x__parse_sidecar__mutmut_38  # equivalent: get() without a default returns None, which falls back like ""
+app.delivery.queue.x__parse_sidecar__mutmut_41  # equivalent: "XXXX" is not an ISO timestamp either, so it falls back like ""
 app.delivery.queue.x__path_mtime__mutmut_1
 app.delivery.queue.x__path_mtime__mutmut_2
 app.delivery.queue.x__path_size__mutmut_1
@@ -113,6 +116,7 @@ app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_5
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_7
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_8
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_9
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_11  # equivalent: <= and < differ only when a float ctime equals the cutoff exactly
 app.delivery.queue.xǁUploadQueueǁdrain_once__mutmut_16
 app.delivery.queue.xǁUploadQueueǁdrain_once__mutmut_18
 app.delivery.queue.xǁUploadQueueǁdrain_once__mutmut_19
