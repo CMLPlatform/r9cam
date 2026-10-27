@@ -26,13 +26,15 @@ bench:
 
 # Mutation-test the relay seam and the upload queue. Survivors land in reports/mutation/.
 # A mutant-name pattern (just mutation "app.delivery.queue*") limits the run and skips the baseline diff, which only means something on a full run.
+# A pattern run also keeps .mutation/, so mutants of unchanged files stay cached. `just clean` empties it.
 mutation *ARGS:
-    rm -rf .mutation
+    @if [ -z '{{ARGS}}' ]; then rm -rf .mutation; fi
     mkdir -p .mutation/src reports/mutation
-    cp -r app scripts tests typings pyproject.toml uv.lock .mutation/
-    cp -r r9cam_models/src/r9cam_models .mutation/src/
+    # -p keeps mtimes, so mutmut regenerates mutants only for changed files.
+    cp -rp app scripts tests typings pyproject.toml uv.lock .mutation/
+    cp -rp r9cam_models/src/r9cam_models .mutation/src/
     cd .mutation && uv run --project .. mutmut run --max-children "$(nproc)" {{ARGS}}
-    cd .mutation && uv run --project .. mutmut results | grep -E ': (survived|no tests)$' | sed 's/^ *//; s/: .*//' | LC_ALL=C sort > ../reports/mutation/survivors.txt
+    cd .mutation && uv run --project .. mutmut results | grep -E ': (survived|no tests)$' | sed 's/^ *//; s/: .*//' | grep -E "^($(printf '%s' '{{ARGS}}' | sed 's/\*/.*/g; s/ /|/g; s/^$/./'))" | LC_ALL=C sort > ../reports/mutation/survivors.txt
     @echo "Survivors and untested: $(wc -l < reports/mutation/survivors.txt)"
     @if [ -z '{{ARGS}}' ]; then \
         echo "Survivor counts per function that differ from tests/mutation-baseline.txt (< baseline, > this run):"; \
