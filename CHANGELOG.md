@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Changed
+
+- Release tags are signed: `just release-publish` signs the tag with the maintainer's key
+  and pushes it before drafting the release, instead of GitHub creating an unsigned tag.
+- The image and the install no longer pull in the deploy-only parts of `fastapi[standard]`
+  (the FastAPI Cloud CLI, `email-validator`, `httpx2`, `pydantic-extra-types` and their
+  dependencies). The app asks for what it uses: `fastapi-cli`, `uvicorn[standard]`, `jinja2`
+  and `python-multipart`. The runtime image is about 15 MB smaller.
+
 ### Fixed
 
 - A 2xx upload reply that is not JSON or lacks `image_id` or `image_url` now counts as
@@ -15,6 +24,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   stored the capture twice.
 - A 2xx upload reply with a valid `image_id` but a bad or missing `image_url` now keeps the
   backend's id. Before, the Pi fell back to its own capture id and lost the backend's.
+- A capture whose requeue after pairing was cut off by a crash is no longer lost when the
+  camera restarts and drains its queue before the next pairing. The queue now finishes the
+  requeue instead of deleting the image. A full disk while finishing one such capture no
+  longer stops the rest of the requeue or the queue drain.
+- A camera start that is cancelled (for example by a request timeout) no longer leaves the
+  camera claimed until the app restarts. The close now waits for the start, or for opening
+  the camera, to finish, because picamera2 cannot release a camera that is still starting.
+- A capture that runs out of upload attempts while a new capture is being queued is no longer
+  lost. The queue check could delete its metadata between the two file moves into `dead/`.
+  A dead-letter move cut off by a crash or shutdown is now finished on the next pass.
 
 ## [0.7.1] - 2026-10-27
 

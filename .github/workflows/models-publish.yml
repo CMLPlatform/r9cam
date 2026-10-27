@@ -28,7 +28,9 @@ jobs:
           python-version: "3.15"
 
       - name: Verify tag matches package version
-        run: python scripts/validate_models_package_tag.py "${{ github.ref_name }}"
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python scripts/validate_models_package_tag.py "$TAG"
 
   build:
     needs: validate-tag

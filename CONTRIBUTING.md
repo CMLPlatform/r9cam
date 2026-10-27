@@ -211,7 +211,7 @@ Before submitting:
 
 ## Sign Off Your Commits
 
-Every commit in a pull request carries a `Signed-off-by:` line. It says you wrote the change or have the right to submit it under the project's licenses (AGPL-3.0-or-later for the plugin, Apache-2.0 for `r9cam_models` and the API specification): the [Developer Certificate of Origin 1.1](https://developercertificate.org/). `git commit -s` adds it; `git rebase --signoff upstream/main` (the branch you started from) adds it to commits you already made. The `dco` workflow fails a pull request from a fork with a commit that lacks it. Pull requests from a branch in this repository skip it.
+Every commit in a pull request carries a `Signed-off-by:` line. It says you wrote the change or have the right to submit it under the project's licenses (AGPL-3.0-or-later for the plugin, Apache-2.0 for `r9cam_models` and the API specification): the [Developer Certificate of Origin 1.1](https://developercertificate.org/). `git commit -s` adds it; `git rebase --signoff upstream/main` (the branch you started from) adds it to commits you already made. The `DCO sign-off` check fails any pull request with a commit that lacks it, maintainers' and Renovate's included. Renovate adds the line itself.
 
 ## Release Process
 
@@ -223,8 +223,8 @@ Plugin app releases and `r9cam_models` releases are versioned independently.
 
 1. Run `just release-prep X.Y.Z` with a clean working tree. It branches `release/vX.Y.Z` off `origin/main`, writes the version into `pyproject.toml`, `app/__version__.py`, `openapi.r9cam.json`, `CITATION.cff`, `codemeta.json` and `uv.lock`, sets today's date in `CITATION.cff` and `codemeta.json`, and turns `[Unreleased]` into `[X.Y.Z]` with its compare link. It prints the commits since the last tag.
 1. Finish the `[X.Y.Z]` section, commit, push the branch and open a pull request. Merge it once its checks pass.
-1. Run `just release-publish X.Y.Z`. It checks `main` is at that version and drafts the GitHub release with that section as its notes.
-1. Publish the draft on GitHub. That creates the tag and starts the Release workflow, which checks the tag matches the version files, then builds the wheel, the sdist and a CycloneDX SBOM, attests them, and uploads them to the release. In parallel it builds the arm64 image on an arm64 runner, runs the startup smoke test, pushes it to `ghcr.io/cmlplatform/r9cam` as `X.Y.Z`, `X.Y` and `latest`, and attests its provenance and SBOM. If a job fails, re-run the failed jobs from the workflow run; the asset upload overwrites files that are already there.
+1. Run `just release-publish X.Y.Z`. It checks `main` is at that version, tags that commit `vX.Y.Z` signed with your git signing key, pushes the tag, and drafts the GitHub release from it with that section as its notes.
+1. Publish the draft on GitHub. That starts the Release workflow, which checks the tag matches the version files, then builds the wheel, the sdist and a CycloneDX SBOM, attests them, and uploads them to the release. In parallel it builds the arm64 image on an arm64 runner, runs the startup smoke test, pushes it to `ghcr.io/cmlplatform/r9cam` as `X.Y.Z`, `X.Y` and `latest`, and attests its provenance and SBOM. If a job fails, re-run the failed jobs from the workflow run; the asset upload overwrites files that are already there.
 1. Only after the first image push: GitHub creates the `r9cam` package as private, and Pis cannot pull it. Under the CMLPlatform organization, open Packages > r9cam > Package settings, check the package is connected to the `r9cam` repository (the Dockerfile's source label should do this), and change its visibility to public.
 
 ### `r9cam_models`

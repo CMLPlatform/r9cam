@@ -37,6 +37,7 @@ from app.camera.streaming.stream import (
 )
 from app.core.settings import settings
 from app.observability.logging import build_log_extra
+from app.utils.tasks import finish_before_cancel
 
 if TYPE_CHECKING:
     # libcamera's `controls` module isn't available to the typechecker
@@ -128,8 +129,15 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
     async def open(self, mode: CameraMode) -> None:
         """Initialise the persistent pipeline on first call; idempotent thereafter."""
         if self._camera is None:
+            construct = asyncio.ensure_future(asyncio.to_thread(lambda: Picamera2(settings.camera_device_num)))
             try:
-                camera = cast("Picamera2Like", await asyncio.to_thread(lambda: Picamera2(settings.camera_device_num)))
+                camera = cast("Picamera2Like", await finish_before_cancel(construct))
+            except asyncio.CancelledError:
+                # The constructor ran to the end and claimed the camera: give it back.
+                if not construct.cancelled() and construct.exception() is None:
+                    with contextlib.suppress(Exception):
+                        await finish_before_cancel(asyncio.to_thread(construct.result().close))
+                raise
             except IndexError as e:
                 raise CameraInitializationError(
                     settings.camera_device_num,
@@ -154,14 +162,16 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
                     raw=None,
                 )
                 camera.configure(config)
-                await asyncio.to_thread(camera.start)
+                # picamera2 cannot release a camera that is still starting, so a cancel
+                # waits for start to return before the close below.
+                await finish_before_cancel(asyncio.to_thread(camera.start))
                 self._enable_default_autofocus(camera)
             except BaseException as e:
                 # Release the device, so the next open() can construct it again.
                 # BaseException too: a cancelled open() would otherwise leave the
                 # camera claimed in picamera2's registry until the app restarts.
                 with contextlib.suppress(Exception):
-                    await asyncio.to_thread(camera.close)
+                    await finish_before_cancel(asyncio.to_thread(camera.close))
                 if isinstance(e, (RuntimeError, OSError)):
                     raise CameraInitializationError(settings.camera_device_num, str(e)) from e
                 raise

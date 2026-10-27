@@ -26,8 +26,10 @@
 
   # Dependencies and version constraints
   dependencies = [
-    "fastapi[standard]>=0.115.8",
-    "httpx>=0.28,<1",                           # NOTE: the app imports it; do not rely on fastapi[standard] to bring it
+    "fastapi>=0.115.8",
+    "fastapi-cli>=0.0.32",                      # NOTE: the Dockerfile CMD and `just dev` use `fastapi run|dev`
+    "httpx>=0.28,<1",
+    "jinja2>=3.1.5",                            # NOTE: Jinja2Templates
     "opentelemetry-exporter-otlp-proto-http>=1.38.0",
     "opentelemetry-instrumentation-fastapi>=0.59b0",
     "opentelemetry-instrumentation-httpx>=0.59b0",
@@ -36,7 +38,9 @@
     "psutil>=5.9",
     "pydantic-settings>=2.8.0",
     "pyjwt[crypto]>=2.12.1",
+    "python-multipart>=0.0.18",                 # NOTE: Form() fields in app/auth/router.py
     "r9cam-models>=0.6.1,<0.7",                 # NOTE: Keep this aligned with the published contract package
+    "uvicorn[standard]>=0.12.0",                # NOTE: the server behind `fastapi run`; [standard] adds uvloop and httptools
     "websockets>=16.0",
   ]
 
