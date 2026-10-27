@@ -14,7 +14,8 @@ Anyone can propose a change by opening an issue or a pull request. Proposals are
 
 ## Access
 
-- Several collaborators have admin access to the repository. Nobody has write access without admin.
+- Seven GitHub accounts have admin access to the repository: @simonvanlierde, @FDonati, @bfdb, @TomerFishman, @robyistrate, @mrvisscher and @SoniaMCunha. Nobody has write access without admin.
+- Who may publish `r9cam_models` on PyPI: PLACEHOLDER, the maintainer lists the PyPI owners here. The API gives no view of them.
 - The release workflows publish the plugin app and, through a PyPI trusted publisher, `r9cam_models`. The version bump reaches `main` through a pull request like any other change. Publishing the GitHub release creates the tag, and the release workflow then uploads the distributions.
 - Changes to `main` go through pull requests that need one approving review and the `Secret Scan` and `Dependency Audit` checks, on an up-to-date branch. Admins and the Renovate app may merge without the review. Only admins may skip the checks, which sit in a ruleset of their own. Force-pushes and deletion are blocked.
 - Renovate opens the dependency pull requests.
