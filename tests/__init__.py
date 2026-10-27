@@ -1,1 +1,1 @@
-"""Test suite for the RPi camera plugin."""
+"""Test suite for r9cam."""

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate compose override with camera device mappings for rpi-cam-plugin.
+"""Generate compose override with camera device mappings for r9cam.
 
 Discovers camera-related device nodes (/dev/media*, /dev/video*, /dev/v4l-subdev*,
 /dev/dma_heap) and generates compose.override.yml mapping them into the container.

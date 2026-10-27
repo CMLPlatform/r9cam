@@ -1,1 +1,1 @@
-"""Integration tests for the RPi Cam Plugin."""
+"""Integration tests for r9cam."""

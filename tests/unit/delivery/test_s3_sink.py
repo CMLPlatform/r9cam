@@ -49,7 +49,7 @@ class _FakeS3Client:
 def _make_sink(**overrides: str) -> S3CompatibleSink:
     return S3CompatibleSink(
         endpoint_url=overrides.get("endpoint_url", "https://s3.example"),
-        bucket=overrides.get("bucket", "rpi-cam"),
+        bucket=overrides.get("bucket", "r9cam"),
         access_key_id=overrides.get("access_key_id", "ak"),
         secret_access_key=overrides.get("secret_access_key", "sk"),
         region=overrides.get("region", DEFAULT_S3_REGION),
@@ -155,7 +155,7 @@ class TestS3CompatibleSink:
         )
 
         kwargs = fake_s3_client.put_object.await_args_list[0].kwargs
-        assert kwargs["Key"] == f"rpi-cam/{expected_segment}/{S3_IMAGE_ID}.jpg"
+        assert kwargs["Key"] == f"r9cam/{expected_segment}/{S3_IMAGE_ID}.jpg"
 
     async def test_custom_public_url_template_for_cdn_fronted_bucket(self) -> None:
         """A custom template (e.g. for R2 custom domains) should be honoured."""

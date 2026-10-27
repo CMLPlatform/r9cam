@@ -82,7 +82,7 @@ Enter the code in the native R9lab app under Cameras > Add Camera. The Pi receiv
 To rotate the code without deleting relay credentials, use **Generate a new pairing code** on `/setup`.
 To rotate relay credentials, unpair the camera and pair it again. Unpairing clears the stored relay key first, and the next pairing creates a fresh key pair.
 
-Docker Compose stores runtime credentials in a named volume mounted at `/home/rpicam/.config/r9cam`, so paired credentials survive container restarts.
+Docker Compose stores runtime credentials in a named volume mounted at `/home/r9cam/.config/r9cam`, so paired credentials survive container restarts.
 
 The relay signing key is stored in `relay_credentials.json` with `0o600` permissions. Against SD-card theft, use full-disk encryption (LUKS); to keep the key off disk entirely, skip pairing and inject `RELAY_PRIVATE_KEY_PEM` (with `RELAY_CAMERA_ID`, `RELAY_KEY_ID`, `RELAY_AUTH_SCHEME`) via env.
 
@@ -94,7 +94,7 @@ Upgrade the R9lab backend first. This release needs a backend that serves the `/
 
 Paired cameras keep their pairing in these cases:
 
-- **Docker Compose, upgraded in place** (`git pull` in the existing checkout): the `relay_credentials` volume keeps its name and is now mounted at `/home/rpicam/.config/r9cam`.
+- **Docker Compose, upgraded in place** (`git pull` in the existing checkout): the `relay_credentials` volume keeps its name and is now mounted at `/home/r9cam/.config/r9cam`.
 - **Without Docker:** the app still reads `~/.config/relab/relay_credentials.json` while `~/.config/r9cam/relay_credentials.json` does not exist. The next write moves it to the new path and deletes the old file. `RELAB_CREDENTIALS_FILE` still works when `R9CAM_CREDENTIALS_FILE` is unset, with a warning to rename it.
 
 A fresh clone into an `r9cam/` directory is a new Compose project, so it starts with new, empty volumes: no credentials and no upload queue. Bring the old project down first with `docker compose -p relab-rpi-cam-plugin down`, then pair again, or copy the `relay_credentials` and `app_data` volumes from the old project to the new one.
@@ -110,6 +110,12 @@ Renamed in this release:
 | Session cookie               | `relab_session`             | `r9cam_session` (signed-in browsers sign in once more)                                                         |
 | Compose image name           | `relab-rpi-cam-plugin`      | `r9cam`                                                                                                        |
 | OpenAPI file                 | `openapi.rpi-cam.json`      | `openapi.r9cam.json`                                                                                           |
+| Prometheus metrics           | `rpi_cam_*`                 | `r9cam_*`, for example `r9cam_cpu_percent`                                                                     |
+| Alloy `job` label            | `rpi-cam-plugin`            | `r9cam`                                                                                                        |
+| Default Alloy `instance`     | `rpi-cam-plugin`            | `r9cam` (when `OBSERVABILITY_INSTANCE` is unset)                                                               |
+| S3 object key prefix         | `rpi-cam/`                  | `r9cam/` (objects already stored stay under `rpi-cam/`)                                                        |
+| Example S3 bucket            | `rpi-cam`                   | `r9cam` (an existing `S3_BUCKET` in `.env` is kept)                                                            |
+| Container user and home      | `rpicam`, `/home/rpicam`    | `r9cam`, `/home/r9cam` (same uid 1000)                                                                         |
 | Default pairing backend      | `https://api.cml-relab.org` | `https://api.r9lab.io`                                                                                         |
 
 ## Standalone Mode
@@ -125,7 +131,7 @@ APP_ENV=development
 
 IMAGE_SINK=s3
 S3_ENDPOINT_URL=http://127.0.0.1:9000
-S3_BUCKET=rpi-cam
+S3_BUCKET=r9cam
 S3_ACCESS_KEY_ID=rustfsadmin
 S3_SECRET_ACCESS_KEY=change-me-to-a-strong-password
 RUSTFS_SECRET_KEY=change-me-to-a-strong-password
@@ -143,7 +149,7 @@ Runtime surfaces:
 - Camera API: `http://<pi-lan-ip>:8018`
 - Setup UI: `http://<pi-lan-ip>:8018/setup`
 - RustFS console: `http://127.0.0.1:9001`
-- Captures: `http://127.0.0.1:9000/rpi-cam/`
+- Captures: `http://127.0.0.1:9000/r9cam/`
 
 RustFS is loopback-only by default. To expose it on the operator LAN, set `RUSTFS_API_BIND` and `RUSTFS_CONSOLE_BIND` to the Pi's LAN IP, then restrict ports `9000` and `9001` to trusted clients.
 

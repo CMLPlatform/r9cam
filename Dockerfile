@@ -69,7 +69,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     ffmpeg python3-picamera2 util-linux && \
-    useradd --create-home --uid 1000 --gid video rpicam && \
+    useradd --create-home --uid 1000 --gid video r9cam && \
     pip uninstall -y pip
 
 ENV PYTHONPATH="/app:/usr/lib/python3/dist-packages" \
@@ -79,8 +79,8 @@ ENV PYTHONPATH="/app:/usr/lib/python3/dist-packages" \
 COPY --link --chown=1000:44 --from=builder /app/.venv .venv
 COPY --link --chown=1000:44 --from=builder /app/app app
 
-RUN mkdir -p /app/data/images /app/logs /home/rpicam/.config/r9cam && \
-    chown -R 1000:44 /app/data /app/logs /home/rpicam/.config
+RUN mkdir -p /app/data/images /app/logs /home/r9cam/.config/r9cam && \
+    chown -R 1000:44 /app/data /app/logs /home/r9cam/.config
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8018/')" || exit 1

@@ -25,7 +25,7 @@ def _set_s3_config(monkeypatch: pytest.MonkeyPatch) -> None:
     """Populate settings with a plausible S3 credential bundle."""
     monkeypatch.setattr(settings, "app_env", "production")
     monkeypatch.setattr(settings, "s3_endpoint_url", "https://s3.example")
-    monkeypatch.setattr(settings, "s3_bucket", "rpi-cam")
+    monkeypatch.setattr(settings, "s3_bucket", "r9cam")
     monkeypatch.setattr(settings, "s3_access_key_id", "ak")
     monkeypatch.setattr(settings, "s3_secret_access_key", "sk")
     monkeypatch.setattr(settings, "s3_region", "us-east-1")

@@ -6,7 +6,7 @@ S3. The configuration surface is intentionally the same shape as any S3 SDK
 credential bundle, so users can paste values from their existing IAM creds.
 
 The object key layout is ``<prefix>/<product-id-or-unsorted>/<image_id>.jpg``
-where ``<prefix>`` defaults to ``rpi-cam``. The public URL resolution uses a
+where ``<prefix>`` defaults to ``r9cam``. The public URL resolution uses a
 template so users can front the bucket with a CDN (R2 custom domains,
 CloudFront, etc.) and have the Pi return the fronted URL to the frontend.
 """
@@ -40,7 +40,7 @@ else:
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_KEY_PREFIX = "rpi-cam"
+_DEFAULT_KEY_PREFIX = "r9cam"
 _DEFAULT_REGION = "us-east-1"
 _BUCKET_ALREADY_CODES = {"BucketAlreadyOwnedByYou", "BucketAlreadyExists"}
 _FALLBACK_PRODUCT_SEGMENT = "unsorted"
