@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from cryptography.hazmat.primitives import serialization
 from pydantic import HttpUrl
 
 import app.core.bootstrap as config_mod
@@ -360,6 +361,20 @@ class TestLocalApiTlsValidation:
         _, other_key = write_self_signed_cert(tmp_path / "b")
         with pytest.raises(ValueError, match="could not be loaded"):
             Settings(tls_cert_file=str(cert), tls_key_file=str(other_key))
+
+    def test_encrypted_key_fails_instead_of_prompting(self, tmp_path: Path) -> None:
+        """A passphrase-protected key stops startup at once; OpenSSL must not wait for a password."""
+        cert, key = write_self_signed_cert(tmp_path)
+        loaded = serialization.load_pem_private_key(key.read_bytes(), password=None)
+        key.write_bytes(
+            loaded.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.BestAvailableEncryption(b"secret"),
+            )
+        )
+        with pytest.raises(ValueError, match="unencrypted"):
+            Settings(tls_cert_file=str(cert), tls_key_file=str(key))
 
     def test_valid_pair_turns_tls_on(self, tmp_path: Path) -> None:
         """A readable certificate and matching key enable TLS."""

@@ -120,9 +120,10 @@ def validate_tls_files(cert_file: str, key_file: str) -> None:
     if not cert_file:
         return
     try:
-        ssl.create_default_context(ssl.Purpose.CLIENT_AUTH).load_cert_chain(cert_file, key_file)
+        # An empty password makes an encrypted key fail here instead of OpenSSL prompting for one.
+        ssl.create_default_context(ssl.Purpose.CLIENT_AUTH).load_cert_chain(cert_file, key_file, password=b"")
     except (OSError, ssl.SSLError) as exc:
-        msg = f"TLS_CERT_FILE and TLS_KEY_FILE could not be loaded: {exc}"
+        msg = f"TLS_CERT_FILE and TLS_KEY_FILE could not be loaded (the key must be unencrypted): {exc}"
         raise ValueError(msg) from exc
 
 
