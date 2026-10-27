@@ -67,6 +67,10 @@ class RuntimeState:
         self.relay_auth_scheme = relay_auth_scheme
         self.relay_key_id = relay_key_id
         self.relay_private_key_pem = relay_private_key_pem
+        self.ensure_local_relay_api_key()
+
+    def ensure_local_relay_api_key(self) -> None:
+        """Mint the key the relay presents on local dispatch (if unset) and authorize it."""
         if not self.local_relay_api_key:
             self.local_relay_api_key = f"LOCAL_{secrets.token_urlsafe(_LOCAL_RELAY_API_KEY_BYTES)}"
         self.add_authorized_api_key(self.local_relay_api_key)

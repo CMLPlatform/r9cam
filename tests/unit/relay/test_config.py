@@ -124,6 +124,21 @@ class TestApplyRelayCredentials:
         assert runtime_state.relay_key_id == ENV_RELAY_KEY_ID
         assert runtime_state.relay_private_key_pem == ENV_RELAY_PRIVATE_KEY_PEM
 
+    def test_env_credentials_authorize_the_local_relay_key(self) -> None:
+        """Env relay config must still mint and authorize the key the relay presents locally."""
+        runtime_state = RuntimeState(
+            relay_backend_url=ENV_RELAY_BACKEND_URL,
+            relay_camera_id=ENV_RELAY_CAMERA_ID,
+            relay_auth_scheme=RELAY_AUTH_SCHEME,
+            relay_key_id=ENV_RELAY_KEY_ID,
+            relay_private_key_pem=ENV_RELAY_PRIVATE_KEY_PEM,
+        )
+
+        apply_relay_credentials(runtime_state)
+
+        assert runtime_state.local_relay_api_key.startswith("LOCAL_")
+        assert runtime_state.local_relay_api_key in runtime_state.authorized_api_keys
+
 
 class TestSetRuntimeRelayCredentials:
     """Tests for relay signing credential validation at the runtime boundary."""

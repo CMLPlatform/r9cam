@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from r9cam_models.camera import CameraMode
@@ -43,13 +46,16 @@ if TYPE_CHECKING:
     controls: Any
     from picamera2 import Picamera2
     from picamera2.encoders import H264Encoder
+    from picamera2.platform import get_platform
 else:
     try:
         from picamera2 import Picamera2
         from picamera2.encoders import H264Encoder
+        from picamera2.platform import get_platform
     except ImportError:
         Picamera2 = Picamera2Stub
         H264Encoder = H264EncoderStub
+        get_platform = None
     try:
         from libcamera import controls
     except ImportError:
@@ -68,6 +74,29 @@ logger = logging.getLogger(__name__)
 # because preview is the dominant use case while YouTube streaming is rare.
 _MAIN_SIZE = (1920, 1080)
 _LORES_SIZE = (640, 480)
+
+# Where the Debian libcamera package installs the Raspberry Pi tuning files, one folder per ISP.
+_TUNING_DIR = Path("/usr/share/libcamera/ipa/rpi")
+
+
+def tuning_file_sha256(model: str | None) -> str | None:
+    """Hash the libcamera tuning file the camera loaded, or return None if it cannot be found.
+
+    NOTE: follows libcamera's lookup only for the override variable and the packaged
+    ``<isp>/<model>.json`` file. A custom LIBCAMERA_IPA_CONFIG_PATH or libcamera's fallback to
+    ``uncalibrated.json`` gives None. Extend this if someone runs either.
+    """
+    override = os.environ.get("LIBCAMERA_RPI_TUNING_FILE")
+    if override:
+        path = Path(override)
+    elif model and get_platform is not None:
+        path = _TUNING_DIR / get_platform().name.lower() / f"{model}.json"
+    else:
+        return None
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
 
 
 class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
@@ -143,6 +172,7 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
             image=image,
             camera_properties=camera.camera_properties,
             capture_metadata=capture_metadata,
+            tuning_file_sha256=await asyncio.to_thread(tuning_file_sha256, camera.camera_properties.get("Model")),
         )
 
     async def capture_preview_frame(self) -> PilImage:

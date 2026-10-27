@@ -1,9 +1,8 @@
 """Tests for the non-Raspberry-Pi hardware stubs.
 
 These stubs exist so the app can boot on macOS / Linux dev machines where
-``picamera2`` is unavailable. Every instance-creating stub should fail loudly
-so misuse is obvious, while the ``create_*_configuration`` helpers return empty
-dicts so callers can still exercise configuration code paths.
+``picamera2`` is unavailable. Every stub should fail loudly on construction
+so misuse is obvious.
 """
 
 from __future__ import annotations

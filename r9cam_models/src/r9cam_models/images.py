@@ -73,8 +73,27 @@ class CaptureMetadata(BaseModel):
     digital_gain: float | None = Field(default=None)
     lux: PositiveFloat | None = Field(default=None, description="Illuminance in lux")
     sensor_temperature: float | None = Field(default=None, description="Sensor temperature in °C")
+    lens_position: float | None = Field(default=None, description="Lens focus position in dioptres")
+    color_gains: tuple[float, float] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ColourGains", "ColorGains", "color_gains"),
+        description="Red and blue white-balance gains",
+    )
+    scaler_crop: tuple[int, int, int, int] | None = Field(
+        default=None, description="Sensor area read for the image as x, y, width, height in sensor pixels"
+    )
 
     model_config = _LIBCAMERA_ALIAS_CONFIG
+
+
+class CaptureProvenance(BaseModel):
+    """Which software and tuning produced a capture. A field is None when the plugin cannot tell."""
+
+    plugin_version: str | None = Field(default=None, description="r9cam plugin version")
+    plugin_git_sha: str | None = Field(default=None, description="Git commit the plugin image was built from")
+    tuning_file_sha256: str | None = Field(
+        default=None, description="SHA-256 of the libcamera tuning file the camera loaded"
+    )
 
 
 class BaseMetadata(BaseModel):
@@ -90,6 +109,7 @@ class ImageMetadata(BaseMetadata):
     """Complete image metadata model."""
 
     image_properties: ImageProperties
+    provenance: CaptureProvenance = Field(default_factory=CaptureProvenance)
 
 
 class ImageCaptureStatus(StrEnum):
