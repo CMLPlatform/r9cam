@@ -45,7 +45,7 @@
   ]
 
   requires-python = ">=3.13,<3.14" # Python 3.13 is needed in Debian Trixie for picamera2
-  version         = "0.7.1"        # NOTE: set by `just release-prep`
+  version         = "0.7.2"        # NOTE: set by `just release-prep`
 
   [project.urls]
     Homepage   = "https://github.com/CMLPlatform/r9cam"
