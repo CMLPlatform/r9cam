@@ -197,11 +197,11 @@ Plugin app releases and `r9cam_models` releases are versioned independently.
 
 ### Plugin App
 
-The plugin app release uses `commitizen` and GitHub Actions.
+The plugin app release uses `commitizen` and GitHub Actions. Commits follow [Conventional Commits](https://www.conventionalcommits.org/), so `commitizen` can pick the next version from them.
 
-1. Use [Conventional Commits](https://www.conventionalcommits.org/).
-1. Merge to `main` after checks pass.
-1. The release workflow updates `pyproject.toml`, `app/__version__.py`, `CHANGELOG.md`, the Git tag, and the GitHub release.
+1. Run `just release-prep` with a clean working tree. It branches `release/vX.Y.Z` off `origin/main` and makes the bump commit. That commit updates `pyproject.toml`, `app/__version__.py`, `openapi.r9cam.json`, `CITATION.cff`, `codemeta.json`, `uv.lock` and `CHANGELOG.md`, and sets the release date in `CITATION.cff` and `codemeta.json` to today. It makes no tag. If no commit since the last tag calls for a release, it says so and stops.
+1. Push the branch and open a pull request. Merge it once its checks pass.
+1. Run the Release workflow on `main` (`gh workflow run release.yml --ref main`). It reads the version from `pyproject.toml`, stops if that tag already exists, and creates the tag and the GitHub release on the merged commit. The release notes are that version's section of `CHANGELOG.md`. A second job builds the wheel, the sdist and a CycloneDX SBOM, attests them, and uploads them to the release.
 
 ### `r9cam_models`
 
