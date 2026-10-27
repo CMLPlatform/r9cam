@@ -115,7 +115,14 @@ def load_relay_credentials() -> dict[str, str | bool] | None:
 
 
 def delete_relay_credentials() -> None:
-    """Delete the on-disk credentials file, and the v0.6 one, if present."""
+    """Remove the relay fields from disk, and the v0.6 file, but keep ``local_api_key``.
+
+    LAN clients hold the local key, so unpairing must not rotate it on the next start.
+    """
+    creds = load_relay_credentials()
+    kept: dict[str, object] = (
+        {k: v for k, v in creds.items() if not k.startswith("relay_")} if isinstance(creds, dict) else {}
+    )
     for path in (_CREDENTIALS_FILE, _legacy_credentials_file()):
         if path is None:
             continue
@@ -124,3 +131,8 @@ def delete_relay_credentials() -> None:
             logger.info("Relay credentials deleted from %s", path)
         except OSError as exc:
             logger.warning("Failed to delete relay credentials file: %s", exc)
+    if kept:
+        try:
+            write_json_atomic(_CREDENTIALS_FILE, kept)
+        except OSError as exc:
+            logger.warning("Failed to keep the local API key in %s: %s", _CREDENTIALS_FILE, exc)

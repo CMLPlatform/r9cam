@@ -14,6 +14,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   was published without them, because the SBOM step looked for an amd64 image.
 - The citation metadata lists "research data" instead of "computer vision", which r9cam does
   not do.
+- Unpairing keeps the local API key. Before, it deleted the key with the relay credentials,
+  so the next start made a new one and LAN clients lost access.
 
 ## [0.7.0] - 2026-10-27
 
