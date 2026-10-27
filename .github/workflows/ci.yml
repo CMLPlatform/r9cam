@@ -50,6 +50,11 @@ jobs:
       - name: Run prek
         run: uv run prek run --all-files
 
+      # A short fixed-seed run, so renaming a private name the harness imports
+      # fails here and not only in the slow ClusterFuzzLite job.
+      - name: Smoke-run the fuzz harness
+        run: uv run python fuzz/relay_frames.py -runs=200 -seed=1
+
       - name: Run tests
         run: uv run pytest --cov=app --cov=r9cam_models --cov-report=term-missing --cov-report=xml:coverage.xml
 
