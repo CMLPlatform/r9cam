@@ -295,6 +295,14 @@ class UploadQueue:
             return None
         filename = JPEG_CAPTURE_POLICY.filename_for(image_id)
         image_path = self._root / filename
+        dead_image = self._dead_root / filename
+        if not image_path.exists() and dead_image.exists():
+            # _dead_letter moves the jpg first and the sidecar next, so leave the sidecar to it.
+            # Past the grace period the move was cut off by a crash: finish it here.
+            with contextlib.suppress(OSError):
+                if dead_image.stat().st_ctime < time.time() - _ORPHAN_IMAGE_GRACE_SECONDS:
+                    shutil.move(str(metadata_path), str(self._dead_root / metadata_path.name))
+            return None
         if not image_path.exists():
             logger.warning(
                 "Queue: metadata %s has no matching jpg; cleaning up",

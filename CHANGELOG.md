@@ -20,6 +20,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - A camera start that is cancelled (for example by a request timeout) no longer leaves the
   camera claimed until the app restarts. The close now waits for the start, or for opening
   the camera, to finish, because picamera2 cannot release a camera that is still starting.
+- A capture that runs out of upload attempts while a new capture is being queued is no longer
+  lost. The queue check could delete its metadata between the two file moves into `dead/`.
+  A dead-letter move cut off by a crash or shutdown is now finished on the next pass.
 
 ## [0.7.1] - 2026-10-27
 

@@ -627,6 +627,47 @@ class TestDeadLetter:
         assert await asyncio.to_thread((queue_root / "dead" / f"{capture_id}.jpg").exists)
         assert await asyncio.to_thread((queue_root / "dead" / f"{capture_id}.json").exists)
 
+    async def test_concurrent_iter_pending_keeps_entry_being_dead_lettered(
+        self, queue_root: Path, sample_image: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A scan between the jpg move and the sidecar move must not delete the sidecar."""
+        capture_id = image_id(12)
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        entry = await queue.enqueue(
+            image_id=capture_id, image_path=sample_image, capture_metadata={}, upload_metadata={}
+        )
+        real_move = upload_queue_mod.shutil.move
+
+        def move_then_scan(src: str, dst: str) -> object:
+            moved = real_move(src, dst)
+            if src.endswith(".jpg"):
+                assert queue.iter_pending() == []
+            return moved
+
+        monkeypatch.setattr(upload_queue_mod.shutil, "move", move_then_scan)
+
+        await queue._dead_letter(entry)
+
+        assert sorted(p.name for p in (queue_root / "dead").iterdir()) == [f"{capture_id}.jpg", f"{capture_id}.json"]
+
+    async def test_finishes_dead_letter_cut_off_after_image_move(
+        self, queue_root: Path, sample_image: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A crash between the two moves leaves the jpg in dead/; a later scan moves its sidecar too."""
+        capture_id = image_id(13)
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        await queue.enqueue(image_id=capture_id, image_path=sample_image, capture_metadata={}, upload_metadata={})
+        (queue_root / f"{capture_id}.jpg").rename(queue_root / "dead" / f"{capture_id}.jpg")
+
+        assert queue.iter_pending() == []
+        assert (queue_root / f"{capture_id}.json").exists()
+
+        later = time.time() + 120
+        monkeypatch.setattr(upload_queue_mod.time, "time", lambda: later)
+
+        assert queue.iter_pending() == []
+        assert sorted(p.name for p in (queue_root / "dead").iterdir()) == [f"{capture_id}.jpg", f"{capture_id}.json"]
+
     async def test_prunes_oldest_dead_letters_over_count_limit(
         self,
         queue_root: Path,
