@@ -24,6 +24,8 @@ A fix ships in a new release. When the release is out, we publish the GitHub sec
 
 ## Scope
 
+The [assurance case](ARCHITECTURE.md#assurance-case) describes the threat model and trust boundaries behind this scope.
+
 In scope:
 
 - The plugin app: its HTTP API, setup UI, local-access and pairing flows, and API-key and session auth.
