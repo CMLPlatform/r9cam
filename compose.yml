@@ -29,7 +29,9 @@ x-runtime-hardening: &runtime-hardening
 services:
   app:
     <<: *runtime-hardening
-    image: r9cam
+    # The release image is paired mode only. Standalone sets R9CAM_IMAGE=r9cam and
+    # builds, so a later ``docker compose pull`` cannot replace the local build.
+    image: ${R9CAM_IMAGE:-ghcr.io/cmlplatform/r9cam}:${R9CAM_VERSION:-latest}
     build:
       context: .
       # Override to ``runtime-standalone`` in .env for standalone mode.

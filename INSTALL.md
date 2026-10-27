@@ -54,9 +54,17 @@ Start the plugin with Docker Compose:
 
 ```sh
 ./scripts/generate_compose_override.py > compose.override.yml
-docker compose build
+docker compose pull
 docker compose up -d
 ```
+
+`docker compose pull` fetches the signed arm64 image `ghcr.io/cmlplatform/r9cam` that each release publishes, so the Pi does not build it. The tag is `latest` unless `R9CAM_VERSION` in `.env` pins a version such as `0.7.0`. To check that an image was built from this repository by its release workflow, run this anywhere with the GitHub CLI:
+
+```sh
+gh attestation verify oci://ghcr.io/cmlplatform/r9cam:0.7.0 --repo CMLPlatform/r9cam
+```
+
+To upgrade, run `git pull` (for `compose.yml` and the other config files), then `docker compose pull` and `docker compose up -d`.
 
 Review `compose.override.yml` before startup. It should contain only current camera device nodes such as `/dev/media*`, `/dev/video*`, `/dev/v4l-subdev*`, and `/dev/dma_heap`. Regenerate it after kernel, camera, or hardware changes; do not use `privileged: true`.
 
@@ -108,18 +116,19 @@ Renamed in this release:
 | OpenTelemetry `service.name` | `relab-rpi-cam-plugin`      | `r9cam`                                                                                                        |
 | `service` in `/healthz`      | `relab-rpi-cam`             | `r9cam`                                                                                                        |
 | Session cookie               | `relab_session`             | `r9cam_session` (signed-in browsers sign in once more)                                                         |
-| Compose image name           | `relab-rpi-cam-plugin`      | `r9cam`                                                                                                        |
+| Compose image name           | `relab-rpi-cam-plugin`      | `ghcr.io/cmlplatform/r9cam`, pulled instead of built                                                           |
 | OpenAPI file                 | `openapi.rpi-cam.json`      | `openapi.r9cam.json`                                                                                           |
 | Default pairing backend      | `https://api.cml-relab.org` | `https://api.r9lab.io`                                                                                         |
 
 ## Standalone Mode
 
-Standalone mode stores captures in an S3-compatible bucket instead of the R9lab backend. The bundled standalone profile starts a local RustFS sidecar.
+Standalone mode stores captures in an S3-compatible bucket instead of the R9lab backend. The bundled standalone profile starts a local RustFS sidecar. The release image is paired mode only, so standalone builds its own image on the Pi under the local name `r9cam`.
 
 Set these values in `.env`:
 
 ```sh
 APP_BUILD_TARGET=runtime-standalone
+R9CAM_IMAGE=r9cam
 COMPOSE_PROFILES=standalone
 APP_ENV=development
 

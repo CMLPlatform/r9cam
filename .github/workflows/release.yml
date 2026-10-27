@@ -1,7 +1,8 @@
 name: Release
 
 # Publishing a GitHub release (drafted by `just release-publish <version>`) creates its tag
-# and starts this: the wheel, the sdist and the SBOM go onto that release.
+# and starts this: the wheel, the sdist and the SBOM go onto that release, and the arm64
+# container image goes to GHCR.
 on:
   release:
     types: [published]
@@ -59,6 +60,7 @@ jobs:
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: false # a release build never restores a cache another workflow wrote
+          version: "0.13.5"
           python-version: "3.13"
 
       # The SBOM lists the locked runtime dependencies, which is what the container
@@ -86,3 +88,114 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "$TAG" dist/*.whl dist/*.tar.gz dist/r9cam.cdx.json --repo "$GITHUB_REPOSITORY"
+
+  # The Pi pulls this image instead of building it. Built on an arm64 runner, so no QEMU.
+  image:
+    name: Container image
+    needs: check
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write # push the image to GHCR
+      id-token: write # sign the attestations through Sigstore
+      attestations: write # store the attestations on the repository
+    timeout-minutes: 30
+    env:
+      # Deployed Pis pull this name, so never rename it.
+      IMAGE: ghcr.io/cmlplatform/r9cam
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+
+      # Tags 0.7.0, 0.7 and latest. A pre-release gets only its full version.
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      # No cache-from: a release build never restores a cache another workflow wrote.
+      # Only the labels that change per release; the Dockerfile sets the static ones.
+      - name: Build image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/arm64
+          load: true
+          pull: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.revision=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+            org.opencontainers.image.created=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+
+      # Same check as container.yml: the runner has no camera, so pass only if startup
+      # got as far as opening it.
+      - name: Smoke-test startup
+        env:
+          TAG: ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          logs=$(timeout 60 docker run --rm "$TAG" 2>&1 || true)
+          printf '%s\n' "$logs" | tail -n 20
+          if ! grep -q CameraInitializationError <<<"$logs"; then
+            echo "::error::the app stopped before it tried to open the camera"
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same inputs as the build above, so every layer comes from the builder that just
+      # built it and the pushed image is the one the smoke test ran.
+      - name: Push image
+        id: push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/arm64
+          push: true
+          pull: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.revision=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+            org.opencontainers.image.created=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+
+      # Unlike the uv export in the assets job, this SBOM also lists the Debian packages.
+      - name: Image SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+          format: cyclonedx
+          output: r9cam-image.cdx.json
+          cache: "false" # a release build never restores a cache another workflow wrote
+
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest the SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: r9cam-image.cdx.json
+          push-to-registry: true

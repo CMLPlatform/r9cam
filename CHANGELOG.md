@@ -17,6 +17,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - Paired cameras stay paired when Docker Compose is upgraded in place and on installs without
   Docker. A fresh clone into an `r9cam/` directory starts with empty volumes. See "Upgrading
   From 0.6" in [INSTALL.md](INSTALL.md) for both cases.
+- Docker Compose now pulls the release image: run `docker compose pull`, then
+  `docker compose up -d`. Standalone installs build their own image and must set
+  `R9CAM_IMAGE=r9cam` in `.env` first.
+
+### Added
+
+- Each release publishes a signed linux/arm64 image to `ghcr.io/cmlplatform/r9cam`, tagged
+  with the version, `X.Y` and `latest`, so the Pi pulls it instead of building it. Its build
+  provenance and SBOM are attested: `gh attestation verify oci://ghcr.io/cmlplatform/r9cam:<tag> --repo CMLPlatform/r9cam` checks them.
 
 ### Changed
 
