@@ -203,7 +203,9 @@ class CameraManager:
         async with self._locked():
             result = await self.backend.capture_image()
             JPEG_CAPTURE_POLICY.validate_dimensions(result.image.size, max_pixels=settings.max_capture_pixels)
-            img_metadata = build_image_metadata(result.image, result.camera_properties, result.capture_metadata)
+            img_metadata = build_image_metadata(
+                result.image, result.camera_properties, result.capture_metadata, result.tuning_file_sha256
+            )
             image_bytes = await asyncio.to_thread(
                 _encode_jpeg,
                 result.image,

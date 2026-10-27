@@ -12,8 +12,9 @@ available.
 
 from __future__ import annotations
 
+import hashlib
 from enum import Enum
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -35,6 +36,7 @@ from app.camera.services.picamera2_backend import (
     _serialize_mapping,
     _to_json_value,
     _value_type,
+    tuning_file_sha256,
 )
 from tests.constants import (
     CAMERA_DEVICE_NOT_FOUND,
@@ -44,6 +46,9 @@ from tests.constants import (
     PICAMERA2_STARTUP_TIMEOUT,
     YOUTUBE_PUBLIC_URL,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # String literals used across the assertions — hoisted to module scope so ruff
 # doesn't flag them as magic values and regressions stay easy to spot.
@@ -451,3 +456,26 @@ class TestPicamera2BackendMethods:
         assert backend._camera is None
         assert backend._main_encoder is None
         assert backend.current_mode is None
+
+
+class TestTuningFileHash:
+    """The hash of the libcamera tuning file recorded with each capture."""
+
+    def test_hashes_the_file_named_by_the_libcamera_override(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """LIBCAMERA_RPI_TUNING_FILE wins over the default lookup, as in libcamera."""
+        tuning = tmp_path / "custom.json"
+        tuning.write_bytes(b"{}")
+        monkeypatch.setenv("LIBCAMERA_RPI_TUNING_FILE", str(tuning))
+        assert tuning_file_sha256("imx708") == hashlib.sha256(b"{}").hexdigest()
+
+    def test_returns_none_when_no_tuning_file_is_found(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """A missing file gives None instead of failing the capture."""
+        monkeypatch.setenv("LIBCAMERA_RPI_TUNING_FILE", str(tmp_path / "missing.json"))
+        assert tuning_file_sha256("imx708") is None
+
+    def test_returns_none_without_a_model_or_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Without a sensor model there is no default file to look up."""
+        monkeypatch.delenv("LIBCAMERA_RPI_TUNING_FILE", raising=False)
+        assert tuning_file_sha256(None) is None
