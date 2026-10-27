@@ -94,6 +94,18 @@ class TestShouldBeRunning:
         )
         assert sleeper.should_be_running() is True
 
+    def test_fresh_relay_handshake_counts_as_activity(
+        self,
+        pipeline: MagicMock,
+        relay_state: RelayRuntimeState,
+    ) -> None:
+        """Connected with no command yet — the handshake itself wakes the encoder."""
+        relay_state.mark_connected()
+        sleeper = PreviewSleeper(
+            pipeline=pipeline, relay_state=relay_state, relay_enabled_getter=lambda: True, hibernate_after_s=300
+        )
+        assert sleeper.should_be_running() is True
+
     def test_relay_connected_but_idle_past_threshold_means_hibernate(
         self,
         pipeline: MagicMock,

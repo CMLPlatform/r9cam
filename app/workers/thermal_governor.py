@@ -9,11 +9,8 @@ Design notes:
 - Only the lores preview encoder is governed. The main-stream YouTube
   encoder is left alone: a user streaming to YouTube has a specific
   bitrate target and we don't silently change it out from under them.
-- Hysteresis bands: drop at >80°C sustained 10s, restore at <70°C sustained
+- Hysteresis bands: drop at >=80°C sustained 10s, restore at <=70°C sustained
   30s. Slow restore gives the SoC time to actually cool, avoiding oscillation.
-- The governor uses ``asyncio.to_thread`` for nothing — everything it touches
-  is already async or instant. It does, however, use ``asyncio.sleep`` for
-  its poll loop.
 - If telemetry collection fails (missing sysfs on a dev host, for example)
   the governor logs and backs off but does not crash the app.
 """

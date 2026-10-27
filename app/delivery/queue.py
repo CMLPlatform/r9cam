@@ -37,7 +37,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Exponential backoff schedule. After the 5th failed attempt the entry is
-# dead-lettered and no longer retried. Numbers are seconds.
+# dead-lettered and no longer retried. Numbers are seconds. Only the first four
+# delays are used; the length of the tuple sets _MAX_ATTEMPTS.
 _BACKOFF_SCHEDULE: tuple[int, ...] = (5, 30, 5 * 60, 30 * 60, 2 * 60 * 60)
 _MAX_ATTEMPTS = len(_BACKOFF_SCHEDULE)
 _WORKER_POLL_INTERVAL_SECONDS = 5.0
