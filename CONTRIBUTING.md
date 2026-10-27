@@ -54,7 +54,7 @@ Run `just clean` to start from an empty `.mutation/` again.
 It feeds raw backend frames through the relay seam and fails when anything but a `ValidationError` escapes, or when an allowlisted command routes to a route outside the allowlist.
 A crashing input lands in `reports/fuzz/`.
 Replay it with `uv run --group fuzz python fuzz/relay_frames.py <file>`.
-ClusterFuzzLite runs the same harness on each pull request.
+ClusterFuzzLite runs the same harness on each pull request that changes `app/`, `r9cam_models/`, `fuzz/` or the dependencies.
 
 ## Code Quality
 

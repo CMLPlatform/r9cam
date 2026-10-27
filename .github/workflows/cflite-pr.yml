@@ -2,15 +2,20 @@
 
 name: ClusterFuzzLite
 
-# Fuzzes the relay trust boundary on each pull request. The harness is
-# fuzz/relay_frames.py and the build lives in .clusterfuzzlite/.
+# Fuzzes the relay trust boundary on pull requests that change code the harness
+# reaches. The harness is fuzz/relay_frames.py and imports app.main, so all of
+# app/ is in scope. The build lives in .clusterfuzzlite/.
 on:
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'LICENSE'
+    paths:
+      - 'app/**'
+      - 'r9cam_models/**'
+      - 'fuzz/**'
+      - '.clusterfuzzlite/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/cflite-pr.yml'
   workflow_dispatch:
 
 concurrency:
