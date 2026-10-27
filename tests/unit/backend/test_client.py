@@ -172,20 +172,24 @@ class TestUploadImage:
         assert result.image_id == SAMPLE_SERVER_IMAGE_ID
         assert str(result.image_url) == BACKEND_IMAGE_URL
 
-    async def test_remote_http_image_url_is_rejected_in_production(self) -> None:
-        """Backend acks must not downgrade returned media URLs to remote HTTP."""
+    async def test_remote_http_image_url_is_dropped_but_upload_succeeds(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A remote HTTP image_url is not returned, but the stored upload is not retried and duplicated."""
         response = _fake_response(
             200,
             {"image_id": SAMPLE_SERVER_IMAGE_ID, "image_url": REMOTE_HTTP_IMAGE_URL},
         )
 
-        with _patch_async_client(response), pytest.raises(BackendUploadError, match="image_url must use https"):
-            await upload_image(
+        with _patch_async_client(response), caplog.at_level(logging.WARNING):
+            result = await upload_image(
                 image_bytes=b"\xff\xd8fake-jpg",
                 filename="test.jpg",
                 capture_metadata={"width": 1920},
                 upload_metadata={"product_id": 1},
             )
+
+        assert result.image_id == SAMPLE_SERVER_IMAGE_ID
+        assert result.image_url is None
+        assert "image_url must use https" in caplog.text
 
     async def test_remote_http_preview_thumbnail_url_is_rejected_in_production(self) -> None:
         """Preview thumbnail acks must not downgrade returned media URLs to remote HTTP."""

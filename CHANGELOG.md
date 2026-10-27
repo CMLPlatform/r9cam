@@ -23,6 +23,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - The relay waits before it reconnects when the backend accepts the connection and then drops
   it at once. Before, it reconnected in a tight loop. The wait grows up to 60 seconds and
   resets after a connection that stays up for 60 seconds.
+- A capture the backend accepted is no longer uploaded again when the backend's reply has an
+  `image_url` the camera cannot use, such as plain HTTP in production. The camera logs a
+  warning and returns the capture without a URL. Before, it queued the capture for retry and
+  the backend stored it twice.
 
 ## [0.7.0] - 2026-10-27
 

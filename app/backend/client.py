@@ -79,7 +79,7 @@ class UploadedImageInfo:
     """Result of a successful backend image upload."""
 
     image_id: str
-    image_url: AnyUrl
+    image_url: AnyUrl | None
 
 
 @dataclass(frozen=True)
@@ -161,10 +161,14 @@ async def upload_image(
     except (TypeError, ValueError) as exc:
         msg = f"Backend upload response missing fields: {payload!r}"
         raise BackendUploadError(msg) from exc
-    return UploadedImageInfo(
-        image_id=ack.image_id,
-        image_url=_resolve_backend_media_url(ack.image_url, base_url=base_url, field_name="image_url"),
-    )
+    # The backend has stored the image by now. Raising here would make the queue retry it and
+    # the backend store a duplicate, so drop the bad URL and keep the upload.
+    try:
+        image_url = _resolve_backend_media_url(ack.image_url, base_url=base_url, field_name="image_url")
+    except BackendUploadError as exc:
+        logger.warning("Backend stored image %s but returned an unusable image_url: %s", ack.image_id, exc)
+        image_url = None
+    return UploadedImageInfo(image_id=ack.image_id, image_url=image_url)
 
 
 async def upload_preview_thumbnail(

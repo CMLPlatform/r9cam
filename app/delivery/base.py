@@ -30,7 +30,7 @@ class StoredImage:
     """Result of a successful ``ImageSink.put`` call."""
 
     image_id: str
-    image_url: AnyUrl
+    image_url: AnyUrl | None  # None when the backend stored the image but returned an unusable URL
     expires_at: datetime | None = None
 
 
