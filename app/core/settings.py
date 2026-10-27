@@ -46,9 +46,10 @@ type HttpFieldName = Annotated[
 def _parse_list_env(v: object) -> list[str]:
     """Accept a JSON array, comma-separated string, or empty value.
 
-    Falls back to comma-splitting on JSON decode errors so common .env
-    mistakes (e.g. ``[KEY]`` as unquoted JSON) still yield a useful list
-    rather than a cryptic ``JSONDecodeError`` at startup.
+    Falls back to comma-splitting on JSON decode errors. That fallback only
+    covers values passed in code: pydantic-settings JSON-decodes list fields
+    from env and .env before this validator runs, so there a value such as
+    ``a,b`` or ``[KEY]`` fails at startup and must be a JSON array.
     """
     if isinstance(v, list):
         return cast("list[str]", v)
@@ -238,7 +239,7 @@ class Settings(BaseSettings):
     local_mode_enabled: bool = True
     local_api_key: str = ""  # Bootstrap-only local API key seed; runtime-owned after startup
     # Extra CORS origins allowed for direct-connect clients, e.g. "http://192.168.1.42"
-    # Accepts a JSON array string or comma-separated list (same format as authorized_api_keys).
+    # Set it from env as a JSON array string, e.g. '["http://192.168.1.42"]' (same format as authorized_api_keys).
     local_allowed_origins: list[HttpUrl] = []
 
     @field_validator("local_allowed_origins", mode="before")
