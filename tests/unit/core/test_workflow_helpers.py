@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from scripts import check_models_release, validate_models_package_tag
+from scripts import check_models_release, release_notes, validate_models_package_tag
 
 if TYPE_CHECKING:
     import pytest
@@ -122,3 +122,37 @@ def test_models_release_check_passes_when_published(
     pyproject = _stub_release_lookups(monkeypatch, tmp_path, version="0.5.0", published={"0.5.0"}, tags=set())
 
     assert check_models_release.main(pyproject) == 0
+
+
+_CHANGELOG = """# Changelog
+
+## [Unreleased]
+
+## [0.7.0] - 2026-10-28
+
+### Fixed
+
+- Keep the queue under its cap. ([#61])
+
+## [0.6.2] - 2026-09-07
+
+- Older fix. ([#31])
+
+[#31]: https://github.com/CMLPlatform/r9cam/pull/31
+[#61]: https://github.com/CMLPlatform/r9cam/pull/61
+[0.7.0]: https://github.com/CMLPlatform/r9cam/compare/v0.6.2...v0.7.0
+"""
+
+
+def test_release_notes_carry_the_link_definitions_they_use() -> None:
+    """The section's own links resolve on GitHub; other versions' links stay out."""
+    notes = release_notes.release_notes(_CHANGELOG, "0.7.0")
+
+    assert notes == (
+        "### Fixed\n\n- Keep the queue under its cap. ([#61])\n\n[#61]: https://github.com/CMLPlatform/r9cam/pull/61\n"
+    )
+
+
+def test_release_notes_are_empty_for_a_missing_version() -> None:
+    """A version with no section gives no notes, so the recipe can refuse to draft."""
+    assert release_notes.release_notes(_CHANGELOG, "0.8.0") == ""

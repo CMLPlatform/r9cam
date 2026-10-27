@@ -128,12 +128,7 @@ release-publish version:
         echo "origin/main is at $main_version, not $version: merge the release PR first" >&2
         exit 1
     }
-    # The section between this version's heading and the next one, heading excluded.
-    notes="$(git show origin/main:CHANGELOG.md | awk -v v="## [$version]" '
-        index($0, v) == 1 { found = 1; next }
-        found && /^## \[/ { exit }
-        found { print }')"
-    [[ -n "${notes//[[:space:]]/}" ]] || { echo "CHANGELOG.md on origin/main has no v$version section" >&2; exit 1; }
+    notes="$(git show origin/main:CHANGELOG.md | python3 scripts/release_notes.py "$version")"
     gh release create "v$version" --draft --target "$(git rev-parse origin/main)" \
         --title "v$version" --notes "$notes"
     echo "Review the draft, then publish it: that creates the tag and starts release.yml."
