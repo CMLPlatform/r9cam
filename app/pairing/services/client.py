@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from app.backend.plugin_api import send_with_legacy_fallback
+from app.backend.plugin_api import PLUGIN_API_PREFIX
 from r9cam_models import DevicePublicKeyJWK, PairingPollResponse, PairingRegisterRequest
 
 if TYPE_CHECKING:
@@ -38,17 +38,13 @@ class PairingClient:
             key_id=key_id,
         )
         payload = request.model_dump(mode="json")
-        return await send_with_legacy_fallback(
-            lambda path: self.http_client.post(f"{self.base_url}{path}", json=payload), PAIRING_REGISTER_PATH
-        )
+        return await self.http_client.post(f"{self.base_url}{PLUGIN_API_PREFIX}{PAIRING_REGISTER_PATH}", json=payload)
 
     async def poll(self, *, code: str, fingerprint: str) -> httpx.Response:
         """Submit one poll request."""
         # The backend takes these in a POST body so they stay out of access logs.
         payload = {"code": code, "fingerprint": fingerprint}
-        return await send_with_legacy_fallback(
-            lambda path: self.http_client.post(f"{self.base_url}{path}", json=payload), PAIRING_POLL_PATH
-        )
+        return await self.http_client.post(f"{self.base_url}{PLUGIN_API_PREFIX}{PAIRING_POLL_PATH}", json=payload)
 
     @staticmethod
     def parse_poll_response(payload: object) -> PairingPollResponse:

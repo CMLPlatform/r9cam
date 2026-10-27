@@ -1,4 +1,4 @@
-# RPI Camera Plugin
+# r9cam
 
 [![CI](https://github.com/CMLPlatform/r9cam/actions/workflows/ci.yml/badge.svg)](https://github.com/CMLPlatform/r9cam/actions/workflows/ci.yml)
 [![Models](https://github.com/CMLPlatform/r9cam/actions/workflows/models.yml/badge.svg)](https://github.com/CMLPlatform/r9cam/actions/workflows/models.yml)

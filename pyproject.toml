@@ -39,7 +39,7 @@
   ]
 
   requires-python = ">=3.13,<3.14" # Python 3.13 is needed in Debian Trixie for picamera2
-  version         = "0.6.2"        # NOTE: Versioning is handled by commitizen
+  version         = "0.6.2"        # NOTE: set by `just release-prep`
 
   [project.urls]
     Homepage   = "https://github.com/CMLPlatform/r9cam"
@@ -81,18 +81,12 @@
   show_missing = true
 
 [tool.commitizen]
-  # The models subpackage carries its own tags; they are not app releases.
-  ignored_tag_formats      = ["r9cam-models-v$version", "relab-rpi-cam-models-v$version"]
-  major_version_zero       = true
-  name                     = "cz_conventional_commits"
-  # Runs after the version files are written and before cz commits, so the lockfile
-  # lands in the bump commit rather than a follow-up. Needs uv on PATH.
-  pre_bump_hooks           = ["uv lock && git add uv.lock"]
-  tag_format               = "v$version"
-  update_changelog_on_bump = true
-  version_files            = ["app/__version__.py", "openapi.r9cam.json:\"version\"", "CITATION.cff:^version", "codemeta.json:\"version\""]
-  version_provider         = "pep621"
-  version_scheme           = "semver2"
+  # `just release-prep <version>` runs `cz bump --files-only` to write the version into
+  # these files. CHANGELOG.md is written by hand.
+  tag_format       = "v$version"
+  version_files    = ["app/__version__.py", "openapi.r9cam.json:\"version\"", "CITATION.cff:^version", "codemeta.json:\"version\""]
+  version_provider = "pep621"
+  version_scheme   = "semver2"
 
 [tool.mutmut]
   # The relay trust boundary and the upload queue. `just mutation` runs this from a

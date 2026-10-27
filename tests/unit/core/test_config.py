@@ -9,6 +9,7 @@ from pydantic import HttpUrl
 import app.core.bootstrap as config_mod
 from app.core.runtime_state import RuntimeState
 from app.core.settings import Settings, is_loopback_url, settings
+from app.pairing.services import credentials as pairing_credentials
 from app.utils.files import is_running_in_container
 from tests.constants import (
     EXAMPLE_BACKEND_URL,
@@ -447,7 +448,7 @@ class TestConfigBootstrapHelpers:
         """Persisting the local key should merge with existing relay credentials."""
         credentials_file = tmp_path / "relay_credentials.json"
         credentials_file.write_text(json.dumps({"relay_camera_id": "cam-1"}))
-        monkeypatch.setattr(config_mod, "_CREDENTIALS_FILE", credentials_file)
+        monkeypatch.setattr(pairing_credentials, "_CREDENTIALS_FILE", credentials_file)
 
         config_mod._persist_local_api_key("local-key")
 

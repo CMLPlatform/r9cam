@@ -361,12 +361,9 @@ class TestNotifySelfUnpair:
         with _patch_async_client(response) as patched_client, caplog.at_level(logging.INFO):
             await backend_client_mod.notify_self_unpair()
 
-        # A 404 on the r9cam prefix is retried once on the legacy rpi-cam prefix.
-        legacy_retry = status_code == 404
-        assert patched_client.return_value.delete.await_count == (2 if legacy_retry else 1)
+        patched_client.return_value.delete.assert_awaited_once()
         args, kwargs = patched_client.return_value.delete.await_args
-        expected_path = DEVICE_UPLOAD_PATH.replace("r9cam", "rpi-cam") if legacy_retry else DEVICE_UPLOAD_PATH
-        assert str(args[0]).startswith(f"https://backend.example{expected_path}")
+        assert str(args[0]).startswith(f"https://backend.example{DEVICE_UPLOAD_PATH}")
         assert str(args[0]).endswith("/self")
         assert kwargs["headers"]["Authorization"] == AUTHORIZATION_HEADER
         assert ACKNOWLEDGED_UNPAIR_LOG in caplog.text

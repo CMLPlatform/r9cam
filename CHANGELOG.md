@@ -1,13 +1,59 @@
 # Changelog
 
-## v0.6.2 (2026-09-07)
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
+project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries up to
+0.6.2 were generated from commit messages.
+
+## [Unreleased]
+
+**Upgrading:**
+
+- Upgrade the R9lab backend first. This release needs one that serves the `/v1/plugins/r9cam`
+  routes and accepts the `r9cam-relay` token audience: the hosted `api.r9lab.io` does, a
+  self-hosted R9lab v0.5.0 or older does not. Pis on 0.6 keep working with a current backend
+  until 2027-01-31, so upgrade them before then.
+- Paired cameras stay paired when Docker Compose is upgraded in place and on installs without
+  Docker. A fresh clone into an `r9cam/` directory starts with empty volumes. See "Upgrading
+  From 0.6" in [INSTALL.md](INSTALL.md) for both cases.
+
+### Changed
+
+- **Breaking:** the plugin is now r9cam, and its shared models package is `r9cam-models`
+  (was `relab-rpi-cam-models`). Renamed with it: the `R9CAM_CREDENTIALS_FILE` variable, the
+  `~/.config/r9cam` credentials directory, the `_r9cam._tcp` mDNS service type, the `r9cam`
+  OpenTelemetry `service.name`, `/healthz` service and Compose image, the `r9cam_session` cookie,
+  `openapi.r9cam.json` and the device token audience `r9cam-relay`. INSTALL.md has the full
+  table. ([#45], [#48])
+- **Breaking:** the Pi calls only the `/v1/plugins/r9cam` routes and the default pairing
+  backend is `https://api.r9lab.io`.
+- Pairing polls with POST and a JSON body, as the current backend expects. ([#46])
+- EXIF capture details (exposure, offset time, temperature) are written to the Exif block, and
+  `Software` names the r9cam version.
+
+### Fixed
+
+- The upload queue stays under its byte cap when captures arrive at the same time. ([#61])
+- `local_setup.sh` installs uv from a release archive it checks against its checksum. ([#68])
+- Installs without Docker keep their pairing across the rename, and `RELAB_CREDENTIALS_FILE`
+  still works with a warning.
+
+### Security
+
+- Dependencies locked past advisories in aiohttp, pillow, urllib3, pyjwt, multidict,
+  opentelemetry and certifi. ([#42], [#58], [#63])
+- Releases carry the wheel, the sdist and a CycloneDX SBOM (`r9cam.cdx.json`), each with a
+  build provenance attestation.
+
+## [0.6.2] - 2026-09-07
 
 ### Fix
 
 - **pairing**: pin the relay host to the paired backend (#31)
 - **docker**: install util-linux security update
 
-## v0.6.1 (2026-08-13)
+## [0.6.1] - 2026-08-13
 
 ### Fix
 
@@ -15,7 +61,7 @@
 - **docker**: drop pip from the runtime image
 - device seam validation and licensing update (#24)
 
-## v0.6.0 (2026-07-20)
+## [0.6.0] - 2026-07-20
 
 ### Feat
 
@@ -26,13 +72,13 @@
 - **relay**: dispatch relayed commands in-process via `ASGITransport`, removing the loopback TCP hop and its dependence on `base_url` being reachable
 - Standardize the project name to Relab
 
-## v0.5.0 (2026-07-09)
+## [0.5.0] - 2026-07-09
 
 ### Feat
 
 - **observability**: add unauthenticated local-network liveness probe
 
-## v0.4.0 (2026-07-01)
+## [0.4.0] - 2026-07-01
 
 ### Feat
 
@@ -56,7 +102,7 @@
 
 - Reorganize into a feature-first layout: image sinks and upload into `delivery`, streaming into `camera/streaming`, metrics into `observability`
 
-## v0.3.0 (2026-04-21)
+## [0.3.0] - 2026-04-21
 
 The v0.1 to v0.3 history was squashed into one commit (c6e67bc) on 2026-04-15, so the v0.1.1
 and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added afterwards, on
@@ -76,7 +122,7 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 
 - Reorganize the app into a clearer feature-first structure, modernize the plugin runtime, and simplify related settings and tests
 
-## v0.2.0 (2025-11-26)
+## [0.2.0] - 2025-11-26
 
 ### Feat
 
@@ -89,13 +135,13 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 - Improve local setup script
 - Ensure the virtual environment is compatible with system Python packages
 
-## v0.1.1 (2025-08-20)
+## [0.1.1] - 2025-08-20
 
 ### Fix
 
 - **build**: bumped version to resolve a dependency issue on PyPI, as dependencies were only included after the initial publication.
 
-## v0.1.0 (2025-08-20)
+## [0.1.0] - 2025-08-20
 
 ### Feat
 
@@ -114,3 +160,22 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 ### Refactor
 
 - **tasks**: improve repeat_task function to handle coroutine tasks and logging
+
+[#42]: https://github.com/CMLPlatform/r9cam/pull/42
+[#45]: https://github.com/CMLPlatform/r9cam/pull/45
+[#46]: https://github.com/CMLPlatform/r9cam/pull/46
+[#48]: https://github.com/CMLPlatform/r9cam/pull/48
+[#58]: https://github.com/CMLPlatform/r9cam/pull/58
+[#61]: https://github.com/CMLPlatform/r9cam/pull/61
+[#63]: https://github.com/CMLPlatform/r9cam/pull/63
+[#68]: https://github.com/CMLPlatform/r9cam/pull/68
+[0.1.0]: https://github.com/CMLPlatform/r9cam/commits/v0.1.1
+[0.1.1]: https://github.com/CMLPlatform/r9cam/releases/tag/v0.1.1
+[0.2.0]: https://github.com/CMLPlatform/r9cam/compare/v0.1.1...v0.2.0
+[0.3.0]: https://github.com/CMLPlatform/r9cam/compare/v0.2.0...v0.3.0
+[0.4.0]: https://github.com/CMLPlatform/r9cam/compare/v0.3.0...v0.4.0
+[0.5.0]: https://github.com/CMLPlatform/r9cam/compare/v0.4.0...v0.5.0
+[0.6.0]: https://github.com/CMLPlatform/r9cam/compare/v0.5.0...v0.6.0
+[0.6.1]: https://github.com/CMLPlatform/r9cam/compare/v0.6.0...v0.6.1
+[0.6.2]: https://github.com/CMLPlatform/r9cam/compare/v0.6.1...v0.6.2
+[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.6.2...HEAD

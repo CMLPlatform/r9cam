@@ -631,7 +631,6 @@ class TestPairingCycle:
             register_responses=[FakeResponse(201), FakeResponse(201)],
             poll_responses=[
                 FakeResponse(404),
-                FakeResponse(404),  # legacy-prefix retry
                 FakeResponse(
                     200,
                     {
