@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Fixed
+
+- A 2xx upload reply that is not JSON or lacks `image_id` or `image_url` now counts as
+  delivered, with a warning in the log. Before, the Pi retried the upload and the backend
+  stored the capture twice.
+
 ## [0.7.1] - 2026-10-27
 
 ### Added
