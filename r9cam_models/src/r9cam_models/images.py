@@ -96,7 +96,8 @@ class ImageCaptureStatus(StrEnum):
     """Delivery state of a captured image.
 
     - UPLOADED: the Pi synchronously pushed the bytes to the backend and the
-      backend has stored them. ``image_url`` points at the backend.
+      backend has stored them. ``image_url`` points at the backend, or is None
+      when the backend returned a URL the camera could not use.
     - QUEUED: the synchronous push failed and the bytes are in the Pi's local
       upload queue awaiting retry. ``image_url`` is None because nothing is
       retrievable yet.
@@ -117,7 +118,10 @@ class ImageCaptureResponse(BaseModel):
     metadata: ImageMetadata = Field(description="Image metadata")
     image_url: AnyUrl | None = Field(
         default=None,
-        description="Backend-hosted URL for the stored image. None when the capture is queued.",
+        description=(
+            "Backend-hosted URL for the stored image. None when the capture is queued, "
+            "or the backend returned a URL the camera could not use."
+        ),
     )
     expires_at: Annotated[
         AwareDatetime | None, PlainSerializer(lambda dt: serialize_datetime_with_z(dt) if dt is not None else None)

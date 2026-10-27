@@ -7,6 +7,12 @@ are listed only in the GitHub tags (`relab-rpi-cam-models-v*`, and `r9cam-models
 
 ## [Unreleased]
 
+### Changed
+
+- The `ImageCaptureResponse.image_url` description and the `ImageCaptureStatus` docstring say
+  that an uploaded capture can have no URL, when the backend returned one the camera could not
+  use. The models themselves are unchanged.
+
 ## [0.6.0] - 2026-10-13
 
 The package and module are renamed. The models themselves are unchanged.
