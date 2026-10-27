@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from scripts import check_models_release, validate_models_package_tag
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import pytest
 
 VALIDATED_MESSAGE = "Validated r9cam-models-v1.2.3 against r9cam_models 1.2.3"
@@ -23,11 +24,8 @@ def test_validate_models_package_tag_accepts_matching_tag(
     """Matching tag and package version should validate successfully."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text('[project]\nversion = "1.2.3"\n', encoding="utf-8")
-    args = argparse.Namespace(
-        tag_name="r9cam-models-v1.2.3",
-        pyproject=pyproject,
-        prefix="r9cam-models-v",
-    )
+    args = argparse.Namespace(tag_name="r9cam-models-v1.2.3")
+    monkeypatch.setattr(validate_models_package_tag, "PYPROJECT", pyproject)
     monkeypatch.setattr(validate_models_package_tag, "parse_args", lambda: args)
 
     assert validate_models_package_tag.main() == 0
@@ -39,11 +37,7 @@ def test_validate_models_package_tag_rejects_wrong_prefix(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Unexpected tag prefixes should fail fast."""
-    args = argparse.Namespace(
-        tag_name="bad-tag",
-        pyproject=Path("r9cam_models/pyproject.toml"),
-        prefix="r9cam-models-v",
-    )
+    args = argparse.Namespace(tag_name="bad-tag")
     monkeypatch.setattr(validate_models_package_tag, "parse_args", lambda: args)
 
     assert validate_models_package_tag.main() == 1

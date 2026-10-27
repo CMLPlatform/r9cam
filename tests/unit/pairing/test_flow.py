@@ -613,7 +613,7 @@ class TestPairingCycle:
             set_active_runtime(None)
             app_runtime.runtime_state.clear_relay_credentials()
             app_runtime.runtime_state.local_relay_api_key = ""
-            app_runtime.runtime_state.replace_authorized_api_keys(original_snapshot)
+            app_runtime.runtime_state.authorized_api_keys = original_snapshot
             reload_authorized_keys(app_runtime.runtime_state)
 
     async def test_expired_code_rotates_without_error_stacktrace(

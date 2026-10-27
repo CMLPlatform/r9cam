@@ -48,7 +48,7 @@ def get_image_sink(settings: Settings) -> ImageSink:
         msg = (
             "No image sink configured. Set IMAGE_SINK=backend with PAIRING_BACKEND_URL "
             "for paired-to-R9lab mode, or IMAGE_SINK=s3 with the S3_* variables for "
-            "standalone mode. See docker-compose.standalone.yml for a MinIO-backed example."
+            "standalone mode. Enable the standalone profile in compose.yml for a MinIO-backed example."
         )
         raise ImageSinkConfigError(msg)
     msg = f"Unknown image_sink={choice!r}. Set IMAGE_SINK=backend, s3, or auto."
