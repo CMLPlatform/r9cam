@@ -16,7 +16,7 @@ Anyone can propose a change by opening an issue or a pull request. Proposals are
 
 - Several collaborators have admin access to the repository. Nobody has write access without admin.
 - The release workflows publish the plugin app and, through a PyPI trusted publisher, `r9cam_models`. The release workflow pushes the version bump commit and the tag.
-- Changes normally go through pull requests, which run CI. Nothing requires a pull request or passing checks: the `main` ruleset only blocks force-pushes and deletion.
+- Changes to `main` go through pull requests that need one approving review and the `Secret Scan` and `Dependency Audit` checks, on an up-to-date branch. Admins and the Renovate app may merge without the review. Only admins may skip the checks, which sit in a ruleset of their own. Force-pushes and deletion are blocked.
 - Renovate opens the dependency pull requests.
 
 ## Changes to This Document
