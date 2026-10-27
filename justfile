@@ -89,10 +89,11 @@ show-key:
 #   just release-prep 0.7.0      branch release/v0.7.0 from origin/main, set every version
 #                                file and turn CHANGELOG.md's Unreleased into [0.7.0]
 #   (write the section, commit, open a PR and merge it)
-#   just release-publish 0.7.0   draft the GitHub release from that CHANGELOG section
+#   just release-publish 0.7.0   sign and push the v0.7.0 tag, then draft the GitHub
+#                                release from that CHANGELOG section
 #
-# Publishing the draft on GitHub creates the tag and starts release.yml, which uploads
-# the wheel, the sdist and the SBOM.
+# Publishing the draft on GitHub starts release.yml, which uploads the wheel, the sdist
+# and the SBOM.
 release-prep version:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -118,7 +119,8 @@ release-prep version:
     git log --format='  %s' "$previous..origin/main"
     echo "Write the [$version] section of CHANGELOG.md, then commit and open a PR."
 
-# Draft the GitHub release for a merged version from its CHANGELOG section.
+# Sign and push the tag for a merged version, then draft its GitHub release from its
+# CHANGELOG section.
 release-publish version:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -130,7 +132,26 @@ release-publish version:
         echo "origin/main is at $main_version, not $version: merge the release PR first" >&2
         exit 1
     }
+    tag="v$version"
+    sha="$(git rev-parse origin/main)"
     notes="$(git show origin/main:CHANGELOG.md | python3 scripts/release_notes.py "$version")"
-    gh release create "v$version" --draft --target "$(git rev-parse origin/main)" \
-        --title "v$version" --notes "$notes"
-    echo "Review the draft, then publish it: that creates the tag and starts release.yml."
+    # Tag with your own key so GitHub shows it verified; a tag gh creates is unsigned. A tag left by
+    # an earlier run that stopped after the push is reused, but only on the same commit.
+    if git rev-parse --quiet --verify "refs/tags/$tag" >/dev/null; then
+        [[ "$(git rev-parse "$tag^{commit}")" == "$sha" ]] || { echo "tag $tag exists locally on another commit" >&2; exit 1; }
+    else
+        git tag --sign "$tag" --message "$tag" "$sha"
+    fi
+    git verify-tag "$tag" >/dev/null 2>&1 || { echo "tag $tag is not signed with a key git trusts" >&2; exit 1; }
+    # ls-remote exits 2 when the tag is missing, 0 when it exists, anything else on an error.
+    found=0
+    remote="$(git ls-remote --exit-code --tags origin "refs/tags/$tag^{}")" || found=$?
+    if [[ "$found" == 2 ]]; then
+        git push origin "refs/tags/$tag"
+    elif [[ "$found" == 0 ]]; then
+        [[ "${remote%%[[:space:]]*}" == "$sha" ]] || { echo "tag $tag exists on origin on another commit" >&2; exit 1; }
+    else
+        echo "could not list origin's tags" >&2; exit 1
+    fi
+    gh release create "$tag" --draft --verify-tag --title "$tag" --notes "$notes"
+    echo "Review the draft, then publish it: that starts release.yml."
