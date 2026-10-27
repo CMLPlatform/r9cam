@@ -133,15 +133,25 @@ release-publish version:
         exit 1
     }
     tag="v$version"
-    ! git rev-parse --quiet --verify "refs/tags/$tag" >/dev/null || { echo "tag $tag already exists locally" >&2; exit 1; }
+    sha="$(git rev-parse origin/main)"
+    notes="$(git show origin/main:CHANGELOG.md | python3 scripts/release_notes.py "$version")"
+    # Tag with your own key so GitHub shows it verified; a tag gh creates is unsigned. A tag left by
+    # an earlier run that stopped after the push is reused, but only on the same commit.
+    if git rev-parse --quiet --verify "refs/tags/$tag" >/dev/null; then
+        [[ "$(git rev-parse "$tag^{commit}")" == "$sha" ]] || { echo "tag $tag exists locally on another commit" >&2; exit 1; }
+    else
+        git tag --sign "$tag" --message "$tag" "$sha"
+    fi
+    git verify-tag "$tag" >/dev/null 2>&1 || { echo "tag $tag is not signed with a key git trusts" >&2; exit 1; }
     # ls-remote exits 2 when the tag is missing, 0 when it exists, anything else on an error.
     found=0
-    git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || found=$?
-    [[ "$found" != 0 ]] || { echo "tag $tag already exists on origin" >&2; exit 1; }
-    [[ "$found" == 2 ]] || { echo "could not list origin's tags" >&2; exit 1; }
-    notes="$(git show origin/main:CHANGELOG.md | python3 scripts/release_notes.py "$version")"
-    # Tag with your own key so GitHub shows it verified; a tag gh creates is unsigned.
-    git tag --sign "$tag" --message "$tag" "$(git rev-parse origin/main)"
-    git push origin "refs/tags/$tag"
+    remote="$(git ls-remote --exit-code --tags origin "refs/tags/$tag^{}")" || found=$?
+    if [[ "$found" == 2 ]]; then
+        git push origin "refs/tags/$tag"
+    elif [[ "$found" == 0 ]]; then
+        [[ "${remote%%[[:space:]]*}" == "$sha" ]] || { echo "tag $tag exists on origin on another commit" >&2; exit 1; }
+    else
+        echo "could not list origin's tags" >&2; exit 1
+    fi
     gh release create "$tag" --draft --verify-tag --title "$tag" --notes "$notes"
     echo "Review the draft, then publish it: that starts release.yml."
