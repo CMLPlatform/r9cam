@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock
 
+import pytest
 from PIL import Image
 
 from app.backend.client import BackendUploadError
@@ -265,3 +267,37 @@ class TestPreviewThumbnailWorker:
 
         capture_preview_thumbnail_jpeg.assert_awaited_once()
         assert worker.cache_path.read_bytes() == _ACTIVITY_BYTES
+
+    async def test_run_forever_survives_a_failed_refresh(self, tmp_path: Path) -> None:
+        """A refresh that raises is logged and retried after the poll interval; cancellation still stops the loop."""
+        capture_preview_thumbnail_jpeg = AsyncMock(side_effect=[RuntimeError("camera gone"), _FRESH_BYTES])
+        camera_manager = cast(
+            "CameraManager",
+            SimpleNamespace(capture_preview_thumbnail_jpeg=capture_preview_thumbnail_jpeg),
+        )
+        relay_state = cast(
+            "RelayRuntimeState",
+            SimpleNamespace(seconds_since_last_hls_activity=lambda: None),
+        )
+        sleeps: list[float] = []
+
+        async def _sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+            if len(sleeps) > 2:
+                raise asyncio.CancelledError
+
+        worker = PreviewThumbnailWorker(
+            camera_manager=camera_manager,
+            relay_state=relay_state,
+            relay_enabled_getter=lambda: False,
+            cache_dir=tmp_path,
+            poll_interval_s=7.0,
+            sleep=_sleep,
+        )
+
+        with pytest.raises(asyncio.CancelledError):
+            await worker.run_forever()
+
+        assert capture_preview_thumbnail_jpeg.await_count == 2
+        assert sleeps[1:] == [7.0, 7.0]
+        assert worker.cache_path.read_bytes() == _FRESH_BYTES
