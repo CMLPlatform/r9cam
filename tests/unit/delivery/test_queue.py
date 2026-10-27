@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import threading
 import time
@@ -100,17 +101,18 @@ class TestEnqueue:
         assert entry.metadata_path == queue_root / f"{capture_id}.json"
         assert await asyncio.to_thread(entry.image_path.exists)
         assert await asyncio.to_thread(entry.metadata_path.exists)
+        assert queue.is_due(entry)
 
     async def test_creates_queue_and_dead_directories(
         self,
         queue_root: Path,
         sink: _FakeSink,
     ) -> None:
-        """Instantiating the queue should create both the root and the dead-letter subdir."""
+        """Instantiating the queue should create the root, its missing parents and the dead-letter subdir."""
         assert not await asyncio.to_thread(queue_root.exists)
-        UploadQueue(queue_root, sink=cast("ImageSink", sink))
-        assert await asyncio.to_thread(queue_root.is_dir)
-        assert await asyncio.to_thread((queue_root / "dead").is_dir)
+        UploadQueue(queue_root / "data" / "queue", sink=cast("ImageSink", sink))
+        assert await asyncio.to_thread((queue_root / "data" / "queue").is_dir)
+        assert await asyncio.to_thread((queue_root / "data" / "queue" / "dead").is_dir)
 
     async def test_rejects_enqueue_when_pending_entry_limit_is_reached(
         self,
@@ -404,6 +406,66 @@ class TestIterPending:
         assert not metadata_path.exists()
         assert not image_path.exists()
 
+    def test_orphan_sweep_handles_every_kind_of_image_in_one_pass(
+        self, queue_root: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Each image the sweep skips or cannot remove leaves the later ones to it."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        (queue_root / f"{image_id(1)}.jpg").symlink_to(queue_root / "gone.jpg")
+        (queue_root / f"{image_id(2)}.jpg").write_bytes(_jpeg_bytes())
+        (queue_root / f"{image_id(2)}.json").write_text("{}")
+        (queue_root / f"{image_id(3)}.jpg").write_bytes(_jpeg_bytes())
+        (queue_root / "dead" / f"{image_id(3)}.json").write_text('{"capture_metadata": {}, "upload_metadata": {}}')
+        (queue_root / f"{image_id(4)}.jpg").mkdir()
+        orphan = queue_root / f"{image_id(5)}.jpg"
+        orphan.write_bytes(_jpeg_bytes())
+        later = time.time() + 120
+        monkeypatch.setattr(upload_queue_mod.time, "time", lambda: later)
+
+        pending = queue.iter_pending()
+
+        assert sorted(e.image_id for e in pending) == [image_id(2), image_id(3)]
+        assert not orphan.exists()
+
+    def test_orphan_sweep_continues_past_a_new_image(
+        self, queue_root: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A jpg still inside the grace period does not stop the sweep of older ones."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        old = queue_root / f"{image_id(2)}.jpg"
+        old.write_bytes(_jpeg_bytes())
+        new = queue_root / f"{image_id(1)}.jpg"
+        while True:
+            new.write_bytes(_jpeg_bytes())
+            if new.stat().st_ctime > old.stat().st_ctime:
+                break
+        new_ctime = new.stat().st_ctime
+        monkeypatch.setattr(upload_queue_mod, "_ORPHAN_IMAGE_GRACE_SECONDS", 0)
+        monkeypatch.setattr(upload_queue_mod.time, "time", lambda: new_ctime)
+
+        assert queue.iter_pending() == []
+        assert new.exists()
+        assert not old.exists()
+
+    def test_failed_dead_letter_finish_is_left_for_later(
+        self, queue_root: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An OSError while moving a cut-off dead letter's sidecar does not break the scan."""
+        capture_id = image_id(1)
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        (queue_root / "dead" / f"{capture_id}.jpg").write_bytes(_jpeg_bytes())
+        (queue_root / f"{capture_id}.json").write_text("{}")
+        later = time.time() + 120
+        monkeypatch.setattr(upload_queue_mod.time, "time", lambda: later)
+
+        def _full_disk(_src: str, _dst: str) -> None:
+            raise OSError(28, "No space left on device")
+
+        monkeypatch.setattr(upload_queue_mod.shutil, "move", _full_disk)
+
+        assert queue.iter_pending() == []
+        assert (queue_root / f"{capture_id}.json").exists()
+
 
 class TestDrainOnce:
     """Tests for drain_once happy-path and failure-path."""
@@ -667,6 +729,7 @@ class TestDeadLetter:
 
         assert queue.iter_pending() == []
         assert sorted(p.name for p in (queue_root / "dead").iterdir()) == [f"{capture_id}.jpg", f"{capture_id}.json"]
+        assert not await asyncio.to_thread((queue_root / f"{capture_id}.json").exists)
 
     async def test_prunes_oldest_dead_letters_over_count_limit(
         self,
@@ -674,8 +737,8 @@ class TestDeadLetter:
         sink: _FakeSink,
     ) -> None:
         """Dead-letter retention should keep only the newest entries over count."""
-        old_id = image_id(10)
-        new_id = image_id(11)
+        old_id = image_id(11)
+        new_id = image_id(10)
         queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), dead_max_entries=1)
         for index, name in enumerate((old_id, new_id)):
             dead_image = queue_root / "dead" / f"{name}.jpg"
@@ -701,7 +764,7 @@ class TestRequeueDead:
     async def _dead_letter(queue: UploadQueue, capture_id: str, source: Path) -> None:
         await asyncio.to_thread(source.write_bytes, _jpeg_bytes())
         entry = await queue.enqueue(
-            image_id=capture_id, image_path=source, capture_metadata={"k": "v"}, upload_metadata={}
+            image_id=capture_id, image_path=source, capture_metadata={"k": "v"}, upload_metadata={"u": "1"}
         )
         for _ in range(upload_queue_mod._MAX_ATTEMPTS):
             entry = queue.iter_pending()[0]
@@ -722,6 +785,7 @@ class TestRequeueDead:
         assert entry.image_id == capture_id
         assert entry.attempts == 0
         assert entry.capture_metadata == {"k": "v"}
+        assert entry.upload_metadata == {"u": "1"}
         assert queue.is_due(entry)
         assert list((queue_root / "dead").iterdir()) == []
         assert await queue.drain_once() == 1
@@ -785,6 +849,82 @@ class TestRequeueDead:
         assert (queue_root / "dead" / f"{stuck}.json").exists()
         assert (queue_root / f"{stuck}.jpg").exists()
 
+    @pytest.mark.parametrize(
+        ("sidecar", "capture", "upload"),
+        [
+            ('{"capture_metadata": [1], "upload_metadata": {"u": "1"}}', {}, {"u": "1"}),
+            ('{"capture_metadata": {"k": "v"}, "upload_metadata": [2]}', {"k": "v"}, {}),
+            ("not json", {}, {}),
+        ],
+    )
+    async def test_interrupted_requeue_keeps_only_valid_metadata(
+        self, queue_root: Path, sink: _FakeSink, sidecar: str, capture: dict[str, str], upload: dict[str, str]
+    ) -> None:
+        """A half-moved capture comes back even when its dead sidecar is damaged."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        capture_id = image_id(34)
+        (queue_root / f"{capture_id}.jpg").write_bytes(_jpeg_bytes())
+        (queue_root / "dead" / f"{capture_id}.json").write_text(sidecar)
+
+        await queue.requeue_dead()
+
+        [entry] = queue.iter_pending()
+        assert (entry.capture_metadata, entry.upload_metadata) == (capture, upload)
+
+    async def test_dead_sidecar_without_any_image_is_dropped(self, queue_root: Path, sink: _FakeSink) -> None:
+        """A dead sidecar whose image is gone everywhere is removed, and nothing goes live."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        (queue_root / "dead" / f"{image_id(35)}.json").write_text("{}")
+
+        await queue.prune_dead_letters()
+
+        assert list((queue_root / "dead").iterdir()) == []
+        assert not await asyncio.to_thread((queue_root / f"{image_id(35)}.json").exists)
+
+    async def test_requeue_fills_in_missing_metadata(self, queue_root: Path, sink: _FakeSink) -> None:
+        """A dead sidecar without metadata keys still comes back, with empty metadata."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        (queue_root / "dead" / f"{image_id(36)}.jpg").write_bytes(_jpeg_bytes())
+        (queue_root / "dead" / f"{image_id(36)}.json").write_text("{}")
+
+        await queue.requeue_dead()
+
+        [entry] = queue.iter_pending()
+        assert (entry.capture_metadata, entry.upload_metadata) == ({}, {})
+
+    async def test_broken_dead_entry_does_not_stop_the_rest(self, queue_root: Path, sink: _FakeSink) -> None:
+        """The oldest dead entry failing to requeue leaves the newer ones to go back."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        for index, (seed, sidecar) in enumerate(((37, "not json"), (38, "{}"))):
+            dead_image = queue_root / "dead" / f"{image_id(seed)}.jpg"
+            dead_meta = queue_root / "dead" / f"{image_id(seed)}.json"
+            dead_image.write_bytes(_jpeg_bytes())
+            dead_meta.write_text(sidecar)
+            mtime = (datetime.now(UTC) + timedelta(seconds=index)).timestamp()
+            os.utime(dead_image, (mtime, mtime))
+            os.utime(dead_meta, (mtime, mtime))
+
+        await queue.requeue_dead()
+
+        assert [e.image_id for e in queue.iter_pending()] == [image_id(38)]
+
+    async def test_requeue_counts_the_sidecar_against_the_byte_cap(self, queue_root: Path, sink: _FakeSink) -> None:
+        """An entry whose jpg fits but whose new sidecar would not stays dead."""
+        capture_id = image_id(39)
+        (queue_root / "dead").mkdir(parents=True)
+        (queue_root / "dead" / f"{capture_id}.jpg").write_bytes(_jpeg_bytes())
+        (queue_root / "dead" / f"{capture_id}.json").write_text("{}")
+        sidecar = upload_queue_mod._metadata_payload(
+            image_id=capture_id, capture_metadata={}, upload_metadata={}, attempts=0, next_attempt_at=datetime.now(UTC)
+        )
+        cap = len(_jpeg_bytes()) + len(json.dumps(sidecar, indent=2).encode()) - 1
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), max_pending_bytes=cap)
+
+        await queue.requeue_dead()
+
+        assert queue.iter_pending() == []
+        assert (queue_root / "dead" / f"{capture_id}.jpg").exists()
+
     async def test_requeue_honours_byte_cap(self, queue_root: Path, tmp_path: Path, sink: _FakeSink) -> None:
         """Entries that do not fit under the byte cap stay dead."""
         unlimited = UploadQueue(queue_root, sink=cast("ImageSink", sink))
@@ -814,6 +954,8 @@ class TestRequeueDead:
         monkeypatch.setattr(queue, "_requeue_dead_sync", _slow_requeue)
         task = asyncio.create_task(queue.requeue_dead())
         await asyncio.to_thread(started.wait, 5)
+        task.cancel()
+        await asyncio.sleep(0.05)
         task.cancel()
         await asyncio.sleep(0.05)
 

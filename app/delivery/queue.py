@@ -334,7 +334,7 @@ class UploadQueue:
         is still in dead/ is a requeue that crashed halfway, so it is finished, not deleted.
         """
         cutoff = time.time() - _ORPHAN_IMAGE_GRACE_SECONDS
-        for image_path in self._root.glob("*.jpg"):
+        for image_path in sorted(self._root.glob("*.jpg")):
             if image_path.with_suffix(".json").exists():
                 continue
             # ctime, not mtime: a rename keeps the mtime, and a requeued dead letter can be days old.
