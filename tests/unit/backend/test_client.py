@@ -229,30 +229,34 @@ class TestUploadImage:
                 upload_metadata={},
             )
 
-    async def test_malformed_json_raises(self) -> None:
-        """A 200 response that can't be parsed as JSON should raise."""
+    async def test_non_json_2xx_counts_as_delivered(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A 2xx reply that is not JSON is delivered once: no exception, so no queue retry."""
         response = MagicMock()
         response.status_code = 200
         response.json = MagicMock(side_effect=ValueError("not json"))
         response.text = "not json"
-        with _patch_async_client(response), pytest.raises(BackendUploadError, match="not JSON"):
-            await upload_image(
-                image_bytes=b"\xff\xd8",
-                filename="test.jpg",
-                capture_metadata={},
-                upload_metadata={},
+        with _patch_async_client(response) as patched_client, caplog.at_level(logging.WARNING):
+            result = await upload_image(
+                image_bytes=b"\xff\xd8", filename="t.jpg", capture_metadata={}, upload_metadata={}
             )
 
-    async def test_missing_fields_raises(self) -> None:
-        """A 200 response that doesn't include image_id+image_url must be rejected."""
+        assert result.image_id is None
+        assert result.image_url is None
+        assert "not JSON" in caplog.text
+        patched_client.return_value.post.assert_awaited_once()
+
+    async def test_missing_fields_2xx_counts_as_delivered(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A 2xx reply without image_url is delivered once: no exception, so no queue retry."""
         response = _fake_response(200, {"image_id": "abc"})
-        with _patch_async_client(response), pytest.raises(BackendUploadError, match="missing fields"):
-            await upload_image(
-                image_bytes=b"\xff\xd8",
-                filename="test.jpg",
-                capture_metadata={},
-                upload_metadata={},
+        with _patch_async_client(response) as patched_client, caplog.at_level(logging.WARNING):
+            result = await upload_image(
+                image_bytes=b"\xff\xd8", filename="t.jpg", capture_metadata={}, upload_metadata={}
             )
+
+        assert result.image_id is None
+        assert result.image_url is None
+        assert "unusable" in caplog.text
+        patched_client.return_value.post.assert_awaited_once()
 
     async def test_requires_pairing_backend_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Uploading without a configured pairing backend must fail cleanly."""

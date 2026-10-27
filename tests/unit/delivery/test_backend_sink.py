@@ -55,6 +55,18 @@ class TestBackendPushSink:
         assert kwargs["capture_metadata"] == {"iso": 200}
         assert kwargs["upload_metadata"] == {"product_id": 7}
 
+    async def test_put_falls_back_to_local_id_when_backend_sends_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A delivered upload without a usable backend id keeps the local capture id."""
+        monkeypatch.setattr(
+            backend_sink_mod, "upload_image", AsyncMock(return_value=UploadedImageInfo(image_id=None, image_url=None))
+        )
+
+        result = await BackendPushSink().put(
+            image_id="local-1", image_bytes=b"x", filename="local-1.jpg", capture_metadata={}, upload_metadata={}
+        )
+
+        assert result == StoredImage(image_id="local-1", image_url=None)
+
     async def test_backend_upload_error_translates_to_image_sink_error(
         self,
         monkeypatch: pytest.MonkeyPatch,

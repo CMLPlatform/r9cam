@@ -34,7 +34,6 @@ class BackendPushSink:
         upload_metadata: Mapping[str, object],
     ) -> StoredImage:
         """Push the capture to the R9lab backend and return its stored URL."""
-        del image_id
         try:
             uploaded = await upload_image(
                 image_bytes=image_bytes,
@@ -46,6 +45,7 @@ class BackendPushSink:
             raise ImageSinkError(str(exc)) from exc
 
         return StoredImage(
-            image_id=uploaded.image_id,
+            # The backend may omit a usable id; the local capture id is still a valid handle.
+            image_id=uploaded.image_id or image_id,
             image_url=uploaded.image_url,
         )

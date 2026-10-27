@@ -78,7 +78,7 @@ class BackendUploadError(RuntimeError):
 class UploadedImageInfo:
     """Result of a successful backend image upload."""
 
-    image_id: str
+    image_id: str | None
     image_url: AnyUrl | None
 
 
@@ -97,7 +97,8 @@ async def _post_file(
     headers: dict,
     data: dict | None = None,
     upload_label: str,
-) -> dict:
+) -> object:
+    """POST and return the parsed JSON body, or None when a 2xx body is not JSON."""
     try:
         response = await _get_client().post(
             f"{base_url}{PLUGIN_API_PREFIX}{suffix}", files=files, data=data, headers=headers
@@ -113,9 +114,9 @@ async def _post_file(
 
     try:
         return response.json()
-    except ValueError as exc:
-        msg = f"Backend {upload_label} response was not JSON: {response.text[:200]!r}"
-        raise BackendUploadError(msg) from exc
+    except ValueError:
+        logger.warning("Backend %s response was not JSON: %r", upload_label, response.text[:200])
+        return None
 
 
 async def _get_upload_context() -> tuple[str, str, str]:
@@ -156,13 +157,13 @@ async def upload_image(
         headers={"Authorization": f"Bearer {assertion}"},
         upload_label="image upload",
     )
+    # Any 2xx means the backend stored the image. Raising on an unusable reply would make the
+    # queue retry and the backend store a duplicate, so keep what parses and drop the rest.
     try:
         ack = DeviceImageUploadAck.model_validate(payload)
-    except (TypeError, ValueError) as exc:
-        msg = f"Backend upload response missing fields: {payload!r}"
-        raise BackendUploadError(msg) from exc
-    # The backend has stored the image by now. Raising here would make the queue retry it and
-    # the backend store a duplicate, so drop the bad URL and keep the upload.
+    except (TypeError, ValueError):
+        logger.warning("Backend stored the image but its reply was unusable: %r", payload)
+        return UploadedImageInfo(image_id=None, image_url=None)
     try:
         image_url = _resolve_backend_media_url(ack.image_url, base_url=base_url, field_name="image_url")
     except BackendUploadError as exc:
