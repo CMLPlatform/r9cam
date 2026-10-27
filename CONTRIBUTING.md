@@ -45,6 +45,11 @@ When one does, the recipe fails.
 Read a new survivor with `uv run mutmut show <name>` from `.mutation/`, then kill it with a test or record it in the baseline.
 Give each equivalent mutant you accept a one-line reason.
 
+To check one function, pass a mutmut pattern, such as `just mutation 'app.relay.service.x__send_error*'`.
+That run keeps `.mutation/`, so only mutants of changed files are regenerated, and lists only the matching survivors.
+It skips the baseline comparison, because that needs a full run.
+Run `just clean` to start from an empty `.mutation/` again.
+
 `just fuzz` runs the Atheris harness in `fuzz/relay_frames.py` for a minute.
 It feeds raw backend frames through the relay seam and fails when anything but a `ValidationError` escapes, or when an allowlisted command routes to a route outside the allowlist.
 A crashing input lands in `reports/fuzz/`.
