@@ -702,6 +702,48 @@ class TestRequeueDead:
         assert entry.capture_metadata == {"k": "v"}
         assert list((queue_root / "dead").iterdir()) == []
 
+    async def test_iter_pending_finishes_requeue_interrupted_after_image_move(
+        self, queue_root: Path, tmp_path: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A restart that drains before any requeue recovers the half-moved capture, not deletes it."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        capture_id = image_id(31)
+        await self._dead_letter(queue, capture_id, tmp_path / "d.jpg")
+        (queue_root / "dead" / f"{capture_id}.jpg").rename(queue_root / f"{capture_id}.jpg")
+        later = time.time() + 120
+        monkeypatch.setattr(upload_queue_mod.time, "time", lambda: later)
+
+        [entry] = queue.iter_pending()
+
+        assert entry.image_id == capture_id
+        assert entry.attempts == 0
+        assert entry.capture_metadata == {"k": "v"}
+        assert list((queue_root / "dead").iterdir()) == []
+
+    async def test_failed_interrupted_requeue_does_not_stop_the_rest(
+        self, queue_root: Path, tmp_path: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A full disk while finishing one half-moved capture leaves it for later and requeues the others."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        stuck, other = image_id(32), image_id(33)
+        await self._dead_letter(queue, stuck, tmp_path / "e.jpg")
+        await self._dead_letter(queue, other, tmp_path / "f.jpg")
+        (queue_root / "dead" / f"{stuck}.jpg").rename(queue_root / f"{stuck}.jpg")
+        real_write = upload_queue_mod.write_json_atomic
+
+        def _write(path: Path, payload: dict[str, object]) -> None:
+            if path.stem == stuck:
+                raise OSError(28, "No space left on device")
+            real_write(path, payload)
+
+        monkeypatch.setattr(upload_queue_mod, "write_json_atomic", _write)
+
+        await queue.requeue_dead()
+
+        assert [e.image_id for e in queue.iter_pending()] == [other]
+        assert (queue_root / "dead" / f"{stuck}.json").exists()
+        assert (queue_root / f"{stuck}.jpg").exists()
+
     async def test_requeue_honours_byte_cap(self, queue_root: Path, tmp_path: Path, sink: _FakeSink) -> None:
         """Entries that do not fit under the byte cap stay dead."""
         unlimited = UploadQueue(queue_root, sink=cast("ImageSink", sink))

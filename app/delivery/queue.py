@@ -322,17 +322,26 @@ class UploadQueue:
         """Delete jpgs a crash left without a sidecar, so they stop counting against the byte cap.
 
         enqueue and requeue_dead move the jpg before they write its sidecar. The grace period
-        keeps this away from a move whose sidecar is still being written.
+        keeps this away from a move whose sidecar is still being written. A jpg whose sidecar
+        is still in dead/ is a requeue that crashed halfway, so it is finished, not deleted.
         """
         cutoff = time.time() - _ORPHAN_IMAGE_GRACE_SECONDS
         for image_path in self._root.glob("*.jpg"):
             if image_path.with_suffix(".json").exists():
                 continue
             # ctime, not mtime: a rename keeps the mtime, and a requeued dead letter can be days old.
+            try:
+                if image_path.stat().st_ctime >= cutoff:
+                    continue
+            except OSError:
+                continue
+            dead_metadata = self._dead_root / f"{image_path.stem}.json"
+            if dead_metadata.exists():
+                _finish_interrupted_requeue(self._dead_root, dead_metadata)
+                continue
             with contextlib.suppress(OSError):
-                if image_path.stat().st_ctime < cutoff:
-                    image_path.unlink()
-                    logger.warning("Queue: removed %s, which has no metadata", image_path.name, extra=build_log_extra())
+                image_path.unlink()
+                logger.warning("Queue: removed %s, which has no metadata", image_path.name, extra=build_log_extra())
 
     async def _dead_letter(self, entry: QueuedCapture) -> None:
         """Move an entry to the dead-letter area, removing it from the active queue."""
@@ -476,23 +485,29 @@ def _finish_interrupted_requeue(dead_root: Path, dead_metadata: Path) -> None:
     """
     live_image = dead_root.parent / f"{dead_metadata.stem}.jpg"
     live_metadata = dead_root.parent / dead_metadata.name
-    if live_image.exists() and not live_metadata.exists():
-        try:
-            payload = json.loads(dead_metadata.read_text())
-            capture_metadata, upload_metadata = payload["capture_metadata"], payload["upload_metadata"]
-        except (OSError, ValueError, TypeError, KeyError):
-            capture_metadata, upload_metadata = {}, {}
-        write_json_atomic(
-            live_metadata,
-            _metadata_payload(
-                image_id=dead_metadata.stem,
-                capture_metadata=capture_metadata if isinstance(capture_metadata, dict) else {},
-                upload_metadata=upload_metadata if isinstance(upload_metadata, dict) else {},
-                attempts=0,
-                next_attempt_at=datetime.now(UTC),
-            ),
+    try:
+        if live_image.exists() and not live_metadata.exists():
+            try:
+                payload = json.loads(dead_metadata.read_text())
+                capture_metadata, upload_metadata = payload["capture_metadata"], payload["upload_metadata"]
+            except (OSError, ValueError, TypeError, KeyError):
+                capture_metadata, upload_metadata = {}, {}
+            write_json_atomic(
+                live_metadata,
+                _metadata_payload(
+                    image_id=dead_metadata.stem,
+                    capture_metadata=capture_metadata if isinstance(capture_metadata, dict) else {},
+                    upload_metadata=upload_metadata if isinstance(upload_metadata, dict) else {},
+                    attempts=0,
+                    next_attempt_at=datetime.now(UTC),
+                ),
+            )
+        dead_metadata.unlink(missing_ok=True)
+    except OSError:
+        # A full disk must not stop the other entries. The dead sidecar stays, so the next pass retries.
+        logger.exception(
+            "Queue: could not finish interrupted requeue of %s", dead_metadata.stem, extra=build_log_extra()
         )
-    dead_metadata.unlink(missing_ok=True)
 
 
 def _path_mtime(path: Path) -> float:
