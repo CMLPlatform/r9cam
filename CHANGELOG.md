@@ -16,10 +16,19 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ### Fixed
 
+- Relayed commands no longer fail with 401 when the relay credentials come from environment
+  variables. The key the relay uses to call this camera's own API was never created or
+  authorized on that path, only when credentials were read from the credentials file.
 - The release image gets its SBOM and build provenance attestations again. The 0.7.0 image
   was published without them, because the SBOM step looked for an amd64 image.
 - The citation metadata lists "research data" instead of "computer vision", which r9cam does
   not do.
+- A queued upload whose metadata file is valid JSON of the wrong shape, such as a list, a
+  `null` attempt count, is now skipped. A timestamp without a timezone is read as UTC. It used to stop
+  every queued upload and every new capture.
+- A capture left in the upload queue without its metadata file, after a crash or power cut
+  during queueing, is now removed after a minute. It used to count against the queue's size
+  limit forever.
 
 ## [0.7.0] - 2026-10-27
 

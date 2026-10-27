@@ -29,6 +29,9 @@ on:
       - '.github/workflows/models.yml'
       - '.github/workflows/models-check-reusable.yml'
   workflow_dispatch:
+  # Weekly rerun of the drift check, so drift nobody fixed after a red push run keeps showing.
+  schedule:
+    - cron: "0 3 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,14 +42,16 @@ permissions:
 
 jobs:
   models-check:
+    if: github.event_name != 'schedule'
     uses: ./.github/workflows/models-check-reusable.yml
     with:
       python_version: "3.13"
 
-  # Main only: a version bump is tagged after it merges, so a PR run would always fail.
+  # Main only (scheduled runs use the default branch): a version bump is tagged
+  # after it merges, so a PR run would always fail.
   release-drift:
     name: Models version vs PyPI
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

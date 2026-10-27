@@ -25,6 +25,7 @@ import json
 import logging
 import re
 import shutil
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -48,6 +49,8 @@ _BACKOFF_SCHEDULE: tuple[int, ...] = (5, 30, 5 * 60, 30 * 60, 2 * 60 * 60)
 _MAX_ATTEMPTS = len(_BACKOFF_SCHEDULE)
 _WORKER_POLL_INTERVAL_SECONDS = 5.0
 _IMAGE_ID_PATTERN = re.compile(r"[0-9a-f]{32}\Z")
+# A jpg without a sidecar this long is left over from a crash, not an enqueue in progress.
+_ORPHAN_IMAGE_GRACE_SECONDS = 60
 
 
 class UploadQueueFullError(RuntimeError):
@@ -121,7 +124,7 @@ class UploadQueue:
         async with self._enqueue_lock:
             self._ensure_capacity_for(image_path=image_path, metadata_payload=metadata_payload)
             await asyncio.to_thread(shutil.move, str(image_path), str(target_image))
-            await asyncio.to_thread(target_metadata.write_text, json.dumps(metadata_payload, indent=2))
+            await asyncio.to_thread(write_json_atomic, target_metadata, metadata_payload)
 
         logger.info("Enqueued capture %s for backend retry", image_id, extra=build_log_extra())
         return QueuedCapture(
@@ -136,6 +139,7 @@ class UploadQueue:
 
     def iter_pending(self) -> list[QueuedCapture]:
         """Return all pending entries, cheapest first (soonest next_attempt_at)."""
+        self._remove_orphan_images()
         entries: list[QueuedCapture] = []
         for meta_path in sorted(self._root.glob("*.json")):
             entry = self._load_entry(meta_path)
@@ -193,7 +197,7 @@ class UploadQueue:
             attempts=attempts,
             next_attempt_at=next_attempt,
         )
-        await asyncio.to_thread(entry.metadata_path.write_text, json.dumps(payload, indent=2))
+        await asyncio.to_thread(write_json_atomic, entry.metadata_path, payload)
         logger.info(
             "Capture %s upload attempt %d failed (%s); retrying in %ds",
             entry.image_id,
@@ -299,19 +303,36 @@ class UploadQueue:
             )
             metadata_path.unlink(missing_ok=True)
             return None
-        try:
-            next_attempt_at = datetime.fromisoformat(payload.get("next_attempt_at", ""))
-        except ValueError:
-            next_attempt_at = datetime.now(UTC)
+        fields = _parse_sidecar(payload)
+        if fields is None:
+            logger.warning("Queue: skipping malformed metadata %s", metadata_path, extra=build_log_extra())
+            return None
+        capture_metadata, upload_metadata, attempts, next_attempt_at = fields
         return QueuedCapture(
             image_id=image_id,
             image_path=image_path,
             metadata_path=metadata_path,
-            capture_metadata=payload.get("capture_metadata", {}),
-            upload_metadata=payload.get("upload_metadata", {}),
-            attempts=int(payload.get("attempts", 0)),
+            capture_metadata=capture_metadata,
+            upload_metadata=upload_metadata,
+            attempts=attempts,
             next_attempt_at=next_attempt_at,
         )
+
+    def _remove_orphan_images(self) -> None:
+        """Delete jpgs a crash left without a sidecar, so they stop counting against the byte cap.
+
+        enqueue and requeue_dead move the jpg before they write its sidecar. The grace period
+        keeps this away from a move whose sidecar is still being written.
+        """
+        cutoff = time.time() - _ORPHAN_IMAGE_GRACE_SECONDS
+        for image_path in self._root.glob("*.jpg"):
+            if image_path.with_suffix(".json").exists():
+                continue
+            # ctime, not mtime: a rename keeps the mtime, and a requeued dead letter can be days old.
+            with contextlib.suppress(OSError):
+                if image_path.stat().st_ctime < cutoff:
+                    image_path.unlink()
+                    logger.warning("Queue: removed %s, which has no metadata", image_path.name, extra=build_log_extra())
 
     async def _dead_letter(self, entry: QueuedCapture) -> None:
         """Move an entry to the dead-letter area, removing it from the active queue."""
@@ -397,6 +418,30 @@ def _unlink_queue_pair(metadata_path: Path) -> None:
     metadata_path.with_suffix(".jpg").unlink(missing_ok=True)
 
 
+def _parse_sidecar(
+    payload: object,
+) -> tuple[dict[str, object], dict[str, object], int, datetime] | None:
+    """Return the sidecar's fields, or None when it has the wrong shape."""
+    if not isinstance(payload, dict):
+        return None
+    capture_metadata = payload.get("capture_metadata", {})
+    upload_metadata = payload.get("upload_metadata", {})
+    if not isinstance(capture_metadata, dict) or not isinstance(upload_metadata, dict):
+        return None
+    try:
+        attempts = max(0, int(payload.get("attempts", 0)))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    try:
+        next_attempt_at = datetime.fromisoformat(payload.get("next_attempt_at", ""))
+    except (TypeError, ValueError):
+        next_attempt_at = datetime.now(UTC)
+    if next_attempt_at.tzinfo is None:
+        # The queue writes UTC; a timestamp without an offset would not compare with the aware ones.
+        next_attempt_at = next_attempt_at.replace(tzinfo=UTC)
+    return capture_metadata, upload_metadata, attempts, next_attempt_at
+
+
 def _path_size(path: Path) -> int:
     with contextlib.suppress(OSError):
         return path.stat().st_size
@@ -415,12 +460,39 @@ def _dead_letter_entries(dead_root: Path) -> list[tuple[Path, Path, float]]:
             continue
         image_path = dead_root / f"{metadata_path.stem}.jpg"
         if not image_path.exists():
-            metadata_path.unlink(missing_ok=True)
+            _finish_interrupted_requeue(dead_root, metadata_path)
             continue
         mtime = min(_path_mtime(image_path), _path_mtime(metadata_path))
         entries.append((image_path, metadata_path, mtime))
     entries.sort(key=lambda entry: entry[2])
     return entries
+
+
+def _finish_interrupted_requeue(dead_root: Path, dead_metadata: Path) -> None:
+    """Drop a dead sidecar whose image is gone, first saving a capture a requeue left half-moved.
+
+    A crash after the image moved to the live queue and before its sidecar was written leaves
+    the image alone in the live queue, where the orphan sweep would delete it.
+    """
+    live_image = dead_root.parent / f"{dead_metadata.stem}.jpg"
+    live_metadata = dead_root.parent / dead_metadata.name
+    if live_image.exists() and not live_metadata.exists():
+        try:
+            payload = json.loads(dead_metadata.read_text())
+            capture_metadata, upload_metadata = payload["capture_metadata"], payload["upload_metadata"]
+        except (OSError, ValueError, TypeError, KeyError):
+            capture_metadata, upload_metadata = {}, {}
+        write_json_atomic(
+            live_metadata,
+            _metadata_payload(
+                image_id=dead_metadata.stem,
+                capture_metadata=capture_metadata if isinstance(capture_metadata, dict) else {},
+                upload_metadata=upload_metadata if isinstance(upload_metadata, dict) else {},
+                attempts=0,
+                next_attempt_at=datetime.now(UTC),
+            ),
+        )
+    dead_metadata.unlink(missing_ok=True)
 
 
 def _path_mtime(path: Path) -> float:
