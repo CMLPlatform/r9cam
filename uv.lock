@@ -1709,7 +1709,7 @@ test = [
 
 [[package]]
 name = "r9cam-models"
-version = "0.6.0"
+version = "0.6.1"
 source = { editable = "r9cam_models" }
 dependencies = [
     { name = "pydantic" },

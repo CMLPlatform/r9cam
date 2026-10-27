@@ -16,7 +16,7 @@
   name = "r9cam-models"
   readme = "README.md"
   requires-python = ">=3.13"
-  version = "0.6.0" # NOTE: Published independently via the models tag workflow
+  version = "0.6.1" # NOTE: Published independently via the models tag workflow
 
   dependencies = ["pydantic>=2.9"]
 

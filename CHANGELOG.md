@@ -16,6 +16,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ### Changed
 
+- Needs r9cam-models 0.6.1, which adds the provenance fields and the stricter paired poll
+  response.
 - The container image is about 220 MiB smaller unpacked (amd64 build: 750 to 529 MiB of files,
   797 to 556 MB as Docker reports it; the arm64 0.7.0 image was 778 MiB of files). It drops
   Mesa's GPU drivers with LLVM and Z3, which the libav libraries pull in but a headless image
