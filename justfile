@@ -25,12 +25,13 @@ bench:
     uv run pytest tests/benchmarks --codspeed
 
 # Mutation-test the relay seam and the upload queue. Survivors land in reports/mutation/.
-mutation:
+# A mutant-name pattern (just mutation "app.delivery.queue*") limits the run; the baseline diff is only meaningful on a full run.
+mutation *ARGS:
     rm -rf .mutation
     mkdir -p .mutation/src reports/mutation
     cp -r app scripts tests typings pyproject.toml uv.lock .mutation/
     cp -r r9cam_models/src/r9cam_models .mutation/src/
-    cd .mutation && uv run --project .. mutmut run --max-children "$(nproc)"
+    cd .mutation && uv run --project .. mutmut run --max-children "$(nproc)" {{ARGS}}
     cd .mutation && uv run --project .. mutmut results | grep -E ': (survived|no tests)$' | sed 's/^ *//; s/: .*//' | LC_ALL=C sort > ../reports/mutation/survivors.txt
     @echo "Survivors and untested: $(wc -l < reports/mutation/survivors.txt)"
     @echo "Survivor counts per function that differ from tests/mutation-baseline.txt (< baseline, > this run):"
