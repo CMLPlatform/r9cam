@@ -138,6 +138,7 @@ jobs:
             org.opencontainers.image.version=${{ steps.meta.outputs.version }}
             org.opencontainers.image.revision=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
             org.opencontainers.image.created=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          build-args: GIT_SHA=${{ github.sha }}
 
       # Same check as container.yml: the runner has no camera, so pass only if startup
       # got as far as opening it.
@@ -182,6 +183,7 @@ jobs:
             org.opencontainers.image.version=${{ steps.meta.outputs.version }}
             org.opencontainers.image.revision=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
             org.opencontainers.image.created=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          build-args: GIT_SHA=${{ github.sha }}
 
       # Unlike the uv export in the assets job, this SBOM also lists the Debian packages.
       - name: Image SBOM

@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Added
+
+- Each capture's metadata records how it was made: the lens position, white-balance gains
+  and sensor crop, the plugin version and the commit the release image was built from, and
+  the SHA-256 of the libcamera tuning file. R9lab stores them with the image.
+
 ### Fixed
 
 - Relayed commands no longer fail with 401 when the relay credentials come from environment

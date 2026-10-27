@@ -35,6 +35,7 @@ class CaptureResult:
     image: PilImage
     camera_properties: dict[str, Any]
     capture_metadata: dict[str, Any]
+    tuning_file_sha256: str | None = None
 
 
 @dataclass(frozen=True)
