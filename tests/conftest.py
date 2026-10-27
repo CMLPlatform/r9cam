@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -12,6 +13,7 @@ from app.auth.dependencies import reload_authorized_keys, verify_request
 from app.camera.services.manager import CameraManager
 from app.core import bootstrap
 from app.core.runtime import AppRuntime, set_active_runtime
+from app.core.settings import settings
 from app.main import app
 from app.pairing.services import credentials as pairing_credentials
 from tests.fakes import build_test_runtime, make_camera_manager
@@ -30,8 +32,17 @@ _SLOW_TEST_FRAGMENTS = (
 )
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_configure(config: pytest.Config) -> None:
     """Register custom markers used by this repo's suite."""
+    # mutmut runs many pytest sessions at once. In one shared temp root, their cleanups race
+    # and crash a session after its tests pass, which mutmut counts as a kill. The pid keeps
+    # each session's root apart, inside the mutants copy that `just clean` removes. tryfirst
+    # sets it before the tmp_path plugin reads it.
+    if "MUTANT_UNDER_TEST" in os.environ and config.option.basetemp is None:
+        root = Path("pytest-tmp")
+        root.mkdir(exist_ok=True)
+        config.option.basetemp = root / str(os.getpid())
     config.addinivalue_line("markers", "unit: pure function/service tests with no app boot unless unavoidable")
     config.addinivalue_line("markers", "integration: ASGI app, route, or lifespan behavior tests")
     config.addinivalue_line("markers", "slow: intentionally longer lifecycle/worker tests")
@@ -50,8 +61,10 @@ def pytest_collection_modifyitems(items: list[Item]) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _isolated_credentials_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep every test away from the real credentials file under the user's home."""
+def _isolated_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep every test away from the real credentials file and the repo's image directory."""
+    # Parallel runs (mutmut, two shells) would otherwise race on the same preview cache files.
+    monkeypatch.setattr(settings, "image_path", tmp_path / "data" / "images")
     monkeypatch.setenv("HOME", str(tmp_path))
     credentials_file = tmp_path / ".config" / "r9cam" / "relay_credentials.json"
     monkeypatch.setattr(pairing_credentials, "_CREDENTIALS_FILE", credentials_file)
