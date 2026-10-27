@@ -5,7 +5,7 @@ This is a short view of what is planned for r9cam over the next year, to October
 ## Planned
 
 - Test metadata parsing against a dict recorded from a real camera ([#53](https://github.com/CMLPlatform/r9cam/issues/53)).
-- Record provenance with every capture: plugin version and git commit, camera serial, tuning-file hash, and the lens position, colour gains and scaler crop used. An optional raw (DNG) capture and a colour-reference shot per session follow.
+- Add an optional raw (DNG) capture and a colour-reference shot per session, so a dataset can correct colour across cameras and sessions. Each capture's metadata already records the plugin version and commit, the tuning-file hash, and the lens position, colour gains and crop it used.
 - Run hardware-in-the-loop tests on a self-hosted Raspberry Pi, on a schedule or by manual dispatch on `main` only, never from pull requests. They publish capture latency, upload p95 and SoC temperature.
 - Build a teardown station kit once a second site joins: motion and lighting control behind their own seams, a relay command that captures a sequence of views, a bill of materials, print files and an assembly guide.
 - Keep the contract with the R9lab platform stable: changes to `r9cam_models` stay backward compatible, and the package is released in step with the plugin.
