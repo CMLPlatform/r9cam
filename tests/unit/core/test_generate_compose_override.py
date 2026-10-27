@@ -13,6 +13,6 @@ def test_write_compose_override_defaults_to_app_service() -> None:
 
 def test_write_compose_override_can_target_custom_service() -> None:
     """Should generate override for specified service name."""
-    text = write_compose_override([], service_name="rpi-cam-plugin")
+    text = write_compose_override([], service_name="r9cam")
 
     assert text == COMPOSE_OVERRIDE_CUSTOM_NO_DEVICES

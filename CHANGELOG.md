@@ -17,6 +17,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - Paired cameras stay paired when Docker Compose is upgraded in place and on installs without
   Docker. A fresh clone into an `r9cam/` directory starts with empty volumes. See "Upgrading
   From 0.6" in [INSTALL.md](INSTALL.md) for both cases.
+- With S3 storage, new captures go under the `r9cam/` key prefix. Objects already stored stay
+  under `rpi-cam/`; nothing moves them. Dashboards and alerts that filter
+  on `job="rpi-cam-plugin"` or `rpi_cam_*` metrics must switch to `job="r9cam"` and `r9cam_*`.
 
 ### Changed
 
@@ -26,6 +29,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   OpenTelemetry `service.name`, `/healthz` service and Compose image, the `r9cam_session` cookie,
   `openapi.r9cam.json` and the device token audience `r9cam-relay`. INSTALL.md has the full
   table. ([#45], [#48])
+- **Breaking:** the last `rpi-cam` names follow the rename: Prometheus metrics are `r9cam_*`
+  (was `rpi_cam_*`), the Alloy `job` label and default `instance` are `r9cam` (was
+  `rpi-cam-plugin`), the default S3 key prefix is `r9cam/` (was `rpi-cam/`), the example bucket
+  is `r9cam`, and the container user is `r9cam`.
 - **Breaking:** the Pi calls only the `/v1/plugins/r9cam` routes and the default pairing
   backend is `https://api.r9lab.io`.
 - Pairing polls with POST and a JSON body, as the current backend expects. ([#46])

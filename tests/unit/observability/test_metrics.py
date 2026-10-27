@@ -59,7 +59,7 @@ class TestRenderSnapshot:
             MET_DISK_NAME,
             MET_PREVIEW_SESSIONS_NAME,
             MET_CPU_TEMP_NAME,
-            "rpi_cam_thermal_state",
+            "r9cam_thermal_state",
         ):
             assert f"# HELP {metric} " in text
             assert f"# TYPE {metric} gauge" in text
@@ -83,10 +83,10 @@ class TestRenderSnapshot:
     @pytest.mark.parametrize(
         ("state", "active_line"),
         [
-            (ThermalState.NORMAL, 'rpi_cam_thermal_state{state="normal"} 1'),
-            (ThermalState.WARM, 'rpi_cam_thermal_state{state="warm"} 1'),
-            (ThermalState.THROTTLE, 'rpi_cam_thermal_state{state="throttle"} 1'),
-            (ThermalState.CRITICAL, 'rpi_cam_thermal_state{state="critical"} 1'),
+            (ThermalState.NORMAL, 'r9cam_thermal_state{state="normal"} 1'),
+            (ThermalState.WARM, 'r9cam_thermal_state{state="warm"} 1'),
+            (ThermalState.THROTTLE, 'r9cam_thermal_state{state="throttle"} 1'),
+            (ThermalState.CRITICAL, 'r9cam_thermal_state{state="critical"} 1'),
         ],
     )
     def test_thermal_state_labelled_enum(self, state: ThermalState, active_line: str) -> None:
@@ -95,7 +95,7 @@ class TestRenderSnapshot:
         assert active_line in text
         for other in ThermalState:
             if other != state:
-                assert f'rpi_cam_thermal_state{{state="{other.value}"}} 0' in text
+                assert f'r9cam_thermal_state{{state="{other.value}"}} 0' in text
 
     def test_output_ends_with_newline(self) -> None:
         """Prometheus text format requires a trailing newline."""

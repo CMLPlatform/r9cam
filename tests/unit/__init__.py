@@ -1,1 +1,1 @@
-"""Unit tests for the RPi Cam Plugin."""
+"""Unit tests for r9cam."""
