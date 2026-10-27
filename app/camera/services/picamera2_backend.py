@@ -127,8 +127,10 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
                 camera.configure(config)
                 await asyncio.to_thread(camera.start)
                 self._enable_default_autofocus(camera)
-            except Exception as e:
+            except BaseException as e:
                 # Release the device, so the next open() can construct it again.
+                # BaseException too: a cancelled open() would otherwise leave the
+                # camera claimed in picamera2's registry until the app restarts.
                 with contextlib.suppress(Exception):
                     await asyncio.to_thread(camera.close)
                 if isinstance(e, (RuntimeError, OSError)):

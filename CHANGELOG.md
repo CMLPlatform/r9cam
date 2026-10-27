@@ -16,8 +16,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   not do.
 - Unpairing keeps the local API key. Before, it deleted the key with the relay credentials,
   so the next start made a new one and LAN clients lost access.
-- When the camera fails to configure, for example on a memory error, it is released, so the next
-  capture or stream opens it again. Before, the camera stayed half set up until a restart.
+- When the camera fails to configure, for example on a memory error, or its start is cancelled
+  by a request timeout, it is released, so the next capture or stream opens it again. Before,
+  the camera stayed half set up until a restart.
 - The preview thumbnail keeps refreshing after an error. Before, one failed refresh stopped
   the refresh loop until a restart, so the camera card showed an old image.
 - The relay waits before it reconnects when the backend accepts the connection and then drops
