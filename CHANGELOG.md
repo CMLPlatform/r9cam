@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Fixed
+
+- The release image gets its SBOM and build provenance attestations again. The 0.7.0 image
+  was published without them, because the SBOM step looked for an amd64 image.
+- The citation metadata lists "research data" instead of "computer vision", which r9cam does
+  not do.
+
 ## [0.7.0] - 2026-10-27
 
 **Upgrading:**
