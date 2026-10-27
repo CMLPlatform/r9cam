@@ -8,40 +8,42 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-10-27
+
 ### Added
 
 - The local API on port 8018 can serve HTTPS. Set `TLS_CERT_FILE` and `TLS_KEY_FILE` to a
   certificate and key, mount them into the container and use `https` in `BASE_URL`; see
   "Serve the local API over HTTPS" in INSTALL.md. It is off by default. The app refuses to
   start when only one is set or the pair does not load. The image now starts with
-  `python -m app.serve` instead of `fastapi run`.
+  `python -m app.serve` instead of `fastapi run`. ([#116])
 
 ### Changed
 
 - Release tags are signed: `just release-publish` signs the tag with the maintainer's key
-  and pushes it before drafting the release, instead of GitHub creating an unsigned tag.
+  and pushes it before drafting the release, instead of GitHub creating an unsigned tag. ([#113])
 - The image and the install no longer pull in the deploy-only parts of `fastapi[standard]`
   (the FastAPI Cloud CLI, `email-validator`, `httpx2`, `pydantic-extra-types` and their
   dependencies). The app asks for what it uses: `fastapi-cli`, `uvicorn[standard]`, `jinja2`
-  and `python-multipart`. The runtime image is about 15 MB smaller.
+  and `python-multipart`. The runtime image is about 15 MB smaller. ([#112])
 
 ### Fixed
 
 - A 2xx upload reply that is not JSON or lacks `image_id` or `image_url` now counts as
   delivered, with a warning in the log. Before, the Pi retried the upload and the backend
-  stored the capture twice.
+  stored the capture twice. ([#108])
 - A 2xx upload reply with a valid `image_id` but a bad or missing `image_url` now keeps the
-  backend's id. Before, the Pi fell back to its own capture id and lost the backend's.
+  backend's id. Before, the Pi fell back to its own capture id and lost the backend's. ([#111])
 - A capture whose requeue after pairing was cut off by a crash is no longer lost when the
   camera restarts and drains its queue before the next pairing. The queue now finishes the
   requeue instead of deleting the image. A full disk while finishing one such capture no
-  longer stops the rest of the requeue or the queue drain.
+  longer stops the rest of the requeue or the queue drain. ([#109])
 - A camera start that is cancelled (for example by a request timeout) no longer leaves the
   camera claimed until the app restarts. The close now waits for the start, or for opening
-  the camera, to finish, because picamera2 cannot release a camera that is still starting.
+  the camera, to finish, because picamera2 cannot release a camera that is still starting. ([#109])
 - A capture that runs out of upload attempts while a new capture is being queued is no longer
   lost. The queue check could delete its metadata between the two file moves into `dead/`.
-  A dead-letter move cut off by a crash or shutdown is now finished on the next pass.
+  A dead-letter move cut off by a crash or shutdown is now finished on the next pass. ([#109])
 
 ## [0.7.1] - 2026-10-27
 
@@ -277,6 +279,12 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [#102]: https://github.com/CMLPlatform/r9cam/pull/102
 [#103]: https://github.com/CMLPlatform/r9cam/pull/103
 [#106]: https://github.com/CMLPlatform/r9cam/pull/106
+[#108]: https://github.com/CMLPlatform/r9cam/pull/108
+[#109]: https://github.com/CMLPlatform/r9cam/pull/109
+[#111]: https://github.com/CMLPlatform/r9cam/pull/111
+[#112]: https://github.com/CMLPlatform/r9cam/pull/112
+[#113]: https://github.com/CMLPlatform/r9cam/pull/113
+[#116]: https://github.com/CMLPlatform/r9cam/pull/116
 [#42]: https://github.com/CMLPlatform/r9cam/pull/42
 [#45]: https://github.com/CMLPlatform/r9cam/pull/45
 [#46]: https://github.com/CMLPlatform/r9cam/pull/46
@@ -304,4 +312,5 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [0.6.2]: https://github.com/CMLPlatform/r9cam/compare/v0.6.1...v0.6.2
 [0.7.0]: https://github.com/CMLPlatform/r9cam/compare/v0.6.2...v0.7.0
 [0.7.1]: https://github.com/CMLPlatform/r9cam/compare/v0.7.0...v0.7.1
-[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.7.1...HEAD
+[0.7.2]: https://github.com/CMLPlatform/r9cam/compare/v0.7.1...v0.7.2
+[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.7.2...HEAD
