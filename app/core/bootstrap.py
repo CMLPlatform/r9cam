@@ -47,6 +47,7 @@ def apply_relay_credentials(runtime_state: RuntimeState) -> None:
         logger.info(
             "Relay bootstrap credentials already present from static config; skipping persisted relay credentials"
         )
+        runtime_state.ensure_local_relay_api_key()
         return
     creds = load_relay_credentials()
     if creds and creds.get("relay_backend_url"):
