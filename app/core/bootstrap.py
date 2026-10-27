@@ -1,9 +1,7 @@
 """Runtime bootstrap: apply persisted credentials, generate local keys, emit startup logs."""
 
-import json
 import logging
 import secrets
-from contextlib import suppress
 
 from app.core.runtime_state import RuntimeState
 from app.core.settings import (
@@ -20,9 +18,13 @@ from app.core.settings import (
     validate_relay_backend_url,
     validate_relay_url_origin,
 )
-from app.pairing.services.credentials import _CREDENTIALS_FILE, load_relay_credentials
+from app.pairing.services.credentials import (
+    _CREDENTIALS_FILE,
+    load_relay_credentials,
+    merge_into_credentials_file,
+)
 from app.relay.credentials import validate_relay_credentials
-from app.utils.files import is_running_in_container, write_json_atomic
+from app.utils.files import is_running_in_container
 
 logger = logging.getLogger(__name__)
 
@@ -75,19 +77,8 @@ def resolve_image_sink_choice(app_settings: Settings = settings) -> str:
 
 
 def _persist_local_api_key(key: str) -> None:
-    """Add/update local_api_key in the shared credentials JSON file.
-
-    Reads any existing content (relay creds, etc.) and merges the key in so
-    nothing else is overwritten.
-    """
-    existing: dict[str, object] = {}
-    if _CREDENTIALS_FILE.exists():
-        with suppress(json.JSONDecodeError, OSError):
-            loaded = json.loads(_CREDENTIALS_FILE.read_text())
-            if isinstance(loaded, dict):
-                existing = loaded
-    existing["local_api_key"] = key
-    write_json_atomic(_CREDENTIALS_FILE, existing)
+    """Add or update local_api_key in the shared credentials JSON file, keeping other fields."""
+    merge_into_credentials_file({"local_api_key": key})
     logger.info("local_api_key persisted to %s", _CREDENTIALS_FILE)
 
 
