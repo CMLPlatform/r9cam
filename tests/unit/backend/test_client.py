@@ -246,17 +246,39 @@ class TestUploadImage:
         patched_client.return_value.post.assert_awaited_once()
 
     async def test_missing_fields_2xx_counts_as_delivered(self, caplog: pytest.LogCaptureFixture) -> None:
-        """A 2xx reply without image_url is delivered once: no exception, so no queue retry."""
-        response = _fake_response(200, {"image_id": "abc"})
+        """A 2xx reply without image_url is delivered once and keeps the backend's valid image_id."""
+        response = _fake_response(200, {"image_id": SAMPLE_SERVER_IMAGE_ID})
         with _patch_async_client(response) as patched_client, caplog.at_level(logging.WARNING):
+            result = await upload_image(
+                image_bytes=b"\xff\xd8", filename="t.jpg", capture_metadata={}, upload_metadata={}
+            )
+
+        assert result.image_id == SAMPLE_SERVER_IMAGE_ID
+        assert result.image_url is None
+        assert "unusable" in caplog.text
+        patched_client.return_value.post.assert_awaited_once()
+
+    async def test_invalid_image_url_keeps_valid_image_id(self) -> None:
+        """A bad image_url drops only the URL: the backend's real id must not be lost."""
+        response = _fake_response(200, {"image_id": SAMPLE_SERVER_IMAGE_ID, "image_url": "ftp://bad host"})
+        with _patch_async_client(response):
+            result = await upload_image(
+                image_bytes=b"\xff\xd8", filename="t.jpg", capture_metadata={}, upload_metadata={}
+            )
+
+        assert result.image_id == SAMPLE_SERVER_IMAGE_ID
+        assert result.image_url is None
+
+    async def test_invalid_image_id_is_dropped(self) -> None:
+        """An invalid image_id is not passed on, even when the URL is fine."""
+        response = _fake_response(200, {"image_id": "bad id!", "image_url": BACKEND_IMAGE_URL})
+        with _patch_async_client(response):
             result = await upload_image(
                 image_bytes=b"\xff\xd8", filename="t.jpg", capture_metadata={}, upload_metadata={}
             )
 
         assert result.image_id is None
         assert result.image_url is None
-        assert "unusable" in caplog.text
-        patched_client.return_value.post.assert_awaited_once()
 
     async def test_requires_pairing_backend_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Uploading without a configured pairing backend must fail cleanly."""

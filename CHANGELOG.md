@@ -22,6 +22,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - A 2xx upload reply that is not JSON or lacks `image_id` or `image_url` now counts as
   delivered, with a warning in the log. Before, the Pi retried the upload and the backend
   stored the capture twice.
+- A 2xx upload reply with a valid `image_id` but a bad or missing `image_url` now keeps the
+  backend's id. Before, the Pi fell back to its own capture id and lost the backend's.
 - A capture whose requeue after pairing was cut off by a crash is no longer lost when the
   camera restarts and drains its queue before the next pairing. The queue now finishes the
   requeue instead of deleting the image. A full disk while finishing one such capture no

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote
 
 import httpx
-from pydantic import AnyUrl
+from pydantic import AnyUrl, ValidationError
 
 from app.backend.plugin_api import PLUGIN_API_PREFIX
 from app.core.runtime_context import get_active_runtime_state
@@ -161,6 +161,12 @@ async def upload_image(
     # queue retry and the backend store a duplicate, so keep what parses and drop the rest.
     try:
         ack = DeviceImageUploadAck.model_validate(payload)
+    except ValidationError as exc:
+        logger.warning("Backend stored the image but its reply was unusable: %r", payload)
+        # Keep the backend's id when it passed on its own: the local capture id is not the backend's.
+        id_is_bad = any(err["loc"][:1] == ("image_id",) for err in exc.errors())
+        image_id = payload.get("image_id") if isinstance(payload, dict) and not id_is_bad else None
+        return UploadedImageInfo(image_id=image_id, image_url=None)
     except (TypeError, ValueError):
         logger.warning("Backend stored the image but its reply was unusable: %r", payload)
         return UploadedImageInfo(image_id=None, image_url=None)
