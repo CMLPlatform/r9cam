@@ -23,12 +23,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/system", tags=["system"])
 
-_API_PORT = 8018
+API_PORT = 8018
 
 
 def get_candidate_urls() -> list[str]:
     """Return all non-loopback IPv4 base URLs for this host."""
-    return [f"http://{ip}:{_API_PORT}" for ip in find_lan_ips()]
+    return [f"http://{ip}:{API_PORT}" for ip in find_lan_ips()]
 
 
 def _get_mdns_name() -> str | None:
