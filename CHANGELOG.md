@@ -17,6 +17,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   camera restarts and drains its queue before the next pairing. The queue now finishes the
   requeue instead of deleting the image. A full disk while finishing one such capture no
   longer stops the rest of the requeue or the queue drain.
+- A camera start that is cancelled (for example by a request timeout) no longer leaves the
+  camera claimed until the app restarts. The close now waits for the start, or for opening
+  the camera, to finish, because picamera2 cannot release a camera that is still starting.
 
 ## [0.7.1] - 2026-10-27
 
