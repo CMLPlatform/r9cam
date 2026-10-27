@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.13.*"
 
 [options]
@@ -1620,6 +1620,7 @@ version = "0.6.2"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
+    { name = "httpx" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "opentelemetry-instrumentation-httpx" },
@@ -1665,6 +1666,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.8" },
+    { name = "httpx", specifier = ">=0.28,<1" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.38.0" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.59b0" },
     { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.59b0" },
