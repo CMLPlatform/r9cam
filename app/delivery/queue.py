@@ -293,8 +293,8 @@ class UploadQueue:
         if not image_path.exists() and dead_image.exists():
             # _dead_letter moves the jpg first and the sidecar next, so leave the sidecar to it.
             # Past the grace period the move was cut off by a crash: finish it here.
-            with contextlib.suppress(OSError):
-                if dead_image.stat().st_ctime < time.time() - _ORPHAN_IMAGE_GRACE_SECONDS:
+            if _is_past_grace(dead_image):
+                with contextlib.suppress(OSError):
                     shutil.move(str(metadata_path), str(self._dead_root / metadata_path.name))
             return None
         if not image_path.exists():
@@ -327,15 +327,8 @@ class UploadQueue:
         keeps this away from a move whose sidecar is still being written. A jpg whose sidecar
         is still in dead/ is a requeue that crashed halfway, so it is finished, not deleted.
         """
-        cutoff = time.time() - _ORPHAN_IMAGE_GRACE_SECONDS
         for image_path in sorted(self._root.glob("*.jpg")):
-            if image_path.with_suffix(".json").exists():
-                continue
-            # ctime, not mtime: a rename keeps the mtime, and a requeued dead letter can be days old.
-            try:
-                if image_path.stat().st_ctime >= cutoff:
-                    continue
-            except OSError:
+            if image_path.with_suffix(".json").exists() or not _is_past_grace(image_path):
                 continue
             dead_metadata = self._dead_root / f"{image_path.stem}.json"
             if dead_metadata.exists():
@@ -510,6 +503,14 @@ def _finish_interrupted_requeue(dead_root: Path, dead_metadata: Path) -> None:
         logger.exception(
             "Queue: could not finish interrupted requeue of %s", dead_metadata.stem, extra=build_log_extra()
         )
+
+
+def _is_past_grace(path: Path) -> bool:
+    """Whether the file changed longer than the grace period ago; False if it cannot be read."""
+    # ctime, not mtime: a rename keeps the mtime, and a requeued dead letter can be days old.
+    with contextlib.suppress(OSError):
+        return path.stat().st_ctime < time.time() - _ORPHAN_IMAGE_GRACE_SECONDS
+    return False
 
 
 def _path_mtime(path: Path) -> float:

@@ -37,6 +37,7 @@ app.delivery.queue.x__finish_interrupted_requeue__mutmut_41  # log text only: no
 app.delivery.queue.x__finish_interrupted_requeue__mutmut_42  # log text only: no test reads this log line
 app.delivery.queue.x__finish_interrupted_requeue__mutmut_43  # log text only: no test reads this log line
 app.delivery.queue.x__finish_interrupted_requeue__mutmut_44  # log text only: no test reads this log line
+app.delivery.queue.x__is_past_grace__mutmut_4
 app.delivery.queue.x__metadata_payload__mutmut_1
 app.delivery.queue.x__metadata_payload__mutmut_2
 app.delivery.queue.x__parse_sidecar__mutmut_36  # equivalent: fromisoformat(None) raises TypeError, caught like the ValueError from ""
@@ -77,18 +78,18 @@ app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_19
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_20
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_21
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_22
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_34
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_4
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_44  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_45  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_46  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_47  # log text only: no test reads this log line
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_48  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_48
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_49
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_5
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_50
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_51
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_52  # equivalent: the file was just found or read, so missing_ok never matters
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_53  # equivalent: the file was just found or read, so missing_ok never matters
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_54  # equivalent: the file was just found or read, so missing_ok never matters
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_58  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_59  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_6
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_60  # log text only: no test reads this log line
@@ -96,7 +97,6 @@ app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_61  # log text only: no t
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_62  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_63  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_64  # log text only: no test reads this log line
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_65  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_7
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_8
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_9
@@ -105,13 +105,13 @@ app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_5
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_7
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_8
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_9
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_21  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_22  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_23  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_24  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_25  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_26  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_27  # log text only: no test reads this log line
-app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_28  # log text only: no test reads this log line
-app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_29  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_4  # log text only: the count and the early return only feed the summary log line
 app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_49  # equivalent: the file was just found or read, so missing_ok never matters
 app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_50  # equivalent: the file was just found or read, so missing_ok never matters
