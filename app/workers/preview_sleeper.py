@@ -15,8 +15,9 @@ should be running:
 2. **Relay connectivity.** If the Pi is supposed to talk to a backend and
    the WebSocket relay is currently down (or was never up), remote users can't
    reach us — the encoder sleeps unless local HLS activity is present.
-3. **Relay idle timer.** If the relay is connected but hasn't seen any
-   commands for ``preview_hibernate_after_s`` seconds, the encoder sleeps.
+3. **Relay idle timer.** If the relay is connected but has seen neither the
+   handshake nor any command for ``preview_hibernate_after_s`` seconds, the
+   encoder sleeps.
    Any incoming command (including the HLS segment proxy calls) wakes it
    back up.
 
@@ -119,8 +120,9 @@ class PreviewSleeper:
 
         idle = self._relay_state.seconds_since_last_activity()
         if idle is None:
-            # Connected but haven't seen a real command yet — keep the
-            # encoder off until a user actually opens the mosaic.
+            # Not reached while connected: mark_connected() counts the
+            # handshake as activity, so a fresh connection wakes the encoder
+            # for hibernate_after_s even before any command arrives.
             return False
         return idle <= self._hibernate_after_s
 
