@@ -4,7 +4,7 @@ default:
     @just --list
 
 install:
-    uv sync --all-groups
+    uv sync --all-groups --no-group fuzz
 
 dev:
     uv run fastapi dev
