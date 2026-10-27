@@ -413,35 +413,43 @@ async def _handle_command(
     if response.status_code == 403:
         logger.warning("Relay received 403 from local API — check that local_relay_api_key is set correctly")
 
-    # `or None`: an empty content-type would fail the envelope's min_length=1.
-    content_type = response.headers.get("content-type") or None
-    if relay_content_type_is_binary(content_type):
-        header = RelayResponseEnvelope(
-            id=msg_id,
-            status=response.status_code,
-            content_type=content_type,
-            has_binary=True,
-        )
-        # The header + binary body must reach the backend as an adjacent pair;
-        # concurrent command tasks share this ws, so serialize the two frames.
-        async with send_lock:
-            await ws.send(header.model_dump_json())
-            await ws.send(response.content)
-    else:
-        try:
-            data = response.json()
-        except ValueError:
-            data = response.text
-
-        await ws.send(
-            RelayResponseEnvelope(
+    try:
+        # `or None`: an empty content-type would fail the envelope's min_length=1.
+        content_type = response.headers.get("content-type") or None
+        if relay_content_type_is_binary(content_type):
+            header = RelayResponseEnvelope(
                 id=msg_id,
                 status=response.status_code,
                 content_type=content_type,
-                has_binary=False,
-                data=data,
-            ).model_dump_json()
+                has_binary=True,
+            )
+            # The header + binary body must reach the backend as an adjacent pair;
+            # concurrent command tasks share this ws, so serialize the two frames.
+            async with send_lock:
+                await ws.send(header.model_dump_json())
+                await ws.send(response.content)
+        else:
+            try:
+                data = response.json()
+            except ValueError:
+                data = response.text
+
+            await ws.send(
+                RelayResponseEnvelope(
+                    id=msg_id,
+                    status=response.status_code,
+                    content_type=content_type,
+                    has_binary=False,
+                    data=data,
+                ).model_dump_json()
+            )
+    except ValidationError:
+        # The reply broke an envelope limit (for example an oversized content-type).
+        # Without an error reply the backend waits out its full command timeout.
+        logger.warning(
+            "Relay response for command %s failed validation; sending a 500.", msg_id, extra=build_log_extra()
         )
+        await _send_error(ws, msg_id, 500, "Invalid relay response.")
 
 
 async def _send_error(ws: ClientConnection, msg_id: str, status: int, detail: str) -> None:
