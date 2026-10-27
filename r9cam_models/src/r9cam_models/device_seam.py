@@ -4,10 +4,21 @@ from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import PurePosixPath
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 from urllib.parse import unquote
 
-from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, HttpUrl, StrictBool, StrictInt, StrictStr, WebsocketUrl
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    FiniteFloat,
+    HttpUrl,
+    StrictBool,
+    StrictInt,
+    StrictStr,
+    WebsocketUrl,
+    model_validator,
+)
 
 PAIRING_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 PAIRING_CODE_LENGTH = 6
@@ -137,6 +148,13 @@ class PairingPollResponse(BaseModel):
     key_id: _BootstrapKeyId | None = None
 
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def _paired_needs_bootstrap(self) -> Self:
+        if self.status == PairingStatus.PAIRED and None in (self.camera_id, self.ws_url, self.auth_scheme, self.key_id):
+            msg = "a paired response needs camera_id, ws_url, auth_scheme and key_id"
+            raise ValueError(msg)
+        return self
 
     @classmethod
     def waiting(cls) -> PairingPollResponse:

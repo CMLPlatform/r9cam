@@ -520,6 +520,21 @@ class TestHandleCommand:
         payload = json.loads(ws.send.call_args.args[0])
         assert payload["data"] == {"ok": True}
 
+    async def test_invalid_response_envelope_sends_error_reply(self) -> None:
+        """A reply the envelope rejects should become a 500 for that id, not silence."""
+
+        def _handler(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"ok": True}, headers={"content-type": "x/" + "a" * 300})
+
+        transport = httpx.MockTransport(_handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+            ws = AsyncMock()
+            await _handle_command(ws, http, {"id": "msg-big", "method": "GET", "path": LOCAL_ACCESS_PATH})
+
+        payload = json.loads(ws.send.call_args.args[0])
+        assert payload["id"] == "msg-big"
+        assert payload["status"] == 500
+
     async def test_handles_binary_response(self) -> None:
         """Should send binary responses as bytes frames."""
 
