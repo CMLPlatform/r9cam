@@ -98,5 +98,5 @@ if [ "$DEV_MODE" = true ]; then
 	echo "Local setup complete. To run the application, use 'uv run fastapi dev app/main.py'"
 else
 	echo "Skipping prek install in non-dev mode"
-	echo "Local setup complete. To run the application, use 'uv run fastapi run app/main.py --port 8018'"
+	echo "Local setup complete. To run the application, use 'uv run python -m app.serve'"
 fi

@@ -18,7 +18,7 @@ from tests.constants import (
     EXAMPLE_RELAY_HTTP_URL,
     EXAMPLE_RELAY_HTTPS_URL,
 )
-from tests.fakes import fresh_p256_pem
+from tests.fakes import fresh_p256_pem, write_self_signed_cert
 
 OTEL_SERVICE_NAME = "r9cam"
 APP_ENV_DEVELOPMENT = "development"
@@ -329,6 +329,42 @@ class TestImageSinkValidation:
         """Explicit S3 sink config should fail loudly on missing credentials."""
         with pytest.raises(ValueError, match="IMAGE_SINK=s3 requires"):
             Settings(image_sink="s3")
+
+
+class TestLocalApiTlsValidation:
+    """Tests for the TLS_CERT_FILE and TLS_KEY_FILE pair."""
+
+    def test_off_by_default(self) -> None:
+        """No TLS files means plain HTTP, as before."""
+        assert not Settings().tls_enabled
+
+    def test_one_without_the_other_is_rejected(self, tmp_path: Path) -> None:
+        """Setting only one file must fail instead of quietly serving HTTP."""
+        cert, key = write_self_signed_cert(tmp_path)
+        with pytest.raises(ValueError, match="TLS_CERT_FILE and TLS_KEY_FILE must be set together"):
+            Settings(tls_cert_file=str(cert))
+        with pytest.raises(ValueError, match="TLS_CERT_FILE and TLS_KEY_FILE must be set together"):
+            Settings(tls_key_file=str(key))
+
+    def test_missing_file_is_rejected(self, tmp_path: Path) -> None:
+        """A path that does not exist must fail at startup."""
+        cert, _ = write_self_signed_cert(tmp_path)
+        with pytest.raises(ValueError, match="could not be loaded"):
+            Settings(tls_cert_file=str(cert), tls_key_file=str(tmp_path / "missing.pem"))
+
+    def test_key_that_does_not_match_is_rejected(self, tmp_path: Path) -> None:
+        """A key from another certificate must fail at startup."""
+        (tmp_path / "a").mkdir()
+        (tmp_path / "b").mkdir()
+        cert, _ = write_self_signed_cert(tmp_path / "a")
+        _, other_key = write_self_signed_cert(tmp_path / "b")
+        with pytest.raises(ValueError, match="could not be loaded"):
+            Settings(tls_cert_file=str(cert), tls_key_file=str(other_key))
+
+    def test_valid_pair_turns_tls_on(self, tmp_path: Path) -> None:
+        """A readable certificate and matching key enable TLS."""
+        cert, key = write_self_signed_cert(tmp_path)
+        assert Settings(tls_cert_file=str(cert), tls_key_file=str(key)).tls_enabled
 
 
 class TestEndpointTransportValidation:

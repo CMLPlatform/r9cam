@@ -1,6 +1,7 @@
 """Unit tests for startup bootstrap warnings."""
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -9,6 +10,7 @@ from pydantic import HttpUrl
 from app.core.bootstrap import bootstrap_runtime_state
 from app.core.runtime_state import RuntimeState
 from app.core.settings import APP_ENV_DEVELOPMENT, APP_ENV_PRODUCTION, Settings
+from tests.fakes import write_self_signed_cert
 
 _PLAINTEXT_WARNING = "BASE_URL uses plain HTTP"
 
@@ -40,3 +42,17 @@ class TestPlaintextBaseUrlWarning:
         with caplog.at_level(logging.WARNING):
             bootstrap_runtime_state(RuntimeState(), app_settings)
         assert _PLAINTEXT_WARNING not in caplog.text
+
+    def test_silent_on_http_base_url_when_tls_is_on(self, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
+        """Test that no plaintext warning is emitted when the API itself serves TLS."""
+        cert, key = write_self_signed_cert(tmp_path)
+        app_settings = _settings(
+            base_url=HttpUrl("http://camera.example:8018"),
+            app_env=APP_ENV_PRODUCTION,
+            tls_cert_file=str(cert),
+            tls_key_file=str(key),
+        )
+        with caplog.at_level(logging.WARNING):
+            bootstrap_runtime_state(RuntimeState(), app_settings)
+        assert _PLAINTEXT_WARNING not in caplog.text
+        assert "set BASE_URL=https://<host> so session cookies" in caplog.text

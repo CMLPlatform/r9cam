@@ -81,8 +81,10 @@ clean:
     rm -rf dist/ .venv/ .pytest_cache/ __pycache__/ .mutation/ reports/
 
 # Print the local direct-connection API key from the local key endpoint.
+# With TLS on (TLS_CERT_FILE in .env) it asks over HTTPS and skips the certificate check: the
+# certificate names the Pi, not 127.0.0.1.
 show-key:
-    @python3 -c 'import sys; from urllib.request import urlopen; sys.stdout.write(urlopen("http://127.0.0.1:8018/local-key", timeout=2).read().decode("utf-8", "replace").strip() + "\n")'
+    @python3 -c 'import os, ssl, sys; from urllib.request import urlopen; scheme = "https" if os.environ.get("TLS_CERT_FILE") else "http"; sys.stdout.write(urlopen(f"{scheme}://127.0.0.1:8018/local-key", timeout=2, context=ssl._create_unverified_context()).read().decode("utf-8", "replace").strip() + "\n")'
 
 # Releases, as in r9lab:
 #

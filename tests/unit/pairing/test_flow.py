@@ -789,6 +789,15 @@ class TestPairingCycle:
 
         assert pairing_mod._pairing_setup_location() == LAN_SETUP_URL
 
+    def test_lan_setup_url_uses_https_when_tls_is_on(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """With TLS on, the logged LAN setup URL must not point at plain HTTP."""
+        monkeypatch.setattr(settings, "base_url", "http://127.0.0.1:8018/")
+        monkeypatch.setattr(settings, "tls_cert_file", "/tls/cert.pem")
+        monkeypatch.setattr(settings, "tls_key_file", "/tls/key.pem")
+        monkeypatch.setattr(pairing_mod, "find_lan_ips", lambda: ["192.168.1.42"])
+
+        assert pairing_mod._pairing_setup_location() == "https://192.168.1.42:8018/setup"
+
     def test_pairing_mode_falls_back_to_relative_setup_path_without_lan_address(
         self,
         monkeypatch: pytest.MonkeyPatch,
