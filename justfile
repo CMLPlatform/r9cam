@@ -102,5 +102,6 @@ release-prep:
     git commit --quiet --signoff -m "bump: version $previous → $next"
     git log --oneline -1
     echo "Next:"
-    echo "  1. git push -u origin release/v$next and open a pull request."
-    echo "  2. After it merges, run the Release workflow on main: gh workflow run release.yml --ref main"
+    echo "  1. Read the new CHANGELOG.md section. It is built from commit messages, so fix any stale entry and amend: git commit --amend -s"
+    echo "  2. git push -u origin release/v$next and open a pull request. The release notes are that section."
+    echo "  3. After it merges, run the Release workflow on main: gh workflow run release.yml --ref main"
