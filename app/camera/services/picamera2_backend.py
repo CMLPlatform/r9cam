@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
@@ -99,8 +100,7 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
         """Initialise the persistent pipeline on first call; idempotent thereafter."""
         if self._camera is None:
             try:
-                camera = await asyncio.to_thread(lambda: Picamera2(settings.camera_device_num))
-                self._camera = cast("Picamera2Like", camera)
+                camera = cast("Picamera2Like", await asyncio.to_thread(lambda: Picamera2(settings.camera_device_num)))
             except IndexError as e:
                 raise CameraInitializationError(
                     settings.camera_device_num,
@@ -109,24 +109,32 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
             except (RuntimeError, OSError) as e:
                 raise CameraInitializationError(settings.camera_device_num, str(e)) from e
 
-            camera = self._require_camera()
-            # RGB888 on main (24bpp) cuts per-buffer DMA by 25% vs picamera2's
-            # default XBGR8888 (32bpp) and matches what ``capture_image`` ends up
-            # converting to anyway — no extra colour-space hop. ``buffer_count=4``
-            # trims the default ``create_video_configuration`` value of 6 so the
-            # dual main+lores pipeline fits comfortably inside the Pi's default
-            # CMA reservation (previously seen as dma_heap ENOMEM at configure
-            # time). ``display=None`` skips an unused preview pathway.
-            config = camera.create_video_configuration(
-                main={"size": _MAIN_SIZE, "format": "RGB888"},
-                lores={"size": _LORES_SIZE, "format": "YUV420"},
-                buffer_count=4,
-                display=None,
-                raw=None,
-            )
-            camera.configure(config)
-            await asyncio.to_thread(camera.start)
-            self._enable_default_autofocus(camera)
+            try:
+                # RGB888 on main (24bpp) cuts per-buffer DMA by 25% vs picamera2's
+                # default XBGR8888 (32bpp) and matches what ``capture_image`` ends up
+                # converting to anyway — no extra colour-space hop. ``buffer_count=4``
+                # trims the default ``create_video_configuration`` value of 6 so the
+                # dual main+lores pipeline fits comfortably inside the Pi's default
+                # CMA reservation (previously seen as dma_heap ENOMEM at configure
+                # time). ``display=None`` skips an unused preview pathway.
+                config = camera.create_video_configuration(
+                    main={"size": _MAIN_SIZE, "format": "RGB888"},
+                    lores={"size": _LORES_SIZE, "format": "YUV420"},
+                    buffer_count=4,
+                    display=None,
+                    raw=None,
+                )
+                camera.configure(config)
+                await asyncio.to_thread(camera.start)
+                self._enable_default_autofocus(camera)
+            except Exception as e:
+                # Release the device, so the next open() can construct it again.
+                with contextlib.suppress(Exception):
+                    await asyncio.to_thread(camera.close)
+                if isinstance(e, (RuntimeError, OSError)):
+                    raise CameraInitializationError(settings.camera_device_num, str(e)) from e
+                raise
+            self._camera = camera
 
         self.current_mode = mode
 

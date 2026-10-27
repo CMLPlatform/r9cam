@@ -320,6 +320,24 @@ class TestPicamera2BackendMethods:
         with pytest.raises(CameraInitializationError, match=CAMERA_DEVICE_NOT_FOUND):
             await backend.open(CameraMode.VIDEO)
 
+    async def test_open_releases_camera_when_configure_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A failed configure closes the camera so the next open starts from scratch."""
+        broken = MagicMock()
+        broken.configure.side_effect = RuntimeError("dma_heap ENOMEM")
+        working = MagicMock()
+        working.camera_controls = {}
+        monkeypatch.setattr(backend_mod, "Picamera2", MagicMock(side_effect=[broken, working]))
+        backend = Picamera2Backend()
+
+        with pytest.raises(CameraInitializationError, match="ENOMEM"):
+            await backend.open(CameraMode.VIDEO)
+
+        broken.close.assert_called_once()
+        assert not backend.is_open
+        await backend.open(CameraMode.VIDEO)
+        working.start.assert_called_once()
+        assert backend.camera is working
+
     async def test_capture_image_raises_when_metadata_missing(self) -> None:
         """Missing metadata should become a RuntimeError."""
         backend = Picamera2Backend()
