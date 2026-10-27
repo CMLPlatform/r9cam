@@ -346,6 +346,26 @@ class TestDrainOnce:
         assert not await asyncio.to_thread(entry.image_path.exists)
         assert not await asyncio.to_thread(entry.metadata_path.exists)
 
+    async def test_drain_counts_every_success(
+        self,
+        queue_root: Path,
+        sample_image: Path,
+        tmp_path: Path,
+        sink: _FakeSink,
+    ) -> None:
+        """Two entries that both upload should be counted as two successes."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        second_image = tmp_path / "capture-2.jpg"
+        await asyncio.to_thread(second_image.write_bytes, _jpeg_bytes())
+        for capture_id, path in ((image_id(21), sample_image), (image_id(22), second_image)):
+            await queue.enqueue(image_id=capture_id, image_path=path, capture_metadata={}, upload_metadata={})
+
+        successes = await queue.drain_once()
+
+        assert successes == 2
+        assert sink.put.await_count == 2
+        assert queue.iter_pending() == []
+
     async def test_failed_drain_increments_attempts(
         self,
         queue_root: Path,
