@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
@@ -187,6 +188,7 @@ class TestWebsocketConnect:
         assertions = iter(["jwt-1", "jwt-2"])
         monkeypatch.setattr(relay_mod, "websocket_connect", connect)
         monkeypatch.setattr(relay_mod, "build_device_assertion", lambda *_: next(assertions))
+        monkeypatch.setattr(relay_mod.asyncio, "sleep", AsyncMock())
 
         connections = _iter_websocket_connections(EXAMPLE_RELAY_BACKEND_URL, RuntimeState())
 
@@ -273,6 +275,26 @@ class TestWebsocketConnect:
         assert await anext(_iter_websocket_connections(EXAMPLE_RELAY_BACKEND_URL, RuntimeState())) is not None
 
         sleep.assert_awaited_once_with(7.0)
+
+    async def test_connection_iterator_backs_off_after_connections_that_drop_at_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A backend that accepts then drops gets the growing backoff; a long connection resets it."""
+        connect = MagicMock(side_effect=[_Connect(_Conn()) for _ in range(5)])
+        monkeypatch.setattr(relay_mod, "websocket_connect", connect)
+        monkeypatch.setattr(relay_mod, "build_device_assertion", lambda *_: "jwt")
+        monkeypatch.setattr(relay_mod, "_relay_reconnect_delays", lambda: iter([1.0, 2.0, 4.0]))
+        sleep = AsyncMock()
+        monkeypatch.setattr(relay_mod.asyncio, "sleep", sleep)
+        # Connected and dropped at 0s, twice; then a connection that stays up 3600s; then one more drop.
+        clock = iter([0.0, 0.0, 0.0, 0.0, 0.0, 3600.0, 3600.0, 3600.0, 3600.0])
+        monkeypatch.setattr(relay_mod, "time", SimpleNamespace(monotonic=lambda: next(clock)))
+
+        connections = _iter_websocket_connections(EXAMPLE_RELAY_BACKEND_URL, RuntimeState())
+        for _ in range(5):
+            assert await anext(connections) is not None
+
+        assert [call.args for call in sleep.await_args_list] == [(1.0,), (2.0,), (1.0,)]
 
 
 class TestReceiveLoop:

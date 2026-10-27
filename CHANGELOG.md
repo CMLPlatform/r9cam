@@ -20,6 +20,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   capture or stream opens it again. Before, the camera stayed half set up until a restart.
 - The preview thumbnail keeps refreshing after an error. Before, one failed refresh stopped
   the refresh loop until a restart, so the camera card showed an old image.
+- The relay waits before it reconnects when the backend accepts the connection and then drops
+  it at once. Before, it reconnected in a tight loop. The wait grows up to 60 seconds and
+  resets after a connection that stays up for 60 seconds.
 
 ## [0.7.0] - 2026-10-27
 
