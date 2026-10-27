@@ -40,7 +40,6 @@ docker/
 CHANGELOG.md
 CONTRIBUTING.md
 INSTALL.md
-LICENSE
 renovate.json
 
 # Runtime artifacts

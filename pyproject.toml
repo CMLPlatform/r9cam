@@ -19,7 +19,8 @@
   ]
   # Project metadata
   description = "Raspberry Pi Camera plugin for R9lab platform"
-  license     = "AGPL-3.0-or-later"
+  license       = "AGPL-3.0-or-later"
+  license-files = ["LICENSE"]
   maintainers = [{ name = "Simon van Lierde", email = "s.n.van.lierde@cml.leidenuniv.nl" }]
   name        = "r9cam"
 

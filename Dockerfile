@@ -24,7 +24,7 @@ RUN printf "Types: deb\nURIs: https://archive.raspberrypi.com/debian/\nSuites: t
     rm -rf /var/lib/apt/lists/*
 
 # Install dependencies (cached layer — copy lockfile first for layer-cache efficiency).
-COPY .python-version pyproject.toml uv.lock README.md ./
+COPY .python-version pyproject.toml uv.lock README.md LICENSE ./
 COPY r9cam_models/ r9cam_models/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv --system-site-packages && \
