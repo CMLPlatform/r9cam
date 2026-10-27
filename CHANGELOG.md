@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-27
+
 **Upgrading:**
 
 - Upgrade the R9lab backend first. This release needs one that serves the `/v1/plugins/r9cam`
@@ -28,7 +30,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 - Each release publishes a signed linux/arm64 image to `ghcr.io/cmlplatform/r9cam`, tagged
   with the version, `X.Y` and `latest`, so the Pi pulls it instead of building it. Its build
-  provenance and SBOM are attested: `gh attestation verify oci://ghcr.io/cmlplatform/r9cam@<digest> --repo CMLPlatform/r9cam` checks them. `R9CAM_VERSION` in `.env` pins a release; the default is `latest`.
+  provenance and SBOM are attested: `gh attestation verify oci://ghcr.io/cmlplatform/r9cam@<digest> --repo CMLPlatform/r9cam` checks them. `R9CAM_VERSION` in `.env` pins a release; the default is `latest`. ([#87])
 
 ### Changed
 
@@ -41,9 +43,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - **Breaking:** the last `rpi-cam` names follow the rename: Prometheus metrics are `r9cam_*`
   (was `rpi_cam_*`), the Alloy `job` label and default `instance` are `r9cam` (was
   `rpi-cam-plugin`), the default S3 key prefix is `r9cam/` (was `rpi-cam/`), the example bucket
-  is `r9cam`, and the container user is `r9cam`.
+  is `r9cam`, and the container user is `r9cam`. ([#86])
 - **Breaking:** the Pi calls only the `/v1/plugins/r9cam` routes and the default pairing
-  backend is `https://api.r9lab.io`.
+  backend is `https://api.r9lab.io`. ([#79])
 - Pairing polls with POST and a JSON body, as the current backend expects. ([#46])
 - EXIF capture details (exposure, offset time, temperature) are written to the Exif block, and
   `Software` names the r9cam version.
@@ -53,14 +55,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - The upload queue stays under its byte cap when captures arrive at the same time. ([#61])
 - Captures that ran out of upload retries, for example while the Pi was unpaired, are queued
   again after a successful pairing. Any that no longer fit under the queue's limits stay in
-  `data/queue/dead/`.
+  `data/queue/dead/`. ([#85])
 - `local_setup.sh` installs uv from a release archive it checks against its checksum. ([#68])
 - Installs without Docker keep their pairing across the rename, and `RELAB_CREDENTIALS_FILE`
-  still works with a warning.
-- The wheel and sdist include the AGPL license text.
+  still works with a warning. ([#79])
+- The wheel and sdist include the AGPL license text. ([#90])
 - The relay keeps retrying when the backend refuses its handshake (401, 403, 404, 429 and
   the like), with the usual backoff and a warning that names the status, instead of stopping
-  until the next restart. On a 401 or 403 the warning says the camera may need re-pairing.
+  until the next restart. On a 401 or 403 the warning says the camera may need re-pairing. ([#84])
 
 ### Security
 
@@ -192,6 +194,12 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [#61]: https://github.com/CMLPlatform/r9cam/pull/61
 [#63]: https://github.com/CMLPlatform/r9cam/pull/63
 [#68]: https://github.com/CMLPlatform/r9cam/pull/68
+[#79]: https://github.com/CMLPlatform/r9cam/pull/79
+[#84]: https://github.com/CMLPlatform/r9cam/pull/84
+[#85]: https://github.com/CMLPlatform/r9cam/pull/85
+[#86]: https://github.com/CMLPlatform/r9cam/pull/86
+[#87]: https://github.com/CMLPlatform/r9cam/pull/87
+[#90]: https://github.com/CMLPlatform/r9cam/pull/90
 [0.1.0]: https://github.com/CMLPlatform/r9cam/commits/v0.1.1
 [0.1.1]: https://github.com/CMLPlatform/r9cam/releases/tag/v0.1.1
 [0.2.0]: https://github.com/CMLPlatform/r9cam/compare/v0.1.1...v0.2.0
@@ -201,4 +209,5 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [0.6.0]: https://github.com/CMLPlatform/r9cam/compare/v0.5.0...v0.6.0
 [0.6.1]: https://github.com/CMLPlatform/r9cam/compare/v0.6.0...v0.6.1
 [0.6.2]: https://github.com/CMLPlatform/r9cam/compare/v0.6.1...v0.6.2
-[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.6.2...HEAD
+[0.7.0]: https://github.com/CMLPlatform/r9cam/compare/v0.6.2...v0.7.0
+[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.7.0...HEAD
