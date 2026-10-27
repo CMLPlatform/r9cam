@@ -83,23 +83,11 @@ class RuntimeState:
         """Set the persisted local API key."""
         self.local_api_key = key
 
-    def replace_authorized_api_keys(self, keys: set[str] | frozenset[str]) -> None:
-        """Atomically replace the current authorized-key snapshot."""
-        self.authorized_api_keys = frozenset(keys)
-
     def add_authorized_api_key(self, key: str) -> None:
         """Add an authorized API key to the immutable snapshot."""
         if key in self.authorized_api_keys:
             return
         self.authorized_api_keys = frozenset({*self.authorized_api_keys, key})
-
-    def is_authorized_api_key(self, api_key: str) -> bool:
-        """Return whether a key is authorized in the current runtime snapshot.
-
-        Uses a constant-time comparison per candidate key so a network attacker
-        cannot learn a valid key byte-by-byte from response timing.
-        """
-        return any(secrets.compare_digest(api_key, key) for key in self.authorized_api_keys)
 
 
 class ConnectionMode(StrEnum):

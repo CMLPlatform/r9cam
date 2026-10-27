@@ -14,18 +14,34 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   routes and accepts the `r9cam-relay` token audience: the hosted `api.r9lab.io` does, a
   self-hosted R9lab v0.5.0 or older does not. Pis on 0.6 keep working with a current backend
   until 2027-01-31, so upgrade them before then.
+- Docker Compose now pulls the release image: run `git pull` first, then `docker compose pull`
+  and `docker compose up -d`. Standalone installs: set `R9CAM_IMAGE=r9cam` in `.env` and run
+  `docker compose build` instead of `pull`.
 - Paired cameras stay paired when Docker Compose is upgraded in place and on installs without
   Docker. A fresh clone into an `r9cam/` directory starts with empty volumes. See "Upgrading
   From 0.6" in [INSTALL.md](INSTALL.md) for both cases.
+- With S3 storage, new captures go under the `r9cam/` key prefix. Objects already stored stay
+  under `rpi-cam/`; nothing moves them. Dashboards and alerts that filter
+  on `job="rpi-cam-plugin"` or `rpi_cam_*` metrics must switch to `job="r9cam"` and `r9cam_*`.
+
+### Added
+
+- Each release publishes a signed linux/arm64 image to `ghcr.io/cmlplatform/r9cam`, tagged
+  with the version, `X.Y` and `latest`, so the Pi pulls it instead of building it. Its build
+  provenance and SBOM are attested: `gh attestation verify oci://ghcr.io/cmlplatform/r9cam@<digest> --repo CMLPlatform/r9cam` checks them. `R9CAM_VERSION` in `.env` pins a release; the default is `latest`.
 
 ### Changed
 
 - **Breaking:** the plugin is now r9cam, and its shared models package is `r9cam-models`
   (was `relab-rpi-cam-models`). Renamed with it: the `R9CAM_CREDENTIALS_FILE` variable, the
   `~/.config/r9cam` credentials directory, the `_r9cam._tcp` mDNS service type, the `r9cam`
-  OpenTelemetry `service.name`, `/healthz` service and Compose image, the `r9cam_session` cookie,
+  OpenTelemetry `service.name`, `/healthz` service, the `r9cam_session` cookie,
   `openapi.r9cam.json` and the device token audience `r9cam-relay`. INSTALL.md has the full
   table. ([#45], [#48])
+- **Breaking:** the last `rpi-cam` names follow the rename: Prometheus metrics are `r9cam_*`
+  (was `rpi_cam_*`), the Alloy `job` label and default `instance` are `r9cam` (was
+  `rpi-cam-plugin`), the default S3 key prefix is `r9cam/` (was `rpi-cam/`), the example bucket
+  is `r9cam`, and the container user is `r9cam`.
 - **Breaking:** the Pi calls only the `/v1/plugins/r9cam` routes and the default pairing
   backend is `https://api.r9lab.io`.
 - Pairing polls with POST and a JSON body, as the current backend expects. ([#46])
@@ -35,10 +51,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 ### Fixed
 
 - The upload queue stays under its byte cap when captures arrive at the same time. ([#61])
+- Captures that ran out of upload retries, for example while the Pi was unpaired, are queued
+  again after a successful pairing. Any that no longer fit under the queue's limits stay in
+  `data/queue/dead/`.
 - `local_setup.sh` installs uv from a release archive it checks against its checksum. ([#68])
 - Installs without Docker keep their pairing across the rename, and `RELAB_CREDENTIALS_FILE`
   still works with a warning.
 - The wheel and sdist include the AGPL license text.
+- The relay keeps retrying when the backend refuses its handshake (401, 403, 404, 429 and
+  the like), with the usual backoff and a warning that names the status, instead of stopping
+  until the next restart. On a 401 or 403 the warning says the camera may need re-pairing.
 
 ### Security
 

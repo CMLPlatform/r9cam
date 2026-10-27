@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, Self, cast
 from unittest.mock import AsyncMock, Mock
@@ -15,6 +16,8 @@ from app.auth.dependencies import reload_authorized_keys
 from app.core.runtime import AppRuntime, set_active_runtime
 from app.core.runtime_state import RuntimeState
 from app.core.settings import RelayUrlError, settings
+from app.delivery.queue import UploadQueue
+from app.pairing.routers import setup as setup_router
 from app.pairing.services import credentials as pairing_credentials
 from app.pairing.services import service as pairing_mod
 from tests.constants import (
@@ -25,6 +28,7 @@ from tests.constants import (
     PAIRING_REGISTER_TIMEOUT_LOG,
     TRACEBACK_TEXT,
 )
+from tests.fakes import FakeRelayService, SpyRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -613,7 +617,7 @@ class TestPairingCycle:
             set_active_runtime(None)
             app_runtime.runtime_state.clear_relay_credentials()
             app_runtime.runtime_state.local_relay_api_key = ""
-            app_runtime.runtime_state.replace_authorized_api_keys(original_snapshot)
+            app_runtime.runtime_state.authorized_api_keys = original_snapshot
             reload_authorized_keys(app_runtime.runtime_state)
 
     async def test_expired_code_rotates_without_error_stacktrace(
@@ -738,6 +742,45 @@ class TestPairingCycle:
         on_paired.assert_awaited_once()
         assert PAIRING_POLL_TIMEOUT_LOG in caplog.text
         assert TRACEBACK_TEXT not in caplog.text
+
+    async def test_requeue_failure_after_pairing_keeps_pairing_done(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """A failing dead-letter requeue is logged, but never sends pairing into another cycle."""
+        monkeypatch.setattr(settings, "pairing_backend_url", EXAMPLE_BACKEND_URL)
+        monkeypatch.setattr(settings, "base_url", "https://camera.example/")
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+        monkeypatch.setattr(pairing_mod, "save_relay_credentials", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(pairing_mod.asyncio, "sleep", AsyncMock())
+        paired_response = FakeResponse(
+            200,
+            {
+                "status": pairing_mod.STATUS_PAIRED,
+                "camera_id": RELAY_CAMERA_ID,
+                "ws_url": EXAMPLE_RELAY_BACKEND_URL,
+                "auth_scheme": RELAY_AUTH_SCHEME,
+                "key_id": RELAY_KEY_ID,
+            },
+        )
+        register_responses: list[FakeResponse | Exception] = [FakeResponse(201), FakeResponse(201)]
+        client = FakeClient(register_responses=register_responses, poll_responses=[paired_response, paired_response])
+        monkeypatch.setattr(pairing_mod.httpx, "AsyncClient", lambda *_args, **_kwargs: client)
+        monkeypatch.setattr(pairing_mod, "_generate_code_and_fingerprint", lambda: (PAIRING_CODE_1, FINGERPRINT_1))
+        requeue_dead = AsyncMock(side_effect=[PermissionError("dead/ not writable"), 0])
+        monkeypatch.setattr(UploadQueue, "requeue_dead", requeue_dead)
+        runtime = SpyRuntime()
+        runtime.relay_service = FakeRelayService(runtime)
+        service = pairing_mod.PairingService()
+
+        await service.run_forever(partial(setup_router._restart_relay_after_pairing, runtime))
+        await runtime.wait_for_tasks({"requeue_dead"})
+
+        requeue_dead.assert_awaited_once()
+        assert service.state.status == pairing_mod.STATUS_PAIRED
+        assert len(register_responses) == 1, "pairing registered a second time"
+        runtime.cancel_tasks()
 
     def test_pairing_mode_prefers_detected_lan_setup_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Loopback base URLs should prefer a best-effort LAN setup URL in logs."""

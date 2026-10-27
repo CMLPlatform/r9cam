@@ -43,28 +43,28 @@ BACKEND_PUSH_IMAGE_BYTES = b"jpeg-body"
 BACKEND_PUSH_FILENAME = "local-1.jpg"
 
 # Prometheus metric snapshot lines used across tests
-MET_CPU_18_5 = "rpi_cam_cpu_percent 18.5"
-MET_MEM_44_0 = "rpi_cam_mem_percent 44.0"
-MET_DISK_12_0 = "rpi_cam_disk_percent 12.0"
-MET_CPU_TEMP_62_0 = "rpi_cam_cpu_temp_celsius 62.0"
-MET_THERMAL_WARM = 'rpi_cam_thermal_state{state="warm"} 1'
-MET_CPU = "rpi_cam_cpu_percent"
+MET_CPU_18_5 = "r9cam_cpu_percent 18.5"
+MET_MEM_44_0 = "r9cam_mem_percent 44.0"
+MET_DISK_12_0 = "r9cam_disk_percent 12.0"
+MET_CPU_TEMP_62_0 = "r9cam_cpu_temp_celsius 62.0"
+MET_THERMAL_WARM = 'r9cam_thermal_state{state="warm"} 1'
+MET_CPU = "r9cam_cpu_percent"
 
 # Unit metrics snapshot constants
-MET_CPU_10_0 = "rpi_cam_cpu_percent 10.0"
-MET_MEM_20_0 = "rpi_cam_mem_percent 20.0"
-MET_DISK_30_0 = "rpi_cam_disk_percent 30.0"
-MET_PREVIEW_SESSIONS_0_0 = "rpi_cam_preview_sessions 0.0"
-MET_CPU_TEMP_55_5 = "rpi_cam_cpu_temp_celsius 55.5"
-MET_PREVIEW_FPS_24_5 = "rpi_cam_preview_fps 24.5"
+MET_CPU_10_0 = "r9cam_cpu_percent 10.0"
+MET_MEM_20_0 = "r9cam_mem_percent 20.0"
+MET_DISK_30_0 = "r9cam_disk_percent 30.0"
+MET_PREVIEW_SESSIONS_0_0 = "r9cam_preview_sessions 0.0"
+MET_CPU_TEMP_55_5 = "r9cam_cpu_temp_celsius 55.5"
+MET_PREVIEW_FPS_24_5 = "r9cam_preview_fps 24.5"
 
 # Metric name tokens
-MET_CPU_NAME = "rpi_cam_cpu_percent"
-MET_MEM_NAME = "rpi_cam_mem_percent"
-MET_DISK_NAME = "rpi_cam_disk_percent"
-MET_PREVIEW_SESSIONS_NAME = "rpi_cam_preview_sessions"
-MET_CPU_TEMP_NAME = "rpi_cam_cpu_temp_celsius"
-MET_PREVIEW_FPS_NAME = "rpi_cam_preview_fps"
+MET_CPU_NAME = "r9cam_cpu_percent"
+MET_MEM_NAME = "r9cam_mem_percent"
+MET_DISK_NAME = "r9cam_disk_percent"
+MET_PREVIEW_SESSIONS_NAME = "r9cam_preview_sessions"
+MET_CPU_TEMP_NAME = "r9cam_cpu_temp_celsius"
+MET_PREVIEW_FPS_NAME = "r9cam_preview_fps"
 
 # Telemetry JSON expected values
 TELEMETRY_CPU_TEMP = 48.2
@@ -83,11 +83,11 @@ TRACEBACK_TEXT = "Traceback"
 IMAGE_SINK_BACKEND = "backend"
 IMAGE_SINK_S3 = "s3"
 DEFAULT_S3_REGION = "us-east-1"
-S3_BUCKET_NAME = "rpi-cam"
-S3_OBJECT_KEY = "rpi-cam/42/a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8.jpg"
-S3_OBJECT_KEY_UNSORTED = "rpi-cam/unsorted/b1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8.jpg"
-S3_PUBLIC_URL = "https://s3.example/rpi-cam/rpi-cam/42/a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8.jpg"
-S3_CDN_URL = "https://cdn.example.com/rpi-cam/9/c1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8.jpg"
+S3_BUCKET_NAME = "r9cam"
+S3_OBJECT_KEY = "r9cam/42/a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8.jpg"
+S3_OBJECT_KEY_UNSORTED = "r9cam/unsorted/b1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8.jpg"
+S3_PUBLIC_URL = "https://s3.example/r9cam/r9cam/42/a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8.jpg"
+S3_CDN_URL = "https://cdn.example.com/r9cam/9/c1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8.jpg"
 S3_IMAGE_BYTES = b"jpeg-body"
 S3_IMAGE_ID = "a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8"
 S3_UNSORTED_IMAGE_ID = "b1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8"
@@ -117,4 +117,4 @@ CAMERA_DEVICE_NOT_FOUND = "Camera device not found"
 
 # Compose override template samples
 COMPOSE_OVERRIDE_APP_ONE_DEVICE = 'services:\n  app:\n    devices:\n      - "/dev/video0:/dev/video0"\n'
-COMPOSE_OVERRIDE_CUSTOM_NO_DEVICES = "services:\n  rpi-cam-plugin:\n    devices: []\n"
+COMPOSE_OVERRIDE_CUSTOM_NO_DEVICES = "services:\n  r9cam:\n    devices: []\n"

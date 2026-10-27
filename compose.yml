@@ -1,4 +1,4 @@
-# Docker Compose stack for the RPi camera plugin.
+# Docker Compose stack for r9cam.
 #
 # Paired mode (default — captures push to the R9lab backend):
 #   docker compose up -d
@@ -29,7 +29,9 @@ x-runtime-hardening: &runtime-hardening
 services:
   app:
     <<: *runtime-hardening
-    image: r9cam
+    # The release image is paired mode only. Standalone sets R9CAM_IMAGE=r9cam and
+    # builds, so a later ``docker compose pull`` cannot replace the local build.
+    image: ${R9CAM_IMAGE:-ghcr.io/cmlplatform/r9cam}:${R9CAM_VERSION:-latest}
     build:
       context: .
       # Override to ``runtime-standalone`` in .env for standalone mode.
@@ -42,7 +44,7 @@ services:
       - /run/udev:/run/udev:ro
       - app_data:/app/data
       - app_logs:/app/logs
-      - relay_credentials:/home/rpicam/.config/r9cam
+      - relay_credentials:/home/r9cam/.config/r9cam
     env_file:
       - path: .env
         required: false
@@ -93,7 +95,7 @@ services:
       LOKI_PUSH_URL: ${LOKI_PUSH_URL:-}
       PROMETHEUS_REMOTE_WRITE_URL: ${PROMETHEUS_REMOTE_WRITE_URL:-}
       PROMETHEUS_SCRAPE_API_KEY: ${PROMETHEUS_SCRAPE_API_KEY:-}
-      OBSERVABILITY_INSTANCE: ${OBSERVABILITY_INSTANCE:-rpi-cam-plugin}
+      OBSERVABILITY_INSTANCE: ${OBSERVABILITY_INSTANCE:-r9cam}
     command:
       - run
       - --storage.path=/var/lib/alloy/data

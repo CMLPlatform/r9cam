@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import threading
 import time
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
@@ -564,6 +565,77 @@ class TestDeadLetter:
         assert not (queue_root / "dead" / f"{old_id}.json").exists()
         assert (queue_root / "dead" / f"{new_id}.jpg").exists()
         assert (queue_root / "dead" / f"{new_id}.json").exists()
+
+
+class TestRequeueDead:
+    """Tests for moving dead-lettered entries back after pairing."""
+
+    @staticmethod
+    async def _dead_letter(queue: UploadQueue, capture_id: str, source: Path) -> None:
+        await asyncio.to_thread(source.write_bytes, _jpeg_bytes())
+        entry = await queue.enqueue(
+            image_id=capture_id, image_path=source, capture_metadata={"k": "v"}, upload_metadata={}
+        )
+        for _ in range(upload_queue_mod._MAX_ATTEMPTS):
+            entry = queue.iter_pending()[0]
+            await queue.mark_attempt_failed(entry)
+
+    async def test_requeue_moves_entries_and_resets_attempts(
+        self, queue_root: Path, tmp_path: Path, sink: _FakeSink
+    ) -> None:
+        """Dead entries return to the live queue, due now, with zero attempts."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        capture_id = image_id(20)
+        await self._dead_letter(queue, capture_id, tmp_path / "a.jpg")
+        assert queue.iter_pending() == []
+
+        await queue.requeue_dead()
+
+        [entry] = queue.iter_pending()
+        assert entry.image_id == capture_id
+        assert entry.attempts == 0
+        assert entry.capture_metadata == {"k": "v"}
+        assert queue.is_due(entry)
+        assert list((queue_root / "dead").iterdir()) == []
+        assert await queue.drain_once() == 1
+
+    async def test_requeue_honours_byte_cap(self, queue_root: Path, tmp_path: Path, sink: _FakeSink) -> None:
+        """Entries that do not fit under the byte cap stay dead."""
+        unlimited = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        for seed in (21, 22):
+            await self._dead_letter(unlimited, image_id(seed), tmp_path / f"{seed}.jpg")
+        one_entry = upload_queue_mod._directory_bytes(queue_root / "dead") // 2
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink), max_pending_bytes=one_entry)
+
+        await queue.requeue_dead()
+
+        assert len(queue.iter_pending()) == 1
+        assert upload_queue_mod._directory_bytes(queue_root) <= one_entry
+        assert len(list((queue_root / "dead").glob("*.jpg"))) == 1
+        assert len(list((queue_root / "dead").glob("*.json"))) == 1
+
+    async def test_cancel_holds_lock_until_moves_finish(
+        self, queue_root: Path, sink: _FakeSink, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A cancelled requeue keeps the enqueue lock until its file moves are done."""
+        queue = UploadQueue(queue_root, sink=cast("ImageSink", sink))
+        started, release = threading.Event(), threading.Event()
+
+        def _slow_requeue() -> None:
+            started.set()
+            release.wait(timeout=5)
+
+        monkeypatch.setattr(queue, "_requeue_dead_sync", _slow_requeue)
+        task = asyncio.create_task(queue.requeue_dead())
+        await asyncio.to_thread(started.wait, 5)
+        task.cancel()
+        await asyncio.sleep(0.05)
+
+        assert queue._enqueue_lock.locked()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not queue._enqueue_lock.locked()
 
 
 class TestUploadQueueWorker:

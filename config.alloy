@@ -27,7 +27,7 @@ loki.process "app" {
 
   stage.static_labels {
     values = {
-      job      = "rpi-cam-plugin",
+      job      = "r9cam",
       instance = sys.env("OBSERVABILITY_INSTANCE"),
     }
   }
@@ -57,13 +57,13 @@ loki.write "local" {
 // remote_write sink drops samples if its url is blank. /metrics is protected;
 // set PROMETHEUS_SCRAPE_API_KEY to a value also present in AUTHORIZED_API_KEYS.
 
-prometheus.scrape "rpi_cam" {
+prometheus.scrape "r9cam" {
   targets = [
     {
       __address__ = "app:8018",
       __metrics_path__ = "/metrics",
       instance    = sys.env("OBSERVABILITY_INSTANCE"),
-      job         = "rpi-cam-plugin",
+      job         = "r9cam",
     },
   ]
   scrape_interval = "15s"

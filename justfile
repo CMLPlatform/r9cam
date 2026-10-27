@@ -4,7 +4,7 @@ default:
     @just --list
 
 install:
-    uv sync --all-groups
+    uv sync --all-groups --no-group fuzz
 
 dev:
     uv run fastapi dev
@@ -26,13 +26,15 @@ bench:
 
 # Mutation-test the relay seam and the upload queue. Survivors land in reports/mutation/.
 # A mutant-name pattern (just mutation "app.delivery.queue*") limits the run and skips the baseline diff, which only means something on a full run.
+# A pattern run also keeps .mutation/, so mutants of unchanged files stay cached. `just clean` empties it.
 mutation *ARGS:
-    rm -rf .mutation
+    @if [ -z '{{ARGS}}' ]; then rm -rf .mutation; fi
     mkdir -p .mutation/src reports/mutation
-    cp -r app scripts tests typings pyproject.toml uv.lock .mutation/
-    cp -r r9cam_models/src/r9cam_models .mutation/src/
+    # -p keeps mtimes, so mutmut regenerates mutants only for changed files.
+    cp -rp app scripts tests typings pyproject.toml uv.lock .mutation/
+    cp -rp r9cam_models/src/r9cam_models .mutation/src/
     cd .mutation && uv run --project .. mutmut run --max-children "$(nproc)" {{ARGS}}
-    cd .mutation && uv run --project .. mutmut results | grep -E ': (survived|no tests)$' | sed 's/^ *//; s/: .*//' | LC_ALL=C sort > ../reports/mutation/survivors.txt
+    cd .mutation && uv run --project .. mutmut results | grep -E ': (survived|no tests)$' | sed 's/^ *//; s/: .*//' | grep -E "^($(printf '%s' '{{ARGS}}' | sed 's/\*/.*/g; s/ /|/g; s/^$/./'))" | LC_ALL=C sort > ../reports/mutation/survivors.txt
     @echo "Survivors and untested: $(wc -l < reports/mutation/survivors.txt)"
     @if [ -z '{{ARGS}}' ]; then \
         echo "Survivor counts per function that differ from tests/mutation-baseline.txt (< baseline, > this run):"; \
@@ -128,12 +130,7 @@ release-publish version:
         echo "origin/main is at $main_version, not $version: merge the release PR first" >&2
         exit 1
     }
-    # The section between this version's heading and the next one, heading excluded.
-    notes="$(git show origin/main:CHANGELOG.md | awk -v v="## [$version]" '
-        index($0, v) == 1 { found = 1; next }
-        found && /^## \[/ { exit }
-        found { print }')"
-    [[ -n "${notes//[[:space:]]/}" ]] || { echo "CHANGELOG.md on origin/main has no v$version section" >&2; exit 1; }
+    notes="$(git show origin/main:CHANGELOG.md | python3 scripts/release_notes.py "$version")"
     gh release create "v$version" --draft --target "$(git rev-parse origin/main)" \
         --title "v$version" --notes "$notes"
     echo "Review the draft, then publish it: that creates the tag and starts release.yml."

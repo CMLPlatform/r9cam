@@ -54,9 +54,23 @@ Start the plugin with Docker Compose:
 
 ```sh
 ./scripts/generate_compose_override.py > compose.override.yml
-docker compose build
+docker compose pull
 docker compose up -d
 ```
+
+`docker compose pull` fetches the signed arm64 image `ghcr.io/cmlplatform/r9cam` that each release publishes, so the Pi does not build it. The tag is `latest` unless `R9CAM_VERSION` in `.env` pins a version such as `0.7.0`. `latest` is mutable: it moves with each release. To check what the Pi actually pulled, verify the digest of the pulled image, not the tag. Run this on the Pi:
+
+```sh
+docker image inspect --format '{{index .RepoDigests 0}}' ghcr.io/cmlplatform/r9cam:0.7.0
+```
+
+Then run this anywhere with the GitHub CLI, with the `ghcr.io/cmlplatform/r9cam@sha256:...` value it printed:
+
+```sh
+gh attestation verify oci://ghcr.io/cmlplatform/r9cam@sha256:<digest> --repo CMLPlatform/r9cam
+```
+
+To upgrade, run `git pull` (for `compose.yml` and the other config files), then `docker compose pull` and `docker compose up -d`.
 
 Review `compose.override.yml` before startup. It should contain only current camera device nodes such as `/dev/media*`, `/dev/video*`, `/dev/v4l-subdev*`, and `/dev/dma_heap`. Regenerate it after kernel, camera, or hardware changes; do not use `privileged: true`.
 
@@ -82,7 +96,7 @@ Enter the code in the native R9lab app under Cameras > Add Camera. The Pi receiv
 To rotate the code without deleting relay credentials, use **Generate a new pairing code** on `/setup`.
 To rotate relay credentials, unpair the camera and pair it again. Unpairing clears the stored relay key first, and the next pairing creates a fresh key pair.
 
-Docker Compose stores runtime credentials in a named volume mounted at `/home/rpicam/.config/r9cam`, so paired credentials survive container restarts.
+Docker Compose stores runtime credentials in a named volume mounted at `/home/r9cam/.config/r9cam`, so paired credentials survive container restarts.
 
 The relay signing key is stored in `relay_credentials.json` with `0o600` permissions. Against SD-card theft, use full-disk encryption (LUKS); to keep the key off disk entirely, skip pairing and inject `RELAY_PRIVATE_KEY_PEM` (with `RELAY_CAMERA_ID`, `RELAY_KEY_ID`, `RELAY_AUTH_SCHEME`) via env.
 
@@ -90,12 +104,13 @@ The HTTPS-served R9lab web frontend cannot auto-probe the Pi's plain-HTTP local 
 
 ## Upgrading From 0.6
 
-Upgrade the R9lab backend first. This release needs a backend that serves the `/v1/plugins/r9cam` routes and accepts the `r9cam-relay` token audience. The hosted `api.r9lab.io` does; a self-hosted R9lab v0.5.0 or older does not. Against an older backend the relay handshake is refused, and the relay stays stopped until the app restarts. Pis on 0.6 keep working with a current backend until 2027-01-31, so upgrade them before then.
+Upgrade the R9lab backend first. This release needs a backend that serves the `/v1/plugins/r9cam` routes and accepts the `r9cam-relay` token audience. The hosted `api.r9lab.io` does; a self-hosted R9lab v0.5.0 or older does not. Against an older backend the relay handshake is refused: the relay keeps retrying with backoff and logs the refused status, but never connects. Pis on 0.6 keep working with a current backend until 2027-01-31, so upgrade them before then.
 
 Paired cameras keep their pairing in these cases:
 
-- **Docker Compose, upgraded in place** (`git pull` in the existing checkout): the `relay_credentials` volume keeps its name and is now mounted at `/home/rpicam/.config/r9cam`.
+- **Docker Compose, upgraded in place** (`git pull` in the existing checkout): the `relay_credentials` volume keeps its name and is now mounted at `/home/r9cam/.config/r9cam`.
 - **Without Docker:** the app still reads `~/.config/relab/relay_credentials.json` while `~/.config/r9cam/relay_credentials.json` does not exist. The next write moves it to the new path and deletes the old file. `RELAB_CREDENTIALS_FILE` still works when `R9CAM_CREDENTIALS_FILE` is unset, with a warning to rename it.
+- **Standalone installs:** set `R9CAM_IMAGE=r9cam` in `.env`, then run `docker compose build` and `docker compose up -d`. Do not run `docker compose pull`: it fetches the paired image, which has no S3 support, and the S3 sink stops working.
 
 A fresh clone into an `r9cam/` directory is a new Compose project, so it starts with new, empty volumes: no credentials and no upload queue. Bring the old project down first with `docker compose -p relab-rpi-cam-plugin down`, then pair again, or copy the `relay_credentials` and `app_data` volumes from the old project to the new one.
 
@@ -108,24 +123,31 @@ Renamed in this release:
 | OpenTelemetry `service.name` | `relab-rpi-cam-plugin`      | `r9cam`                                                                                                        |
 | `service` in `/healthz`      | `relab-rpi-cam`             | `r9cam`                                                                                                        |
 | Session cookie               | `relab_session`             | `r9cam_session` (signed-in browsers sign in once more)                                                         |
-| Compose image name           | `relab-rpi-cam-plugin`      | `r9cam`                                                                                                        |
+| Compose image name           | `relab-rpi-cam-plugin`      | `ghcr.io/cmlplatform/r9cam`, pulled instead of built                                                           |
 | OpenAPI file                 | `openapi.rpi-cam.json`      | `openapi.r9cam.json`                                                                                           |
+| Prometheus metrics           | `rpi_cam_*`                 | `r9cam_*`, for example `r9cam_cpu_percent`                                                                     |
+| Alloy `job` label            | `rpi-cam-plugin`            | `r9cam`                                                                                                        |
+| Default Alloy `instance`     | `rpi-cam-plugin`            | `r9cam` (when `OBSERVABILITY_INSTANCE` is unset)                                                               |
+| S3 object key prefix         | `rpi-cam/`                  | `r9cam/` (objects already stored stay under `rpi-cam/`)                                                        |
+| Example S3 bucket            | `rpi-cam`                   | `r9cam` (an existing `S3_BUCKET` in `.env` is kept)                                                            |
+| Container user and home      | `rpicam`, `/home/rpicam`    | `r9cam`, `/home/r9cam` (same uid 1000)                                                                         |
 | Default pairing backend      | `https://api.cml-relab.org` | `https://api.r9lab.io`                                                                                         |
 
 ## Standalone Mode
 
-Standalone mode stores captures in an S3-compatible bucket instead of the R9lab backend. The bundled standalone profile starts a local RustFS sidecar.
+Standalone mode stores captures in an S3-compatible bucket instead of the R9lab backend. The bundled standalone profile starts a local RustFS sidecar. The release image is paired mode only, so standalone builds its own image on the Pi under the local name `r9cam`.
 
 Set these values in `.env`:
 
 ```sh
 APP_BUILD_TARGET=runtime-standalone
+R9CAM_IMAGE=r9cam
 COMPOSE_PROFILES=standalone
 APP_ENV=development
 
 IMAGE_SINK=s3
 S3_ENDPOINT_URL=http://127.0.0.1:9000
-S3_BUCKET=rpi-cam
+S3_BUCKET=r9cam
 S3_ACCESS_KEY_ID=rustfsadmin
 S3_SECRET_ACCESS_KEY=change-me-to-a-strong-password
 RUSTFS_SECRET_KEY=change-me-to-a-strong-password
@@ -143,7 +165,7 @@ Runtime surfaces:
 - Camera API: `http://<pi-lan-ip>:8018`
 - Setup UI: `http://<pi-lan-ip>:8018/setup`
 - RustFS console: `http://127.0.0.1:9001`
-- Captures: `http://127.0.0.1:9000/rpi-cam/`
+- Captures: `http://127.0.0.1:9000/r9cam/`
 
 RustFS is loopback-only by default. To expose it on the operator LAN, set `RUSTFS_API_BIND` and `RUSTFS_CONSOLE_BIND` to the Pi's LAN IP, then restrict ports `9000` and `9001` to trusted clients.
 

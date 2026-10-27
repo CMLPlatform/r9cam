@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import httpx
@@ -149,23 +150,58 @@ async def _iter_websocket_connections(url: str, runtime_state: RuntimeState) -> 
                 delays = None
                 yield ws
         except Exception as exc:
-            classified = classify_websocket_exception(exc)
-            if classified is exc:
-                raise
-            if classified is not None:
-                raise classified from exc
+            # websockets treats a 4xx handshake status as fatal. Retry it anyway: a
+            # backend that refuses this camera today can accept it after an upgrade
+            # or re-pairing, and nothing restarts the relay task once it exits.
+            refused = (
+                exc
+                if isinstance(exc, InvalidStatus) and exc.response.status_code < HTTPStatus.INTERNAL_SERVER_ERROR
+                else None
+            )
+            if refused is None:
+                classified = classify_websocket_exception(exc)
+                if classified is exc:
+                    raise
+                if classified is not None:
+                    raise classified from exc
 
             if delays is None:
                 delays = _relay_reconnect_delays()
             delay = next(delays)
-            logger.info(
-                "Relay connection attempt failed; reconnecting in %.1fs: %s",
-                delay,
-                _format_relay_connection_error(exc),
-                extra=build_log_extra(),
-            )
+            if refused is not None:
+                delay = _honour_retry_after(refused, delay)
+                logger.warning(
+                    "Relay handshake refused with %s; retrying in %.1fs.%s",
+                    _format_relay_connection_error(refused),
+                    delay,
+                    _refusal_hint(refused),
+                    extra=build_log_extra(),
+                )
+            else:
+                logger.info(
+                    "Relay connection attempt failed; reconnecting in %.1fs: %s",
+                    delay,
+                    _format_relay_connection_error(exc),
+                    extra=build_log_extra(),
+                )
             await asyncio.sleep(delay)
             continue
+
+
+def _refusal_hint(exc: InvalidStatus) -> str:
+    """Return a log suffix that points at re-pairing when the backend rejects the camera's credentials."""
+    if exc.response.status_code in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN}:
+        return " The camera may need re-pairing with the backend."
+    return ""
+
+
+def _honour_retry_after(exc: InvalidStatus, delay: float) -> float:
+    """Stretch a 429 backoff to the server's Retry-After seconds, within the usual cap."""
+    retry_after = exc.response.headers.get("Retry-After", "")
+    # shortcut: only the delay-seconds form; an HTTP-date falls back to the normal backoff.
+    if exc.response.status_code == HTTPStatus.TOO_MANY_REQUESTS and retry_after.isdecimal():
+        return min(max(delay, float(retry_after)), _RELAY_RECONNECT_MAX_DELAY_S)
+    return delay
 
 
 async def _receive_loop(
