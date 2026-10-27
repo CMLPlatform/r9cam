@@ -35,6 +35,7 @@ from app.delivery.base import ImageSink, ImageSinkError
 from app.observability.logging import build_log_extra
 from app.utils.file_policy import JPEG_CAPTURE_POLICY, CaptureFileValidationError
 from app.utils.files import write_json_atomic
+from app.utils.tasks import finish_before_cancel
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -159,16 +160,9 @@ class UploadQueue:
         stay in ``dead/`` and are logged.
         """
         async with self._enqueue_lock:
-            move = asyncio.ensure_future(asyncio.to_thread(self._requeue_dead_sync))
-            try:
-                await asyncio.shield(move)
-            except asyncio.CancelledError:
-                # The thread keeps moving files after a cancel. Hold the lock until it
-                # stops, or a concurrent enqueue checks the byte cap against stale sizes.
-                while not move.done():
-                    with contextlib.suppress(asyncio.CancelledError):
-                        await asyncio.wait({move})
-                raise
+            # The thread keeps moving files after a cancel. Hold the lock until it
+            # stops, or a concurrent enqueue checks the byte cap against stale sizes.
+            await finish_before_cancel(asyncio.to_thread(self._requeue_dead_sync))
 
     def is_due(self, entry: QueuedCapture, *, now: datetime | None = None) -> bool:
         """Whether the entry's next_attempt_at has arrived."""
