@@ -14,6 +14,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   and sensor crop, the plugin version and the commit the release image was built from, and
   the SHA-256 of the libcamera tuning file. R9lab stores them with the image.
 
+### Changed
+
+- The container image is about 220 MiB smaller unpacked (amd64 build: 750 to 529 MiB of files,
+  797 to 556 MB as Docker reports it; the arm64 0.7.0 image was 778 MiB of files). It drops
+  Mesa's GPU drivers with LLVM and Z3, which the libav libraries pull in but a headless image
+  never loads, and it runs on Debian's Python 3.13 (3.13.5) instead of a second interpreter
+  from the python:3.13-slim base.
+
 ### Fixed
 
 - Relayed commands no longer fail with 401 when the relay credentials come from environment
