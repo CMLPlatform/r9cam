@@ -346,29 +346,61 @@ class TestPicamera2BackendMethods:
         assert backend.camera is working
 
     async def test_open_releases_camera_when_cancelled(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A cancelled open closes the camera, or picamera2 keeps it claimed until restart."""
-        started = threading.Event()
-        release = threading.Event()
+        """A cancelled open waits for start to return, then closes the camera.
+
+        picamera2 cannot release a camera that is still starting, so a close that runs
+        during start fails and leaves the camera claimed until restart.
+        """
+        started, release, finished = threading.Event(), threading.Event(), threading.Event()
         camera = MagicMock()
 
         def slow_start() -> None:
             started.set()
             release.wait(5)
+            finished.set()
 
         camera.start.side_effect = slow_start
+        closed_after_start: list[bool] = []
+        camera.close.side_effect = lambda: closed_after_start.append(finished.is_set())
         monkeypatch.setattr(backend_mod, "Picamera2", MagicMock(return_value=camera))
         backend = Picamera2Backend()
 
         task = asyncio.create_task(backend.open(CameraMode.VIDEO))
         await asyncio.to_thread(started.wait, 5)
         task.cancel()
-        try:
-            with pytest.raises(asyncio.CancelledError):
-                await task
-        finally:
-            release.set()
+        await asyncio.sleep(0.05)
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert closed_after_start == [True]
+        assert not backend.is_open
+
+    async def test_open_releases_camera_when_cancelled_during_construction(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A cancel while Picamera2() runs still closes the camera it goes on to open."""
+        started, release = threading.Event(), threading.Event()
+        camera = MagicMock()
+
+        def slow_constructor(_num: int) -> MagicMock:
+            started.set()
+            release.wait(5)
+            return camera
+
+        monkeypatch.setattr(backend_mod, "Picamera2", slow_constructor)
+        backend = Picamera2Backend()
+
+        task = asyncio.create_task(backend.open(CameraMode.VIDEO))
+        await asyncio.to_thread(started.wait, 5)
+        task.cancel()
+        await asyncio.sleep(0.05)
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
         camera.close.assert_called_once()
+        camera.start.assert_not_called()
         assert not backend.is_open
 
     async def test_capture_image_raises_when_metadata_missing(self) -> None:

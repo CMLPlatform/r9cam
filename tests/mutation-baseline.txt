@@ -1,5 +1,5 @@
 # Accepted mutmut survivors for `just mutation`.
-# One mutant name per line. A trailing comment marks an equivalent mutant and says why.
+# One mutant name per line. A trailing comment says why the mutant is accepted: equivalent, log text only, or a stated limit.
 # Names without a comment are real test gaps, accepted for now.
 # Timeouts count as caught: the tests did not pass in time. They are not listed.
 # mutmut numbers mutants by position in their function, so editing a function renumbers them. `just mutation` therefore compares survivor counts per function, not names.
@@ -24,23 +24,26 @@ app.delivery.factory.x_get_image_sink__mutmut_14
 app.delivery.factory.x_get_image_sink__mutmut_15
 app.delivery.factory.x_get_image_sink__mutmut_16
 app.delivery.factory.x_get_image_sink__mutmut_8
-app.delivery.queue.x__dead_letter_entries__mutmut_12
-app.delivery.queue.x__dead_letter_entries__mutmut_13
-app.delivery.queue.x__dead_letter_entries__mutmut_14
-app.delivery.queue.x__dead_letter_entries__mutmut_23
 app.delivery.queue.x__dead_letter_entries__mutmut_7
 app.delivery.queue.x__dead_letter_entries__mutmut_8
-app.delivery.queue.x__directory_bytes__mutmut_7
-app.delivery.queue.x__directory_bytes__mutmut_8
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_19  # equivalent: the reader takes the capture id from the file name, not the sidecar
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_34  # only differs when the host clock is not UTC: a naive time is read back as UTC
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_35  # equivalent: the file was just found or read, so missing_ok never matters
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_36  # equivalent: the file was just found or read, so missing_ok never matters
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_38  # log text only: no test reads this log line
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_39  # log text only: no test reads this log line
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_40  # log text only: no test reads this log line
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_41  # log text only: no test reads this log line
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_42  # log text only: no test reads this log line
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_43  # log text only: no test reads this log line
+app.delivery.queue.x__finish_interrupted_requeue__mutmut_44  # log text only: no test reads this log line
+app.delivery.queue.x__is_past_grace__mutmut_4
 app.delivery.queue.x__metadata_payload__mutmut_1
 app.delivery.queue.x__metadata_payload__mutmut_2
-app.delivery.queue.x__metadata_payload__mutmut_3
-app.delivery.queue.x__metadata_payload__mutmut_4
-app.delivery.queue.x__metadata_payload__mutmut_6
-app.delivery.queue.x__metadata_payload__mutmut_7
 app.delivery.queue.x__parse_sidecar__mutmut_36  # equivalent: fromisoformat(None) raises TypeError, caught like the ValueError from ""
 app.delivery.queue.x__parse_sidecar__mutmut_38  # equivalent: get() without a default returns None, which falls back like ""
 app.delivery.queue.x__parse_sidecar__mutmut_41  # equivalent: "XXXX" is not an ISO timestamp either, so it falls back like ""
+app.delivery.queue.x__parse_sidecar__mutmut_43  # only differs when the host clock is not UTC: a naive time is read back as UTC
 app.delivery.queue.x__path_mtime__mutmut_1
 app.delivery.queue.x__path_mtime__mutmut_2
 app.delivery.queue.x__path_size__mutmut_1
@@ -59,16 +62,9 @@ app.delivery.queue.x_run_upload_queue_worker__mutmut_5
 app.delivery.queue.x_run_upload_queue_worker__mutmut_6
 app.delivery.queue.x_run_upload_queue_worker__mutmut_7
 app.delivery.queue.x_run_upload_queue_worker__mutmut_8
-app.delivery.queue.xǁUploadQueueǁ__init____mutmut_11
-app.delivery.queue.xǁUploadQueueǁ__init____mutmut_13
-app.delivery.queue.xǁUploadQueueǁ__init____mutmut_15
 app.delivery.queue.xǁUploadQueueǁ__init____mutmut_17
-app.delivery.queue.xǁUploadQueueǁ__init____mutmut_18
 app.delivery.queue.xǁUploadQueueǁ__init____mutmut_19
-app.delivery.queue.xǁUploadQueueǁ__init____mutmut_20
 app.delivery.queue.xǁUploadQueueǁ__init____mutmut_21
-app.delivery.queue.xǁUploadQueueǁ__init____mutmut_22
-app.delivery.queue.xǁUploadQueueǁ_ensure_capacity_for__mutmut_11
 app.delivery.queue.xǁUploadQueueǁ_ensure_capacity_for__mutmut_15
 app.delivery.queue.xǁUploadQueueǁ_ensure_capacity_for__mutmut_16
 app.delivery.queue.xǁUploadQueueǁ_ensure_capacity_for__mutmut_17
@@ -82,41 +78,66 @@ app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_19
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_20
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_21
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_22
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_31
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_32
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_33
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_34
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_35
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_36
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_37
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_39
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_4
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_40
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_44  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_45  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_46  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_47  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_48
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_49
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_5
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_50
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_51
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_52  # equivalent: the file was just found or read, so missing_ok never matters
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_53  # equivalent: the file was just found or read, so missing_ok never matters
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_58  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_59  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_6
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_66
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_67
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_69
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_60  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_61  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_62  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_63  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_64  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_7
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_70
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_71
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_72
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_73
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_75
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_76
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_77
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_8
-app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_85
 app.delivery.queue.xǁUploadQueueǁ_load_entry__mutmut_9
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_10
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_5
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_7
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_8
 app.delivery.queue.xǁUploadQueueǁ_prune_dead_letters_sync__mutmut_9
-app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_11  # equivalent: <= and < differ only when a float ctime equals the cutoff exactly
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_21  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_22  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_23  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_24  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_25  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_26  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_remove_orphan_images__mutmut_27  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_4  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_49  # equivalent: the file was just found or read, so missing_ok never matters
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_50  # equivalent: the file was just found or read, so missing_ok never matters
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_53  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_54  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_58  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_59  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_60  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_62  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_63  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_65  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_66  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_67  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_68  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_69  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_70  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_71  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_74  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_75  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_76  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_79  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_80  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_81  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_82  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_83  # log text only: the count and the early return only feed the summary log line
+app.delivery.queue.xǁUploadQueueǁ_requeue_dead_sync__mutmut_84  # log text only: the count and the early return only feed the summary log line
 app.delivery.queue.xǁUploadQueueǁdrain_once__mutmut_16
 app.delivery.queue.xǁUploadQueueǁdrain_once__mutmut_18
 app.delivery.queue.xǁUploadQueueǁdrain_once__mutmut_19
@@ -178,34 +199,28 @@ app.delivery.queue.xǁUploadQueueǁdrain_once__mutmut_94
 app.delivery.queue.xǁUploadQueueǁdrain_once__mutmut_95
 app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_11
 app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_23
-app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_39
 app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_41
+app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_42  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_43  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_44
 app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_45
 app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_46
 app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_47
-app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_48
 app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_49
-app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_50
-app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_52
-app.delivery.queue.xǁUploadQueueǁenqueue__mutmut_58
 app.delivery.queue.xǁUploadQueueǁis_due__mutmut_4
 app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_13
 app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_14
 app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_15
 app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_20
-app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_26
-app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_41
 app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_43
-app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_46
-app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_48
-app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_50
-app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_56
+app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_45  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_47  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_53  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_54  # log text only: no test reads this log line
+app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_55  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_57
 app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_58
-app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_60
-app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_61
-app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_62
+app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_59  # log text only: no test reads this log line
 app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_7
 app.delivery.queue.xǁUploadQueueǁmark_attempt_failed__mutmut_9
 app.delivery.queue.xǁUploadQueueǁmark_attempt_succeeded__mutmut_10
@@ -320,10 +335,15 @@ app.relay.service.x__handle_command__mutmut_11
 app.relay.service.x__handle_command__mutmut_133
 app.relay.service.x__handle_command__mutmut_140
 app.relay.service.x__handle_command__mutmut_155
-app.relay.service.x__handle_command__mutmut_159
-app.relay.service.x__handle_command__mutmut_164
 app.relay.service.x__handle_command__mutmut_165
 app.relay.service.x__handle_command__mutmut_167
+app.relay.service.x__handle_command__mutmut_169  # log text only: no test reads this log line
+app.relay.service.x__handle_command__mutmut_170  # log text only: no test reads this log line
+app.relay.service.x__handle_command__mutmut_171  # log text only: no test reads this log line
+app.relay.service.x__handle_command__mutmut_172  # log text only: no test reads this log line
+app.relay.service.x__handle_command__mutmut_173  # log text only: no test reads this log line
+app.relay.service.x__handle_command__mutmut_174  # log text only: no test reads this log line
+app.relay.service.x__handle_command__mutmut_175  # log text only: no test reads this log line
 app.relay.service.x__handle_command__mutmut_27
 app.relay.service.x__handle_command__mutmut_31
 app.relay.service.x__handle_command__mutmut_37
@@ -379,18 +399,30 @@ app.relay.service.x__handle_relay_message__mutmut_77
 app.relay.service.x__handle_relay_message__mutmut_81
 app.relay.service.x__handle_relay_message__mutmut_82
 app.relay.service.x__handle_relay_message__mutmut_84
+app.relay.service.x__honour_retry_after__mutmut_7  # equivalent: websockets matches header names without regard to case
+app.relay.service.x__honour_retry_after__mutmut_8  # equivalent: websockets matches header names without regard to case
+app.relay.service.x__honour_retry_after__mutmut_9  # equivalent: "XXXX" is not decimal either, so it falls back like ""
 app.relay.service.x__iter_websocket_connections__mutmut_15
-app.relay.service.x__iter_websocket_connections__mutmut_16
-app.relay.service.x__iter_websocket_connections__mutmut_17
 app.relay.service.x__iter_websocket_connections__mutmut_18
 app.relay.service.x__iter_websocket_connections__mutmut_27
 app.relay.service.x__iter_websocket_connections__mutmut_28
+app.relay.service.x__iter_websocket_connections__mutmut_29  # log text only: no test reads this log line
 app.relay.service.x__iter_websocket_connections__mutmut_3
+app.relay.service.x__iter_websocket_connections__mutmut_30  # log text only: no test reads this log line
+app.relay.service.x__iter_websocket_connections__mutmut_31  # log text only: no test reads this log line
 app.relay.service.x__iter_websocket_connections__mutmut_32
 app.relay.service.x__iter_websocket_connections__mutmut_33
-app.relay.service.x__iter_websocket_connections__mutmut_34
-app.relay.service.x__iter_websocket_connections__mutmut_36
+app.relay.service.x__iter_websocket_connections__mutmut_59  # log text only: no test reads this log line
+app.relay.service.x__iter_websocket_connections__mutmut_64  # log text only: no test reads this log line
+app.relay.service.x__iter_websocket_connections__mutmut_65  # log text only: no test reads this log line
+app.relay.service.x__iter_websocket_connections__mutmut_66  # log text only: no test reads this log line
 app.relay.service.x__iter_websocket_connections__mutmut_7
+app.relay.service.x__iter_websocket_connections__mutmut_72  # log text only: no test reads this log line
+app.relay.service.x__iter_websocket_connections__mutmut_73  # log text only: no test reads this log line
+app.relay.service.x__iter_websocket_connections__mutmut_77  # log text only: no test reads this log line
+app.relay.service.x__iter_websocket_connections__mutmut_78  # log text only: no test reads this log line
+app.relay.service.x__iter_websocket_connections__mutmut_79  # log text only: no test reads this log line
+app.relay.service.x__iter_websocket_connections__mutmut_81  # log text only: no test reads this log line
 app.relay.service.x__receive_loop__mutmut_1
 app.relay.service.x__receive_loop__mutmut_10
 app.relay.service.x__receive_loop__mutmut_11
@@ -424,8 +456,9 @@ app.relay.service.x__receive_loop__mutmut_57
 app.relay.service.x__receive_loop__mutmut_7
 app.relay.service.x__receive_loop__mutmut_8
 app.relay.service.x__receive_loop__mutmut_9
-app.relay.service.x__relay_reconnect_delays__mutmut_1
-app.relay.service.x__relay_reconnect_delays__mutmut_2
+app.relay.service.x__refusal_hint__mutmut_2  # log text only: the hint is a log suffix; the tests check for re-pairing only
+app.relay.service.x__refusal_hint__mutmut_3  # log text only: the hint is a log suffix; the tests check for re-pairing only
+app.relay.service.x__refusal_hint__mutmut_5  # log text only: the hint is a log suffix; the tests check for re-pairing only
 app.relay.service.x__relay_reconnect_delays__mutmut_3
 app.relay.service.x__relay_reconnect_delays__mutmut_4
 app.relay.service.x__relay_reconnect_delays__mutmut_5
@@ -436,6 +469,12 @@ app.relay.service.x__relay_reconnect_delays__mutmut_9
 app.relay.service.x__run_command__mutmut_4
 app.relay.service.x__run_command__mutmut_8
 app.relay.service.x__send_error__mutmut_10
+app.relay.service.x__send_error__mutmut_13  # log text only: no test reads this log line
+app.relay.service.x__send_error__mutmut_14  # log text only: no test reads this log line
+app.relay.service.x__send_error__mutmut_16  # log text only: no test reads this log line
+app.relay.service.x__send_error__mutmut_17  # log text only: no test reads this log line
+app.relay.service.x__send_error__mutmut_18  # log text only: no test reads this log line
+app.relay.service.x__send_error__mutmut_19  # log text only: no test reads this log line
 app.relay.service.x__send_error__mutmut_8
 app.relay.service.xǁRelayServiceǁbuild_url__mutmut_5
 app.relay.service.xǁRelayServiceǁrun_forever__mutmut_10
@@ -468,7 +507,6 @@ app.relay.service.xǁRelayServiceǁrun_forever__mutmut_54
 app.relay.service.xǁRelayServiceǁrun_forever__mutmut_7
 app.relay.service.xǁRelayServiceǁrun_forever__mutmut_8
 app.relay.service.xǁRelayServiceǁrun_forever__mutmut_9
-app.relay.state.xǁRelayRuntimeStateǁmark_connected__mutmut_3
 app.relay.state.xǁRelayRuntimeStateǁmark_disconnected__mutmut_1
 app.relay.state.xǁRelayRuntimeStateǁmark_disconnected__mutmut_2
 r9cam_models.device_seam.x_build_relay_command__mutmut_10

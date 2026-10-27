@@ -22,6 +22,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - A 2xx upload reply that is not JSON or lacks `image_id` or `image_url` now counts as
   delivered, with a warning in the log. Before, the Pi retried the upload and the backend
   stored the capture twice.
+- A capture whose requeue after pairing was cut off by a crash is no longer lost when the
+  camera restarts and drains its queue before the next pairing. The queue now finishes the
+  requeue instead of deleting the image. A full disk while finishing one such capture no
+  longer stops the rest of the requeue or the queue drain.
+- A camera start that is cancelled (for example by a request timeout) no longer leaves the
+  camera claimed until the app restarts. The close now waits for the start, or for opening
+  the camera, to finish, because picamera2 cannot release a camera that is still starting.
+- A capture that runs out of upload attempts while a new capture is being queued is no longer
+  lost. The queue check could delete its metadata between the two file moves into `dead/`.
+  A dead-letter move cut off by a crash or shutdown is now finished on the next pass.
 
 ## [0.7.1] - 2026-10-27
 

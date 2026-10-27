@@ -262,6 +262,32 @@ class TestWebsocketConnect:
         assert all(f"HTTP {status}" in message for message in warnings)
         assert all(("re-pairing" in message) is hint for message in warnings)
 
+    async def test_connection_iterator_retries_server_error_without_refusal_warning(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A 5xx handshake is a transient failure, not a refusal of this camera."""
+        failed = Response(500, "Internal Server Error", Headers(), b"")
+        connect = MagicMock(side_effect=[_HandshakeContextFailure(failed), _Connect(_Conn())])
+        monkeypatch.setattr(relay_mod, "websocket_connect", connect)
+        monkeypatch.setattr(relay_mod, "build_device_assertion", lambda *_: "jwt")
+        monkeypatch.setattr(relay_mod, "_relay_reconnect_delays", lambda: iter([1.0]))
+        monkeypatch.setattr(relay_mod.asyncio, "sleep", AsyncMock())
+
+        with caplog.at_level(logging.INFO, logger=relay_mod.__name__):
+            assert await anext(_iter_websocket_connections(EXAMPLE_RELAY_BACKEND_URL, RuntimeState())) is not None
+
+        assert [r.levelno for r in caplog.records] == [logging.INFO]
+
+    async def test_connection_iterator_raises_fatal_errors(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An error websockets does not treat as transient ends the iterator instead of retrying."""
+        monkeypatch.setattr(relay_mod, "websocket_connect", MagicMock(side_effect=RuntimeError("bad relay URL")))
+        monkeypatch.setattr(relay_mod, "build_device_assertion", lambda *_: "jwt")
+        monkeypatch.setattr(relay_mod, "_relay_reconnect_delays", lambda: iter([1.0]))
+        monkeypatch.setattr(relay_mod.asyncio, "sleep", AsyncMock())
+
+        with pytest.raises(RuntimeError, match="bad relay URL"):
+            await anext(_iter_websocket_connections(EXAMPLE_RELAY_BACKEND_URL, RuntimeState()))
+
     async def test_connection_iterator_honours_retry_after_on_429(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A 429 Retry-After longer than the backoff step should set the wait."""
         throttled = Response(429, "Too Many Requests", Headers({"Retry-After": "7"}), b"")
@@ -534,6 +560,7 @@ class TestHandleCommand:
         payload = json.loads(ws.send.call_args.args[0])
         assert payload["id"] == "msg-big"
         assert payload["status"] == 500
+        assert payload["data"]["detail"] == "Invalid relay response."
 
     async def test_handles_binary_response(self) -> None:
         """Should send binary responses as bytes frames."""
