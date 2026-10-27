@@ -38,6 +38,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - `local_setup.sh` installs uv from a release archive it checks against its checksum. ([#68])
 - Installs without Docker keep their pairing across the rename, and `RELAB_CREDENTIALS_FILE`
   still works with a warning.
+- The wheel and sdist include the AGPL license text.
 
 ### Security
 
