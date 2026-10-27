@@ -246,6 +246,26 @@ class TestReceiveLoop:
             runtime_state=RuntimeState(),
         )
 
+    @pytest.mark.parametrize(
+        "frame",
+        [
+            '{"type": "request", "id": ' + "1" * 5000 + "}",
+            "[" * 30000 + "]" * 30000,
+        ],
+        ids=["integer-past-digit-limit", "deep-nesting"],
+    )
+    async def test_ignores_json_the_decoder_cannot_build(self, frame: str) -> None:
+        """A frame that fits the size limit but that json.loads cannot build must not end the loop."""
+        assert len(frame) <= RELAY_WS_TEXT_FRAME_LIMIT_BYTES
+        ws = _Conn([frame])
+        await _receive_loop(
+            cast("ClientConnection", ws),
+            asgi_app=_noop_asgi_app,
+            relay_state=RelayRuntimeState(),
+            runtime_state=RuntimeState(),
+        )
+        ws.send.assert_not_called()
+
     async def test_handles_ping(self) -> None:
         """Should respond to ping messages with a pong."""
         ws = _Conn([json.dumps({"type": "ping"})])
@@ -335,6 +355,23 @@ class TestReceiveLoop:
         assert record.outcome == "blocked"
         assert record.status_code == 429
 
+    async def test_rate_limited_request_with_unsafe_id_is_dropped(self) -> None:
+        """An id the response envelope rejects gets no 429 reply instead of ending the receive loop."""
+        ws = AsyncMock()
+
+        await _handle_relay_message(
+            ws,
+            AsyncMock(),
+            json.dumps({"type": "request", "id": "not a safe id", "method": "GET", "path": CAMERA_PATH}),
+            set(),
+            lambda _task: None,
+            asyncio.Semaphore(1),
+            relay_state=RelayRuntimeState(),
+            max_pending_commands=0,
+        )
+
+        ws.send.assert_not_called()
+
 
 class TestHandleCommand:
     """Tests for relay command dispatch."""
@@ -364,6 +401,16 @@ class TestHandleCommand:
         http = AsyncMock()
 
         await _handle_command(ws, http, {"type": "request"})
+
+        http.request.assert_not_called()
+        ws.send.assert_not_called()
+
+    async def test_malformed_request_with_unsafe_id_is_ignored(self) -> None:
+        """An id the response envelope rejects gets no error reply instead of failing the command task."""
+        ws = AsyncMock()
+        http = AsyncMock()
+
+        await _handle_command(ws, http, {"type": "request", "id": "not a safe id"})
 
         http.request.assert_not_called()
         ws.send.assert_not_called()
