@@ -25,17 +25,25 @@ bench:
     uv run pytest tests/benchmarks --codspeed
 
 # Mutation-test the relay seam and the upload queue. Survivors land in reports/mutation/.
-mutation:
+# A mutant-name pattern (just mutation "app.delivery.queue*") limits the run and skips the baseline diff, which only means something on a full run.
+mutation *ARGS:
     rm -rf .mutation
     mkdir -p .mutation/src reports/mutation
     cp -r app scripts tests typings pyproject.toml uv.lock .mutation/
     cp -r r9cam_models/src/r9cam_models .mutation/src/
-    cd .mutation && uv run --project .. mutmut run --max-children "$(nproc)"
+    cd .mutation && uv run --project .. mutmut run --max-children "$(nproc)" {{ARGS}}
     cd .mutation && uv run --project .. mutmut results | grep -E ': (survived|no tests)$' | sed 's/^ *//; s/: .*//' | LC_ALL=C sort > ../reports/mutation/survivors.txt
     @echo "Survivors and untested: $(wc -l < reports/mutation/survivors.txt)"
-    @echo "Survivor counts per function that differ from tests/mutation-baseline.txt (< baseline, > this run):"
-    @sed 's/ *#.*//; /^$/d; s/__mutmut_[0-9]*$//' tests/mutation-baseline.txt | uniq -c > .mutation/baseline-counts.txt
-    @sed 's/__mutmut_[0-9]*$//' reports/mutation/survivors.txt | uniq -c | diff .mutation/baseline-counts.txt -
+    @if [ -z '{{ARGS}}' ]; then \
+        echo "Survivor counts per function that differ from tests/mutation-baseline.txt (< baseline, > this run):"; \
+        sed 's/ *#.*//; /^$/d; s/__mutmut_[0-9]*$//' tests/mutation-baseline.txt | uniq -c > .mutation/baseline-counts.txt; \
+        sed 's/__mutmut_[0-9]*$//' reports/mutation/survivors.txt | uniq -c | diff .mutation/baseline-counts.txt -; \
+    fi
+
+# Fuzz the relay trust boundary. Flags go to libFuzzer, for example `just fuzz -runs=20000 -seed=1`.
+fuzz *flags="-max_total_time=60":
+    mkdir -p reports/fuzz
+    uv run --group fuzz python fuzz/relay_frames.py -artifact_prefix=reports/fuzz/ {{flags}}
 
 typecheck:
     uv run ty check .

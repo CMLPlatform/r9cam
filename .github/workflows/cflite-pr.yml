@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: ClusterFuzzLite
+
+# Fuzzes the relay trust boundary on each pull request. The harness is
+# fuzz/relay_frames.py and the build lives in .clusterfuzzlite/.
+on:
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz relay frames
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Build fuzzers
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: python
+          sanitizer: address
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # code-change mode fuzzes every target when it has no coverage data, which
+      # is the case here, since nothing runs a batch or coverage job.
+      - name: Run fuzzers
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          mode: code-change
+          sanitizer: address
+          fuzz-seconds: 300
+          github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -36,6 +36,7 @@ just test-slowest
 just bench
 just check
 just mutation
+just fuzz
 ```
 
 `just mutation` mutation-tests the relay seam and the upload queue.
@@ -43,6 +44,12 @@ It writes survivors to `reports/mutation/survivors.txt` and lists each function 
 When one does, the recipe fails.
 Read a new survivor with `uv run mutmut show <name>` from `.mutation/`, then kill it with a test or record it in the baseline.
 Give each equivalent mutant you accept a one-line reason.
+
+`just fuzz` runs the Atheris harness in `fuzz/relay_frames.py` for a minute.
+It feeds raw backend frames through the relay seam and fails when anything but a `ValidationError` escapes, or when an allowlisted command routes to a route outside the allowlist.
+A crashing input lands in `reports/fuzz/`.
+Replay it with `uv run --group fuzz python fuzz/relay_frames.py <file>`.
+ClusterFuzzLite runs the same harness on each pull request.
 
 ## Code Quality
 
