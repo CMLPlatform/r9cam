@@ -31,7 +31,8 @@ from tests.fakes import FakePairingService, FakeRelayService, SpyRuntime
 SETUP_TITLE = "RPi Camera — Setup"
 SETUP_COPY_TEXT = "Pair, refresh, or unpair from this page."
 PAIRING_URL_DEBUG_TEXT = "Pairing details"
-PAIRING_BACKEND_URL_TEXT = "URL"
+# The full label, since a bare "URL" also turns up in the random CSP nonce now and then.
+PAIRING_BACKEND_URL_TEXT = '<span class="setup-debug__label">URL</span>'
 DEFAULT_BACKEND_PRESET_TEXT = "Default R9lab backend"
 PAIRING_BACKEND_URL_VALUE = "https://api.r9lab.io"
 REACHABLE_TEXT = "Reachable"

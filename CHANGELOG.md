@@ -12,6 +12,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 - Release tags are signed: `just release-publish` signs the tag with the maintainer's key
   and pushes it before drafting the release, instead of GitHub creating an unsigned tag.
+- The image and the install no longer pull in the deploy-only parts of `fastapi[standard]`
+  (the FastAPI Cloud CLI, `email-validator`, `httpx2`, `pydantic-extra-types` and their
+  dependencies). The app asks for what it uses: `fastapi-cli`, `uvicorn[standard]`, `jinja2`
+  and `python-multipart`. The runtime image is about 15 MB smaller.
 
 ### Fixed
 
