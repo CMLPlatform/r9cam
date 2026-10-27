@@ -386,6 +386,28 @@
             ],
             "title": "Analogue Gain"
           },
+          "color_gains": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Red and blue white-balance gains",
+            "title": "Color Gains"
+          },
           "color_temperature": {
             "anyOf": [
               {
@@ -436,6 +458,18 @@
             "description": "Frame duration in microseconds",
             "title": "Frame Duration"
           },
+          "lens_position": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lens focus position in dioptres",
+            "title": "Lens Position"
+          },
           "lux": {
             "anyOf": [
               {
@@ -448,6 +482,34 @@
             ],
             "description": "Illuminance in lux",
             "title": "Lux"
+          },
+          "scaler_crop": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sensor area read for the image as x, y, width, height in sensor pixels",
+            "title": "Scaler Crop"
           },
           "sensor_temperature": {
             "anyOf": [
@@ -463,6 +525,49 @@
           }
         },
         "title": "CaptureMetadata",
+        "type": "object"
+      },
+      "CaptureProvenance": {
+        "description": "Which software and tuning produced a capture. A field is None when the plugin cannot tell.",
+        "properties": {
+          "plugin_git_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Git commit the plugin image was built from",
+            "title": "Plugin Git Sha"
+          },
+          "plugin_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "r9cam plugin version",
+            "title": "Plugin Version"
+          },
+          "tuning_file_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the libcamera tuning file the camera loaded",
+            "title": "Tuning File Sha256"
+          }
+        },
+        "title": "CaptureProvenance",
         "type": "object"
       },
       "CaptureUploadMetadata": {
@@ -644,6 +749,9 @@
           },
           "image_properties": {
             "$ref": "#/components/schemas/ImageProperties"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/CaptureProvenance"
           }
         },
         "required": [

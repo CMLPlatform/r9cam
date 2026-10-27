@@ -8,24 +8,29 @@ from PIL.Image import Exif, Image
 from r9cam_models.images import (
     CameraProperties,
     CaptureMetadata,
+    CaptureProvenance,
     ImageMetadata,
     ImageProperties,
 )
 from r9cam_models.stream import StreamMetadata
 
-from app.__version__ import version
+from app.__version__ import git_sha, version
 
 
 def build_image_metadata(
     img: Image,
     camera_properties: Mapping[str, Any],
     capture_metadata: Mapping[str, Any],
+    tuning_file_sha256: str | None = None,
 ) -> ImageMetadata:
     """Build the shared image metadata DTO from runtime capture data."""
     return ImageMetadata(
         image_properties=ImageProperties(width=img.size[0], height=img.size[1]),
         camera_properties=CameraProperties.model_validate(camera_properties),
         capture_metadata=CaptureMetadata.model_validate(capture_metadata),
+        provenance=CaptureProvenance(
+            plugin_version=version, plugin_git_sha=git_sha, tuning_file_sha256=tuning_file_sha256
+        ),
     )
 
 

@@ -14,57 +14,6 @@ class Picamera2Stub:
     def __init__(self, _camera_num: int = 0) -> None:
         raise RuntimeError(_ERR)
 
-    def configure(self, config: object) -> None:
-        """Configure the stub camera."""
-
-    def start(self) -> None:
-        """Start the stub camera."""
-
-    def stop(self) -> None:
-        """Stop the stub camera."""
-
-    def close(self) -> None:
-        """Close the stub camera."""
-
-    def capture_image(self, _name: str = "main") -> object:
-        """Capture a stub image (returns a PIL Image when running on Pi)."""
-
-    def capture_metadata(self) -> dict | None:
-        """Return stub capture metadata."""
-
-    def switch_mode_and_capture_image(self, _config: object) -> object:
-        """Switch to a stub config and capture a stub image."""
-
-    def start_recording(self, encoder: object, output: object) -> None:
-        """Start stub recording."""
-
-    def stop_recording(self) -> None:
-        """Stop stub recording."""
-
-    def start_encoder(self, encoder: object, output: object, *, name: str = "main") -> None:
-        """Stub attach an encoder to a named stream."""
-
-    def stop_encoder(self, encoders: object | None = None) -> None:
-        """Stub detach one, many, or all encoders."""
-
-    def set_controls(self, controls: dict[str, object]) -> None:
-        """Set stub camera controls."""
-
-    def autofocus_cycle(self, *, wait: bool | None = None, signal_function: object | None = None) -> object:
-        """Run a stub autofocus cycle."""
-
-    def create_still_configuration(self, **_kwargs: object) -> dict:
-        """Create a stub still configuration."""
-        return {}
-
-    def create_video_configuration(self, **_kwargs: object) -> dict:
-        """Create a stub video configuration."""
-        return {}
-
-    def create_preview_configuration(self, **_kwargs: object) -> dict:
-        """Create a stub preview configuration."""
-        return {}
-
 
 class H264EncoderStub:
     """Stub used on non-Raspberry Pi hosts so the app can start."""

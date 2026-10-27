@@ -98,6 +98,11 @@ COPY --link --chown=1000:44 --from=builder /app/app app
 RUN mkdir -p /app/data/images /app/logs /home/r9cam/.config/r9cam && \
     chown -R 1000:44 /app/data /app/logs /home/r9cam/.config
 
+# The commit this image was built from, recorded with each capture. Set late so a new
+# commit does not invalidate the layers above. Empty means unknown.
+ARG GIT_SHA=""
+ENV R9CAM_GIT_SHA=$GIT_SHA
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8018/')" || exit 1
 
