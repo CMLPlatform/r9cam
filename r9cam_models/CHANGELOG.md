@@ -7,6 +7,11 @@ are listed only in the GitHub tags (`relab-rpi-cam-models-v*`, and `r9cam-models
 
 ## [Unreleased]
 
+### Fixed
+
+- `PairingPollResponse` now rejects a `paired` status that lacks `camera_id`, `ws_url`,
+  `auth_scheme` or `key_id`.
+
 ## [0.6.0] - 2026-10-13
 
 The package and module are renamed. The models themselves are unchanged.

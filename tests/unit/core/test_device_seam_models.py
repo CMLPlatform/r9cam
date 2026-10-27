@@ -119,6 +119,12 @@ def test_pairing_poll_response_from_claimed_bootstrap() -> None:
     assert response.auth_scheme == RelayAuthScheme.DEVICE_ASSERTION
 
 
+def test_paired_poll_response_requires_bootstrap_fields() -> None:
+    """A paired status without the relay bootstrap fields is not a usable response."""
+    with pytest.raises(ValidationError):
+        PairingPollResponse.model_validate({"status": "paired"})
+
+
 def test_local_access_info_and_upload_ack_round_trip() -> None:
     """Local access info and upload acks should stay tiny and stable."""
     local_access = LocalAccessInfo.model_validate(
