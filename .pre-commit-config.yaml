@@ -6,7 +6,6 @@ repos:
           - id: check-case-conflict # Check for files with names that differ only in case.
           - id: check-executables-have-shebangs
           - id: check-shebang-scripts-are-executable
-          - id: check-json
           - id: check-toml
           - id: check-yaml
           - id: detect-private-key
@@ -14,6 +13,13 @@ repos:
           - id: mixed-line-ending
           - id: trailing-whitespace
             args: [ "--markdown-linebreak-ext", "md" ] # Preserve Markdown hard line breaks.
+
+    # .json files are read as JSON5, so comments and trailing commas pass;
+    # syntax errors and duplicate keys fail.
+    - repo: https://github.com/simonvanlierde/jsonvet
+      rev: 022d320d5b971eccb28cfa6ce205152cbb382e53 # frozen: v3.2.0
+      hooks:
+          - id: jsonvet
 
     - repo: https://github.com/gitleaks/gitleaks # Detect secrets in commits.
       rev: v8.30.1
