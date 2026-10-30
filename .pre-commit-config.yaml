@@ -21,6 +21,12 @@ repos:
       hooks:
           - id: jsonvet
 
+    # The citation files and package manifests must agree (CITATION.cff is the source).
+    - repo: https://github.com/simonvanlierde/citesync
+      rev: a3c5a9794449e78a33583e456af41bb24ebd240e # frozen: v0.1.0
+      hooks:
+          - id: citesync
+
     - repo: https://github.com/gitleaks/gitleaks # Detect secrets in commits.
       rev: v8.30.1
       hooks:

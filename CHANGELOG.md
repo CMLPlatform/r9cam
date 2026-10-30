@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Changed
+
+- The citation title in `CITATION.cff` is now `r9cam`, matching `codemeta.json`; the subtitle
+  opens the abstract. `codemeta.json` declares CodeMeta 3.0, the version Software Heritage reads.
+
 ### Fixed
 
 - A passphrase-protected `TLS_KEY_FILE` now stops startup with a message that the key must be
