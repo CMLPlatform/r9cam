@@ -1,13 +1,13 @@
 # Prep stage: fetch the Raspberry Pi archive keyring once (shared by later stages).
 # The remote .deb is checksum-pinned; only the extracted keyring file is copied forward.
 # See raspberrypi/rpi-image-gen#171 for why we fetch the .deb directly.
-FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS rpi-keyring
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS rpi-keyring
 ADD --checksum=sha256:2e727149d7acb8cc7f604e66d0049161039c8aa1eaf1175e54f9e69d963d60e4 \
     https://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1+rpt1_all.deb /tmp/keyring.deb
 RUN dpkg -i /tmp/keyring.deb
 
 # Build stage: compile the virtual environment (no S3 dependencies by default).
-FROM ghcr.io/astral-sh/uv:0.13-python3.13-trixie-slim@sha256:331fbb158258608b9391e802305a9a2c9e42d689435c1d98706647122a122ab0 AS builder
+FROM ghcr.io/astral-sh/uv:0.13-python3.13-trixie-slim@sha256:6ff812e34a0e14b4b8bc9ddf25e77b3e16bac6e0c4d9b67641f40366fa382d4c AS builder
 
 WORKDIR /app
 
@@ -48,7 +48,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Plain Debian, not python:3.13-slim: python3-picamera2 already installs Debian's
 # python3.13, which the venv is built on, so a second interpreter in /usr/local
 # would be 33 MiB of dead weight.
-FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS runtime
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS runtime
 
 # The source label links a pushed GHCR package to this repository.
 LABEL org.opencontainers.image.source="https://github.com/CMLPlatform/r9cam" \
