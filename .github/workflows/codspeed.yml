@@ -9,10 +9,16 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'LICENSE'
+    # Only what the benchmarks import or install. Docs, fuzzing and model-publishing changes
+    # can't move a result.
+    paths:
+      - 'app/**'
+      - 'r9cam_models/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.python-version'
+      - '.github/workflows/codspeed.yml'
   # Lets CodSpeed trigger backtest runs to build up initial history.
   workflow_dispatch:
 

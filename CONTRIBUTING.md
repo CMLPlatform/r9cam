@@ -118,7 +118,7 @@ When removing or refactoring tests, keep coverage for public behavior and delete
 
 `tests/benchmarks/` holds [pytest-codspeed](https://codspeed.io/docs/reference/pytest-codspeed) benchmarks for CPU-bound hot paths: preview JPEG encoding, relay command parsing and allowlisting, schema validation, redacting JSON log formatting, and a few end-to-end ASGI requests. They also run as plain tests in the normal suite.
 
-The `CodSpeed` workflow runs them on every PR and on `main` with CodSpeed's CPU simulation instrument and reports regressions on the PR. To run them locally:
+The `CodSpeed` workflow runs them on PRs that touch `app/`, `r9cam_models/`, `tests/` or the dependencies, and on every push to `main`, with CodSpeed's CPU simulation instrument and reports regressions on the PR. To run them locally:
 
 ```sh
 just bench
