@@ -57,7 +57,7 @@
     { include-group = "test" },
     { include-group = "s3" },
     "commitizen>=4.8.3",
-    "mutmut==3.8.0",
+    "mutmut==3.8.1",
     "prek>=0.4.11",
     "ruff>=0.9.6",
     "ty>=0.0.29",
