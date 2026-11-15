@@ -224,11 +224,6 @@ class TestSettingsDefaults:
         s = Settings()
         assert s.camera_device_num == 0
 
-    def test_default_relay_disabled(self) -> None:
-        """By default, static config should not include relay credentials."""
-        s = Settings()
-        assert s.has_static_relay_credentials is False
-
     def test_observability_disabled_by_default(self) -> None:
         """Tracing should stay opt-in by default."""
         s = Settings()
@@ -240,6 +235,13 @@ class TestSettingsDefaults:
     def test_cookie_secure_defaults_to_https_scheme(self) -> None:
         """HTTPS base URLs should secure cookies by default."""
         s = Settings(base_url=HttpUrl("https://camera.example"))
+        assert s.cookie_secure is True
+
+    def test_cookie_secure_follows_tls_with_http_base_url(self) -> None:
+        """Serving TLS itself should secure cookies even when BASE_URL is http."""
+        s = Settings.model_construct(  # skip loading the key files
+            base_url=HttpUrl("http://camera.example"), tls_cert_file="/c.pem", tls_key_file="/k.pem"
+        )
         assert s.cookie_secure is True
 
     def test_cookie_secure_respects_explicit_override(self) -> None:

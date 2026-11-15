@@ -84,7 +84,7 @@ class TestRateLimiter:
         limiter = middleware_mod.RateLimiter()
         request = _request("POST", "/auth/login")
 
-        for _ in range(limiter.LOGIN_MAX_FAILED_ATTEMPTS):
+        for _ in range(middleware_mod._LOGIN_MAX_FAILED_ATTEMPTS):
             response = await limiter.handle(request, lambda _request: _response(403))
             assert response.status_code == 403
 
@@ -98,7 +98,7 @@ class TestRateLimiter:
         limiter = middleware_mod.RateLimiter()
         request = _request(RATE_LIMIT_METHOD, RATE_LIMIT_PATH, client=RATE_LIMIT_CLIENT_HOST)
 
-        for _ in range(limiter.LOGIN_MAX_FAILED_ATTEMPTS):
+        for _ in range(middleware_mod._LOGIN_MAX_FAILED_ATTEMPTS):
             await limiter.handle(request, lambda _request: _response(403))
 
         with caplog.at_level("WARNING"):
@@ -123,7 +123,6 @@ class TestRateLimiter:
             ("POST", "/streams/youtube"),
             ("POST", "/preview/start"),
             ("POST", "/preview/stop"),
-            ("PATCH", "/camera/controls"),
             ("PUT", "/camera/focus"),
             ("DELETE", "/pairing"),
             ("POST", "/pairing/code"),
@@ -134,7 +133,7 @@ class TestRateLimiter:
         limiter = middleware_mod.RateLimiter()
         request = _request(method, path, headers={"X-API-Key": TEST_API_KEY})
 
-        for _ in range(limiter.ACTION_MAX_ATTEMPTS):
+        for _ in range(middleware_mod._ACTION_MAX_ATTEMPTS):
             response = await limiter.handle(request, lambda _request: _response())
             assert response.status_code == 204
 
@@ -148,7 +147,7 @@ class TestRateLimiter:
         limiter = middleware_mod.RateLimiter()
         request = _request("GET", "/preview/hls/cam-preview/index.m3u8")
 
-        for _ in range(limiter.ACTION_MAX_ATTEMPTS + 1):
+        for _ in range(middleware_mod._ACTION_MAX_ATTEMPTS + 1):
             response = await limiter.handle(request, lambda _request: _response())
             assert response.status_code == 204
 
@@ -159,7 +158,7 @@ class TestRateLimiter:
         first_request = _request("POST", "/captures", headers={"X-API-Key": TEST_API_KEY})
         second_request = _request("POST", "/captures", headers={"X-API-Key": OTHER_TEST_API_KEY})
 
-        for _ in range(limiter.ACTION_MAX_ATTEMPTS):
+        for _ in range(middleware_mod._ACTION_MAX_ATTEMPTS):
             response = await limiter.handle(first_request, lambda _request: _response())
             assert response.status_code == 204
 
@@ -173,7 +172,7 @@ class TestRateLimiter:
         captures_request = _request("POST", "/captures", headers={"X-API-Key": TEST_API_KEY})
         stream_request = _request("POST", "/streams/youtube", headers={"X-API-Key": TEST_API_KEY})
 
-        for _ in range(limiter.ACTION_MAX_ATTEMPTS):
+        for _ in range(middleware_mod._ACTION_MAX_ATTEMPTS):
             response = await limiter.handle(captures_request, lambda _request: _response())
             assert response.status_code == 204
 
@@ -220,3 +219,53 @@ class TestRequestIdValidation:
 
         assert response.headers["X-Request-ID"] != request_id
         assert response.headers["X-Request-ID"]
+
+
+class TestRateLimiterBypasses:
+    """Failed-auth budgets must not depend on attacker-chosen values."""
+
+    @pytest.mark.asyncio
+    async def test_login_bucket_ignores_random_api_key_header(self) -> None:
+        """A fresh X-API-Key or cookie per login attempt must not get a fresh bucket."""
+        limiter = middleware_mod.RateLimiter()
+        for i in range(middleware_mod._LOGIN_MAX_FAILED_ATTEMPTS):
+            request = _request("POST", "/auth/login", headers={"X-API-Key": f"random-{i}"})
+            await limiter.handle(request, lambda _request: _response(403))
+
+        request = _request("POST", "/auth/login", headers={"X-API-Key": "yet-another"})
+        assert (await limiter.handle(request, lambda _request: _response(403))).status_code == 429
+
+    @pytest.mark.asyncio
+    async def test_auth_failures_count_against_login_bucket(self) -> None:
+        """Failed request authentication shares the client IP's login budget."""
+        limiter = middleware_mod.RateLimiter()
+        request = _request("GET", "/camera/status", headers={"X-API-Key": "guess"})
+        for _ in range(middleware_mod._LOGIN_MAX_FAILED_ATTEMPTS):
+            assert not limiter.login_blocked(request)
+            limiter.record_auth_failure(request)
+
+        assert limiter.login_blocked(request)
+        login = _request("POST", "/auth/login")
+        assert (await limiter.handle(login, lambda _request: _response(401))).status_code == 429
+
+    @pytest.mark.asyncio
+    async def test_camera_controls_count_only_failures(self) -> None:
+        """Successful slider updates must not exhaust the controls budget."""
+        limiter = middleware_mod.RateLimiter()
+        request = _request("PATCH", "/camera/controls", headers={"X-API-Key": TEST_API_KEY})
+        for _ in range(middleware_mod._ACTION_MAX_ATTEMPTS * 3):
+            assert (await limiter.handle(request, lambda _request: _response())).status_code == 204
+
+
+class TestHsts:
+    """HSTS follows TLS, not only the BASE_URL scheme."""
+
+    @pytest.mark.asyncio
+    async def test_hsts_sent_when_tls_enabled_with_http_base_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """TLS served directly should send HSTS regardless of BASE_URL."""
+        monkeypatch.setattr(middleware_mod.settings, "tls_cert_file", "/c.pem")
+        monkeypatch.setattr(middleware_mod.settings, "tls_key_file", "/k.pem")
+        response = await middleware_mod.security_headers_middleware(
+            _request("GET", "/health"), lambda _request: _response()
+        )
+        assert "Strict-Transport-Security" in response.headers

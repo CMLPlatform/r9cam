@@ -29,24 +29,8 @@ RELAY_PRIVATE_KEY_PEM = fresh_p256_pem()
 ENV_RELAY_PRIVATE_KEY_PEM = fresh_p256_pem()
 
 
-class TestStaticRelayCredentialsProperty:
-    """Test the static relay bootstrap credential helper."""
-
-    def test_disabled_by_default(self) -> None:
-        """Relay should be disabled if no fields are set."""
-        s = Settings()
-        assert s.has_static_relay_credentials is False
-
-    def test_enabled_when_all_fields_set(self) -> None:
-        """Relay should be enabled if all required fields are set."""
-        s = Settings(
-            relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
-            relay_camera_id="cam-1",
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
-            relay_key_id=RELAY_KEY_ID,
-            relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
-        )
-        assert s.has_static_relay_credentials is True
+class TestStaticRelayCredentialValidation:
+    """Test validation of static relay bootstrap credentials."""
 
     def test_disabled_when_partial(self) -> None:
         """Partial relay bootstrap config should be rejected."""

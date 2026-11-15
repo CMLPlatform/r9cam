@@ -291,17 +291,6 @@ class Settings(BaseSettings):
     max_capture_file_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
 
     @property
-    def has_static_relay_credentials(self) -> bool:
-        """Return whether env/static config contains a complete relay credential."""
-        return bool(
-            self.relay_backend_url
-            and self.relay_camera_id
-            and self.relay_auth_scheme == RELAY_AUTH_SCHEME_DEVICE_ASSERTION
-            and self.relay_key_id
-            and self.relay_private_key_pem
-        )
-
-    @property
     def tls_enabled(self) -> bool:
         """Return whether the local API serves HTTPS itself."""
         return bool(self.tls_cert_file and self.tls_key_file)
@@ -311,7 +300,7 @@ class Settings(BaseSettings):
         """Return whether auth cookies should be marked secure."""
         if self.auth_cookie_secure is not None:
             return self.auth_cookie_secure
-        return self.base_url.scheme == HTTPS_SCHEME
+        return self.base_url.scheme == HTTPS_SCHEME or self.tls_enabled
 
     @property
     def browser_session_cookie_name(self) -> str:
