@@ -41,7 +41,6 @@ LOGO_SRC = "/static/logo.png"
 SITE_JS_SRC = "/static/site.js"
 THEME_INIT_JS_SRC = "/static/theme-init.js"
 HOMEPAGE_PREVIEW_JS_SRC = "/static/homepage-preview.js"
-HLS_CDN_JS_SRC = "https://cdn.jsdelivr.net/npm/hls.js@1.6.16/dist/hls.min.js"
 HLS_JS_SRI = "sha384-5E8B0pTlZZJMabWpC0fyYf6OUpe15jJij34BqBAh4NXoHAlLNOjCPRrwtOXOQFAn"
 HLS_CROSSORIGIN_ATTR = 'crossorigin="anonymous"'
 HLS_VENDOR_JS_SRC = "/static/vendor/hls-1.6.16.min.js"
@@ -68,9 +67,9 @@ class TestHomepage:
         assert HTML_CONTENT_TYPE in resp.headers["content-type"]
 
     async def test_homepage_sets_strict_csp_for_pinned_preview_assets(self, unauthed_client: AsyncClient) -> None:
-        """The landing page CSP should allow local scripts and the pinned HLS CDN without inline scripts."""
+        """The landing page CSP should allow local scripts only without inline scripts."""
         resp = await unauthed_client.get("/")
-        assert SETUP_CSP_CDN in resp.headers[HEADER_CSP]
+        assert SETUP_CSP_CDN not in resp.headers[HEADER_CSP]
         assert SETUP_CSP_INLINE not in resp.headers[HEADER_CSP]
         assert SETUP_CSP_CONNECT_SELF in resp.headers[HEADER_CSP]
         assert SETUP_CSP_BROAD_CONNECT not in resp.headers[HEADER_CSP]
@@ -102,10 +101,10 @@ class TestHomepage:
         assert SITE_JS_SRC in resp.text
         assert THEME_INIT_JS_SRC in resp.text
         assert HOMEPAGE_PREVIEW_JS_SRC in resp.text
-        assert HLS_CDN_JS_SRC in resp.text
+        assert HLS_VENDOR_JS_SRC in resp.text
         assert HLS_JS_SRI in resp.text
         assert HLS_CROSSORIGIN_ATTR in resp.text
-        assert HLS_VENDOR_JS_SRC not in resp.text
+        assert SETUP_CSP_CDN not in resp.text
 
     async def test_homepage_keeps_primary_actions_in_header_only(self, unauthed_client: AsyncClient) -> None:
         """The homepage should avoid duplicating setup navigation or linking production docs."""
@@ -173,7 +172,7 @@ class TestHomepage:
 
     async def test_static_allowlist_serves_known_asset_extensions(self, unauthed_client: AsyncClient) -> None:
         """Static serving should allow only the asset extensions the UI actually uses."""
-        for path in (LOGO_SRC, SITE_JS_SRC, "/static/styles.css", "/static/favicon.ico"):
+        for path in (LOGO_SRC, SITE_JS_SRC, HLS_VENDOR_JS_SRC, "/static/styles.css", "/static/favicon.ico"):
             resp = await unauthed_client.get(path)
 
             assert resp.status_code == 200

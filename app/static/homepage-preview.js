@@ -17,6 +17,7 @@ const STRINGS = {
   startFailed: (status) => `The preview could not start (HTTP ${status}). Wait a moment and try again.`,
   networkError: "The preview could not start. Check the network and try again.",
   hlsUnsupported: "This browser cannot play the live preview.",
+  hlsScriptMissing: "The player script failed to load. Reload the page to try again.",
 };
 
 let hls = null;
@@ -73,6 +74,9 @@ function showVideo() {
 
 function attachPlayer() {
   const video = document.getElementById("preview-video");
+  if (!window.Hls && !video.canPlayType("application/vnd.apple.mpegurl")) {
+    throw new Error(STRINGS.hlsScriptMissing);
+  }
   if (window.Hls && window.Hls.isSupported()) {
     hls = new window.Hls({
       liveSyncDurationCount: 2,
