@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 SUPPORTED_LANGUAGES = ("en", "nl")
 DEFAULT_LANGUAGE = "en"
 _DOMAIN = "messages"
+_Q_PARAM = "q"
+_VARY_TOKEN = "Accept-Language"  # noqa: S105 - a header name, not a password
 
 
 def N_(message: str) -> str:  # noqa: N802 - the gettext keyword that marks a string for extraction
@@ -32,16 +34,20 @@ def negotiate_language(accept_language: str | None) -> str:
     """Return the supported language the Accept-Language header ranks highest, else English."""
     best, best_q = DEFAULT_LANGUAGE, 0.0
     for part in (accept_language or "").split(","):
-        tag, _, params = part.strip().partition(";")
+        tag, *params = part.split(";")
         language = tag.strip().lower().split("-")[0]
         if language not in SUPPORTED_LANGUAGES:
             continue
         q = 1.0
-        if params.strip().startswith("q="):
-            try:
-                q = float(params.strip()[2:])
-            except ValueError:
-                continue
+        for param in params:
+            name, _, value = param.partition("=")
+            if name.strip().lower() == _Q_PARAM:
+                try:
+                    q = float(value.strip())
+                except ValueError:
+                    q = -1.0
+        if not 0.0 <= q <= 1.0:  # also rejects nan; an out-of-range weight is a malformed entry
+            continue
         if q > best_q:
             best, best_q = language, q
     return best
@@ -76,11 +82,20 @@ def _templates(language: str) -> Jinja2Templates:
     return Jinja2Templates(env=env)
 
 
+def _vary_on_language(response: Response) -> None:
+    """Add Accept-Language to the response's Vary header, keeping values already there."""
+    existing = response.headers.get("Vary")
+    if not existing:
+        response.headers["Vary"] = _VARY_TOKEN
+    elif _VARY_TOKEN.lower() not in existing.lower():
+        response.headers["Vary"] = f"{existing}, {_VARY_TOKEN}"
+
+
 def render(request: Request, name: str, context: dict[str, Any]) -> _TemplateResponse:
     """Render a template in the request's language, marking the response as varying on it."""
     language = request_language(request)
     response = _templates(language).TemplateResponse(request, name, {**context, "lang": language})
-    response.headers["Vary"] = "Accept-Language"
+    _vary_on_language(response)
     return response
 
 
@@ -96,5 +111,5 @@ async def http_exception_handler(request: Request, exc: Exception) -> Response:
     response = await default_http_exception_handler(
         request, StarletteHTTPException(http_exc.status_code, detail, http_exc.headers)
     )
-    response.headers["Vary"] = "Accept-Language"
+    _vary_on_language(response)
     return response

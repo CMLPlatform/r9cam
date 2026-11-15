@@ -568,7 +568,9 @@ class TestLogoutEndpoint:
         )
 
         assert resp.status_code == 303
-        assert settings.browser_session_cookie_name in resp.headers.get("set-cookie", "")
+        set_cookie = resp.headers.get("set-cookie", "")
+        assert settings.browser_session_cookie_name in set_cookie
+        assert "Secure" in set_cookie
 
     async def test_logout_rejects_cross_site_cookie_write(self, unauthed_client: AsyncClient) -> None:
         """Logout is cookie-authenticated and should enforce the same CSRF policy."""

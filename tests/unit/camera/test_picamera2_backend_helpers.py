@@ -461,6 +461,28 @@ class TestPicamera2BackendMethods:
 
         mediamtx.clear_egress.assert_awaited_once_with(PICAMERA2_CAM_HIRES_PATH)
 
+    async def test_failed_stop_keeps_encoder_for_next_start(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An encoder whose stop raised is stopped again before the next start attaches a new one."""
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        leftover = MagicMock(name="leftover")
+        camera.stop_encoder.side_effect = [RuntimeError("encoder stuck"), None]
+        cast("Any", backend)._camera = camera
+        cast("Any", backend)._main_encoder = leftover
+        mediamtx = cast("Any", backend._mediamtx)
+        mediamtx.set_youtube_egress = AsyncMock()
+        mediamtx.clear_egress = AsyncMock()
+        monkeypatch.setattr(backend_mod, "H264Encoder", MagicMock(return_value=MagicMock(name="encoder")))
+        monkeypatch.setattr(backend_mod, "build_hires_rtsp_output", MagicMock(return_value=MagicMock(name="output")))
+        config = YoutubeStreamConfig(stream_key=SecretStr("good"), broadcast_key=SecretStr("public-id"))
+
+        with pytest.raises(RuntimeError, match="encoder stuck"):
+            await backend.stop_stream()
+        await backend.start_stream(StreamMode.YOUTUBE, youtube_config=config)
+
+        assert [c.args for c in camera.stop_encoder.call_args_list] == [(leftover,), (leftover,)]
+        camera.start_encoder.assert_called_once()
+
     async def test_stop_stream_clears_egress_and_encoder(self) -> None:
         """Stopping should detach the encoder and clear the MediaMTX path."""
         backend = Picamera2Backend()

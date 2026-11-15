@@ -8,11 +8,12 @@ from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic import SecretStr
 from r9cam_models.camera import CameraMode
 from r9cam_models.stream import StreamMode
 
 from app.camera.exceptions import YoutubeConfigRequiredError
-from app.camera.schemas import FocusControlRequest, FocusMode
+from app.camera.schemas import FocusControlRequest, FocusMode, YoutubeStreamConfig
 from app.camera.services import picamera2_backend as backend_mod
 from app.camera.services.picamera2_backend import Picamera2Backend
 
@@ -311,16 +312,26 @@ class TestPicamera2Backend:
             await asyncio.sleep(0.02)
         camera.stop_encoder.assert_called_once_with("enc")
 
-    async def test_stop_stream_clears_encoder_when_stop_raises(self) -> None:
-        """A failing stop_encoder must not leave the main encoder tracked."""
+    async def test_stuck_encoder_does_not_block_later_starts(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An encoder whose stop keeps failing is dropped on the next start, which then goes ahead."""
         backend = Picamera2Backend()
         camera = MagicMock()
         camera.stop_encoder.side_effect = RuntimeError("boom")
-        cast("Any", backend._mediamtx).clear_egress = AsyncMock()
+        mediamtx = cast("Any", backend._mediamtx)
+        mediamtx.set_youtube_egress = AsyncMock()
+        mediamtx.clear_egress = AsyncMock()
         cast("Any", backend)._camera = camera
-        cast("Any", backend)._main_encoder = MagicMock()
+        stuck = MagicMock(name="stuck")
+        cast("Any", backend)._main_encoder = stuck
+        new_encoder = MagicMock(name="new")
+        monkeypatch.setattr(backend_mod, "H264Encoder", MagicMock(return_value=new_encoder))
+        monkeypatch.setattr(backend_mod, "build_hires_rtsp_output", MagicMock(return_value=MagicMock()))
+        config = YoutubeStreamConfig(stream_key=SecretStr("good"), broadcast_key=SecretStr("public-id"))
 
         with pytest.raises(RuntimeError, match="boom"):
             await backend.stop_stream()
+        assert backend._main_encoder is stuck
 
-        assert backend._main_encoder is None
+        await backend.start_stream(StreamMode.YOUTUBE, youtube_config=config)
+
+        assert backend._main_encoder is new_encoder

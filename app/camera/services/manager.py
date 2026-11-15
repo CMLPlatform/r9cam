@@ -36,6 +36,7 @@ from app.delivery.queue import UploadQueue, UploadQueueFullError
 from app.observability.logging import build_log_extra
 from app.utils.file_policy import JPEG_CAPTURE_POLICY
 from app.utils.files import cleanup_images
+from r9cam_models import RELAY_COMMAND_TIMEOUT_SECONDS
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping
@@ -101,7 +102,9 @@ def encode_preview_jpeg(image: PilImage) -> bytes:
     return buffer.getvalue()
 
 
-_SINK_PUT_TIMEOUT_S = 20
+# Margin below the relay's command timeout, so a slow sink falls back to the queue
+# before the relay cancels the capture with the JPEG in memory only.
+_CAPTURE_DEADLINE_S = RELAY_COMMAND_TIMEOUT_SECONDS - 5
 
 
 class CameraManager:
@@ -211,7 +214,8 @@ class CameraManager:
         carries it) and its hash goes into the metadata. ``role`` marks a colour-reference shot;
         a ``session_id`` becomes the current session for this and later captures.
         """
-        capture_session_id = session_id or self._session_id
+        # Lock wait and capture count against the deadline too, so it starts here.
+        deadline = asyncio.get_running_loop().time() + _CAPTURE_DEADLINE_S
         upload_meta = upload_metadata or {}
 
         image_id = secrets.token_hex(_CAPTURE_ID_BYTES)
@@ -219,6 +223,8 @@ class CameraManager:
         image_path = settings.image_path / filename
 
         async with self._locked():
+            # Read under the lock so a capture queued behind one that sets a session joins it.
+            capture_session_id = session_id or self._session_id
             result = await self.backend.capture_image()
             JPEG_CAPTURE_POLICY.validate_dimensions(result.image.size, max_pixels=settings.max_capture_pixels)
             raw_sha256 = None
@@ -251,9 +257,8 @@ class CameraManager:
         capture_metadata_dict = img_metadata.model_dump(mode="json")
 
         try:
-            # Inner deadline below the relay's 30 s command timeout, so a hung sink
-            # falls back to the queue instead of being cancelled with the JPEG in memory only.
-            async with asyncio.timeout(_SINK_PUT_TIMEOUT_S):
+            # A deadline already past cancels the put at its first await, which queues the JPEG.
+            async with asyncio.timeout_at(deadline):
                 stored = await self.sink.put(
                     image_id=image_id,
                     image_bytes=image_bytes,

@@ -257,6 +257,15 @@ class TestRateLimiterBypasses:
         for _ in range(middleware_mod._ACTION_MAX_ATTEMPTS * 3):
             assert (await limiter.handle(request, lambda _request: _response())).status_code == 204
 
+    @pytest.mark.asyncio
+    async def test_camera_controls_failures_still_hit_the_limit(self) -> None:
+        """Failed slider updates exhaust the controls budget."""
+        limiter = middleware_mod.RateLimiter()
+        request = _request("PATCH", "/camera/controls", headers={"X-API-Key": TEST_API_KEY})
+        for _ in range(middleware_mod._ACTION_MAX_ATTEMPTS):
+            assert (await limiter.handle(request, lambda _request: _response(422))).status_code == 422
+        assert (await limiter.handle(request, lambda _request: _response())).status_code == 429
+
 
 class TestHsts:
     """HSTS follows TLS, not only the BASE_URL scheme."""

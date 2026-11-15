@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import socket
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Request, Response
 
@@ -35,7 +36,9 @@ def get_candidate_urls() -> list[str]:
     port, not the device's.
     """
     scheme = "https" if settings.tls_enabled else "http"
-    port = settings.base_url.port if settings.base_url.scheme == scheme and settings.base_url.port else API_PORT
+    # pydantic fills in 443/80 for a port-less base_url, so read the port from the text.
+    explicit_port = urlsplit(str(settings.base_url)).port
+    port = explicit_port if settings.base_url.scheme == scheme and explicit_port else API_PORT
     return [f"{scheme}://{ip}:{port}" for ip in find_lan_ips()]
 
 

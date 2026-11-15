@@ -1,6 +1,7 @@
 """Tests for configuration and settings validation."""
 
 import json
+import ssl
 from pathlib import Path
 
 import pytest
@@ -353,7 +354,7 @@ class TestLocalApiTlsValidation:
         with pytest.raises(ValueError, match="could not be loaded"):
             Settings(tls_cert_file=str(cert), tls_key_file=str(other_key))
 
-    def test_encrypted_key_fails_instead_of_prompting(self, tmp_path: Path) -> None:
+    def test_encrypted_key_fails_instead_of_prompting(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A passphrase-protected key stops startup at once; OpenSSL must not wait for a password."""
         cert, key = write_self_signed_cert(tmp_path)
         loaded = serialization.load_pem_private_key(key.read_bytes(), password=None)
@@ -364,8 +365,17 @@ class TestLocalApiTlsValidation:
                 serialization.BestAvailableEncryption(b"secret"),
             )
         )
+        passwords: list[object] = []
+        real_load = ssl.SSLContext.load_cert_chain
+
+        def _spy(self: ssl.SSLContext, certfile: str, keyfile: str | None = None, password: object = None) -> None:
+            passwords.append(password)
+            real_load(self, certfile, keyfile, password)  # ty: ignore[invalid-argument-type]
+
+        monkeypatch.setattr(ssl.SSLContext, "load_cert_chain", _spy)
         with pytest.raises(ValueError, match="unencrypted"):
             Settings(tls_cert_file=str(cert), tls_key_file=str(key))
+        assert passwords == [b""]
 
     def test_valid_pair_turns_tls_on(self, tmp_path: Path) -> None:
         """A readable certificate and matching key enable TLS."""

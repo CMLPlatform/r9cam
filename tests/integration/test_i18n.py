@@ -4,6 +4,8 @@ import gettext
 import json
 import re
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from babel.messages.extract import DEFAULT_KEYWORDS, extract_from_dir
@@ -11,6 +13,7 @@ from babel.messages.frontend import parse_mapping_cfg
 from babel.messages.pofile import read_po
 from httpx import AsyncClient
 
+import app.core.i18n as i18n_mod
 from app.core.i18n import negotiate_language
 
 APP_DIR = Path(__file__).resolve().parents[2] / "app"
@@ -37,11 +40,29 @@ LOGIN_FORM = {"api_key": "wrong", "redirect_url": "/"}
         ("nl;q=0", "en"),
         ("*", "en"),
         ("nl;q=bogus", "en"),
+        ("nl; Q=0.5, en;q=0.8", "en"),
+        ("nl ; q = 0.5, en;q=0.8", "en"),
+        ("nl;level=1;q=0.5, en;q=0.8", "en"),
+        ("nl;q=0.5;level=1, en;q=0.8", "en"),
+        ("nl;q=nan", "en"),
+        ("nl;q=inf", "en"),
+        ("nl;q=1.5", "en"),
+        ("nl;q=-1", "en"),
     ],
 )
 def test_negotiate_language(header: str | None, expected: str) -> None:
     """The highest-ranked supported language wins, and English is the fallback."""
     assert negotiate_language(header) == expected
+
+
+def test_render_appends_to_an_existing_vary(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rendering must not drop a Vary value another layer already set."""
+    response = SimpleNamespace(headers={"Vary": "Cookie"})
+    templates = SimpleNamespace(TemplateResponse=lambda *_args: response)
+    monkeypatch.setattr(i18n_mod, "_templates", lambda _language: templates)
+    request = SimpleNamespace(headers={})
+
+    assert i18n_mod.render(cast("Any", request), "x.html", {}).headers["Vary"] == "Cookie, Accept-Language"
 
 
 @pytest.mark.parametrize("path", ["/", "/setup"])

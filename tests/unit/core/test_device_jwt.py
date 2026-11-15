@@ -15,15 +15,16 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from app.core.runtime import AppRuntime, set_active_runtime
+from app.core.runtime import AppRuntime
 from app.relay.device_jwt import (
     DEVICE_ASSERTION_AUDIENCE,
     DEVICE_ASSERTION_TTL_SECONDS,
     build_device_assertion,
 )
+from tests.fakes import fresh_p256_pem
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from app.core.runtime_state import RuntimeState
 
 _KID_DEFAULT = "cam-key-42"
 _CAMERA_ID_DEFAULT = "11111111-2222-3333-4444-555555555555"
@@ -32,47 +33,32 @@ _ISS_DEFAULT = f"camera:{_CAMERA_ID_DEFAULT}"
 _ISS_ROUND_TRIP = f"camera:{_CAMERA_ID_ROUND_TRIP}"
 
 
-def _fresh_p256_pem() -> str:
-    """Mint a throwaway P-256 private key in PEM form for signing."""
-    key = ec.generate_private_key(ec.SECP256R1())
-    return key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    ).decode()
-
-
 @pytest.fixture
-def _signing_runtime() -> Iterator[None]:
-    """Install a valid signing key + identity on the active runtime."""
+def runtime_state() -> RuntimeState:
+    """Return runtime state holding a valid signing key + identity."""
     runtime = AppRuntime()
     runtime.runtime_state.set_relay_credentials(
         relay_backend_url="wss://backend.example/ws",
         relay_camera_id=_CAMERA_ID_DEFAULT,
         relay_key_id=_KID_DEFAULT,
-        relay_private_key_pem=_fresh_p256_pem(),
+        relay_private_key_pem=fresh_p256_pem(),
     )
-    set_active_runtime(runtime)
-    try:
-        yield
-    finally:
-        set_active_runtime(None)
+    return runtime.runtime_state
 
 
-@pytest.mark.usefixtures("_signing_runtime")
 class TestBuildDeviceAssertion:
     """Shape assertions for the minted JWT."""
 
-    def test_token_header_uses_es256_and_kid(self) -> None:
+    def test_token_header_uses_es256_and_kid(self, runtime_state: RuntimeState) -> None:
         """The JOSE header declares ES256 and points ``kid`` at the camera's relay key."""
-        token = build_device_assertion()
+        token = build_device_assertion(runtime_state)
         header = jwt.get_unverified_header(token)
         assert header["alg"] == "ES256"
         assert header["kid"] == _KID_DEFAULT
 
-    def test_token_payload_has_expected_claims(self) -> None:
+    def test_token_payload_has_expected_claims(self, runtime_state: RuntimeState) -> None:
         """All the claims the backend relies on are present with sane values."""
-        token = build_device_assertion()
+        token = build_device_assertion(runtime_state)
         # Decode without verifying signature; the signer is a fresh throwaway key.
         payload = jwt.decode(token, options={"verify_signature": False})
         assert payload["aud"] == DEVICE_ASSERTION_AUDIENCE
@@ -84,10 +70,10 @@ class TestBuildDeviceAssertion:
         assert isinstance(payload["jti"], str)
         assert len(payload["jti"]) > 0
 
-    def test_successive_tokens_have_distinct_jtis(self) -> None:
+    def test_successive_tokens_have_distinct_jtis(self, runtime_state: RuntimeState) -> None:
         """Each call should mint a fresh ``jti`` so the backend can reject replays."""
-        first = jwt.decode(build_device_assertion(), options={"verify_signature": False})
-        second = jwt.decode(build_device_assertion(), options={"verify_signature": False})
+        first = jwt.decode(build_device_assertion(runtime_state), options={"verify_signature": False})
+        second = jwt.decode(build_device_assertion(runtime_state), options={"verify_signature": False})
         assert first["jti"] != second["jti"]
 
 
@@ -117,11 +103,7 @@ class TestBuildDeviceAssertionRoundTrip:
             relay_key_id="cam-key-round-trip",
             relay_private_key_pem=private_pem,
         )
-        set_active_runtime(runtime)
-        try:
-            token = build_device_assertion()
-        finally:
-            set_active_runtime(None)
+        token = build_device_assertion(runtime.runtime_state)
 
         decoded = jwt.decode(
             token,
@@ -145,9 +127,5 @@ class TestBuildDeviceAssertionKeyPolicy:
             relay_key_id=_KID_DEFAULT,
             relay_private_key_pem="not a private key",
         )
-        set_active_runtime(runtime)
-        try:
-            with pytest.raises(ValueError, match="private key"):
-                build_device_assertion()
-        finally:
-            set_active_runtime(None)
+        with pytest.raises(ValueError, match="private key"):
+            build_device_assertion(runtime.runtime_state)

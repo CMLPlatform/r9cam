@@ -5,6 +5,7 @@ This is a short view of what is planned for r9cam over the next year, to October
 ## Planned
 
 - Test metadata parsing against a dict recorded from a real camera ([#53](https://github.com/CMLPlatform/r9cam/issues/53)).
+- Upload the raw DNG with its JPEG when `RAW_CAPTURE` is on, so it no longer stays on the Pi ([#137](https://github.com/CMLPlatform/r9cam/issues/137), backend side [r9lab#520](https://github.com/CMLPlatform/r9lab/issues/520)).
 - Run hardware-in-the-loop tests on a self-hosted Raspberry Pi, on a schedule or by manual dispatch on `main` only, never from pull requests. They publish capture latency, upload p95 and SoC temperature.
 - Build a teardown station kit once a second site joins: motion and lighting control behind their own seams, a relay command that captures a sequence of views, a bill of materials, print files and an assembly guide.
 - Keep the contract with the R9lab platform stable: changes to `r9cam_models` stay backward compatible, and the package is released in step with the plugin.

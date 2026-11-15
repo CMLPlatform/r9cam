@@ -299,6 +299,13 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
         assert youtube_config is not None  # noqa: S101  # narrowed by validate_youtube_mode
         await self.open(CameraMode.VIDEO)
         camera = self._require_camera()
+        # A stop that failed earlier left its encoder attached to the main stream. Retry once, then
+        # drop the handle so one stuck encoder cannot block every later start.
+        try:
+            await self._stop_main_encoder(camera)
+        except (OSError, RuntimeError) as exc:
+            logger.warning("Leftover main encoder did not stop: %s", exc, extra=build_log_extra())
+            self._main_encoder = None
 
         # Configure the MediaMTX egress before we start publishing. If this
         # fails the Pi never bothers starting its encoder — no half-started
@@ -329,13 +336,17 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
         url = get_broadcast_url(youtube_config)
         return StreamStartResult(mode=mode, url=url)
 
+    async def _stop_main_encoder(self, camera: Picamera2Like) -> None:
+        """Stop the main encoder; the handle is kept when the stop raises so a later call retries."""
+        if self._main_encoder is not None:
+            await asyncio.to_thread(camera.stop_encoder, self._main_encoder)
+            self._main_encoder = None
+
     async def stop_stream(self) -> None:
         """Stop the main encoder and clear the MediaMTX egress."""
         camera = self._require_camera()
-        encoder, self._main_encoder = self._main_encoder, None
         try:
-            if encoder is not None:
-                await asyncio.to_thread(camera.stop_encoder, encoder)
+            await self._stop_main_encoder(camera)
         finally:
             # Always clear the MediaMTX egress even if the encoder stop raised —
             # leaving a stale ``runOnReady`` on the path would make the next

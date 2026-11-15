@@ -100,11 +100,9 @@ Any path used at request time is either encoded or checked against an allowlist 
 
 ## Cryptography
 
-Relay device assertions are short-lived JWTs signed with the Pi's key: ES256 for a P-256 key (the default) or EdDSA for an Ed25519 key. `DEVICE_KEY_ALGORITHM` picks the type at pairing; after that the stored key's type sets the token's `alg`, so credentials saved before the setting existed keep signing ES256. We validate that key when settings load, credentials are saved, and runtime state is applied, so bad key types fail early.
+Relay device assertions are short-lived JWTs signed with the Pi's key: EdDSA for an Ed25519 key (the default) or ES256 for a P-256 key. `DEVICE_KEY_ALGORITHM` picks the type at pairing; after that the stored key's type sets the token's `alg`, so a camera keeps signing with the key it paired with. We validate that key when settings load, credentials are saved, and runtime state is applied, so bad key types fail early.
 
 Relay private keys, relay key IDs, camera IDs, and local API keys live in `~/.config/r9cam/relay_credentials.json` (or the path in `R9CAM_CREDENTIALS_FILE`). The file is written atomically with `0600` permissions. Pairing creates a fresh key pair; unpairing deletes the file.
-
-`app/pairing/services/credentials.py` also reads the v0.6 locations for installs that predate the rename: the `RELAB_CREDENTIALS_FILE` variable and `~/.config/relab/relay_credentials.json`. The old file is read only until the new one exists, and is deleted after the first write. Remove this fallback after 2027-01-31, when the backend stops accepting the v0.6 relay token audience.
 
 Session tokens, API keys, pairing fingerprints, JWT IDs, and capture IDs come from Python's `secrets` CSPRNG. API-key comparisons use `hmac.compare_digest`.
 

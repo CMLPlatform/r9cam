@@ -57,6 +57,6 @@ async def capture_image(
         raise HTTPException(status_code=507, detail=str(e)) from e
     except ActiveStreamError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
-    except RuntimeError as e:
+    except (RuntimeError, TimeoutError) as e:
         logger.exception("Image capture failed", extra=build_log_extra(stream_mode=camera_manager.stream.mode))
         raise HTTPException(status_code=500, detail=client_error_detail(N_("Image capture failed"))) from e

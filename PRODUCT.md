@@ -26,7 +26,7 @@ The UI is in Operate mode: it helps someone do a task, then gets out of the way.
 
 ## Languages
 
-English is the source language. Dutch is planned (issue #122). Keep user-facing strings out of code logic so they can be extracted. Leave room for text that grows by about 30 percent. Do not build sentences from fragments, and format dates, times and numbers by locale. Give each error a stable code beside the translated text so support can find it.
+English is the source language, and the pages and the errors they show also come in Dutch (see CONTRIBUTING.md for adding strings). Keep user-facing strings out of code logic so they can be extracted. Leave room for text that grows by about 30 percent. Do not build sentences from fragments, and format dates, times and numbers by locale. Give each error a stable code beside the translated text so support can find it.
 
 ## Voice
 
