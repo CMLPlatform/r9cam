@@ -15,6 +15,7 @@ from fastapi import FastAPI
 import app.core.lifespan as lifespan_mod
 import app.main as main_mod
 import app.pairing.services.service as pairing_mod
+from app.camera.exceptions import CameraInitializationError
 from app.core.runtime import AppRuntime
 from app.core.settings import settings
 from app.delivery.queue import UploadQueue
@@ -114,6 +115,29 @@ class TestLifespan:
         assert LOCAL_DNS_SUFFIX not in caplog.text
         assert cast("FakePairingService", runtime.pairing_service).run_calls == 0
         assert cast("FakeRelayService", runtime.relay_service).run_calls == 0
+
+    @pytest.mark.parametrize(("app_env", "starts"), [("development", True), ("production", False)])
+    async def test_missing_picamera2_only_tolerated_in_development(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        runtime: AppRuntime,
+        app_env: str,
+        *,
+        starts: bool,
+    ) -> None:
+        """Startup survives a camera-less host in development and fails loudly in production."""
+        monkeypatch.setattr(settings, "app_env", app_env)
+        monkeypatch.setattr(settings, "pairing_backend_url", "")
+        monkeypatch.setattr(lifespan_mod, "bootstrap_runtime_state", lambda _runtime_state: None)
+        monkeypatch.setattr(lifespan_mod, "setup_directory", AsyncMock())
+        error = CameraInitializationError(0, "picamera2 is not available")
+        monkeypatch.setattr(runtime.preview_thumbnail_worker, "refresh_once", AsyncMock(side_effect=error))
+
+        if starts:
+            await _run_lifespan_once(FastAPI())
+        else:
+            with pytest.raises(CameraInitializationError):
+                await _run_lifespan_once(FastAPI())
 
     async def test_relay_enabled_starts_relay_and_cleans_up(
         self,

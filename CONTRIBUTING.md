@@ -20,7 +20,7 @@ Start the API with reload:
 just dev
 ```
 
-The local API docs are available at `http://localhost:8018/docs`, and the setup UI is available at `http://localhost:8018/setup`.
+`just dev` serves on `http://localhost:8000`: API docs at `/docs`, setup UI at `/setup`. Off a Pi the camera is unavailable, so the app starts without a preview thumbnail and camera routes return errors.
 
 ## Common Commands
 

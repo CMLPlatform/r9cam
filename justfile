@@ -7,7 +7,7 @@ install:
     uv sync --all-groups --no-group fuzz
 
 dev:
-    uv run fastapi dev
+    APP_ENV=development uv run fastapi dev
 
 test:
     uv run pytest --cov=app --cov=r9cam_models --cov-report=term-missing
