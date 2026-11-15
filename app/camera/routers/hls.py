@@ -34,6 +34,7 @@ from app.camera.dependencies import CameraManagerDependency
 from app.camera.services.manager import CameraManager
 from app.camera.streaming.preview_pipeline import PreviewPipelineManager
 from app.core.headers import client_error_detail
+from app.core.i18n import N_
 from app.core.runtime import get_request_runtime
 from app.observability.logging import build_log_extra, build_security_log_extra
 from app.relay.state import RelayRuntimeState
@@ -144,15 +145,15 @@ async def start_preview(
                 event="preview.start.denied", outcome="failure", request=request, status_code=403
             ),
         )
-        raise HTTPException(status_code=403, detail="Preview control is only available from the local network")
+        raise HTTPException(status_code=403, detail=N_("Preview control is only available from the local network"))
     backend = camera_manager.backend
     if not backend.is_open:
-        raise HTTPException(status_code=503, detail="Camera not ready")
+        raise HTTPException(status_code=503, detail=N_("Camera not ready"))
     try:
         await pipeline.start(backend)
     except RuntimeError as exc:
         logger.warning("Failed to start preview encoder: %s", exc, extra=build_log_extra())
-        raise HTTPException(status_code=503, detail=client_error_detail("Preview encoder failed to start")) from exc
+        raise HTTPException(status_code=503, detail=client_error_detail(N_("Preview encoder failed to start"))) from exc
     return Response(status_code=204)
 
 
@@ -176,7 +177,7 @@ async def stop_preview(
                 event="preview.stop.denied", outcome="failure", request=request, status_code=403
             ),
         )
-        raise HTTPException(status_code=403, detail="Preview control is only available from the local network")
+        raise HTTPException(status_code=403, detail=N_("Preview control is only available from the local network"))
     backend = camera_manager.backend
     if backend.is_open and pipeline.is_running:
         try:
@@ -218,7 +219,7 @@ async def proxy_hls(
                 event="hls.access.denied", outcome="failure", request=request, status_code=403
             ),
         )
-        raise HTTPException(status_code=403, detail="HLS preview is only available from the local network")
+        raise HTTPException(status_code=403, detail=N_("HLS preview is only available from the local network"))
 
     # Record viewer intent before hitting MediaMTX. If the encoder is asleep,
     # the first playlist request is exactly the signal that should wake it.
@@ -234,13 +235,13 @@ async def proxy_hls(
         logger.warning("MediaMTX HLS unreachable: %s", exc, extra=build_log_extra())
         raise HTTPException(
             status_code=503,
-            detail=client_error_detail("MediaMTX HLS is temporarily unavailable"),
+            detail=client_error_detail(N_("MediaMTX HLS is temporarily unavailable")),
         ) from exc
 
     if response.status_code == 404:
         raise HTTPException(
             status_code=404,
-            detail=(
+            detail=N_(
                 "HLS path not found — the preview encoder may not be running yet. "
                 "Wait ~2s for MediaMTX to see the first publish and retry."
             ),

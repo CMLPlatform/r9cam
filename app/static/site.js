@@ -1,15 +1,17 @@
+import { loadStrings } from "./i18n.js";
+
 const THEME_STORAGE_KEY = "r9cam-theme";
 const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const themeStorage = window["localStorage"];
 const THEME_SEQUENCE = ["auto", "light", "dark"];
-// User-facing text, kept together for a later translation pass.
-const STRINGS = {
+// English fallback; the server renders the page language into #i18n-strings.
+const STRINGS = loadStrings("site", {
   theme: {
     auto: "Theme: Auto",
     light: "Theme: Light",
     dark: "Theme: Dark",
   },
-};
+});
 
 function resolveTheme(themePreference) {
   if (themePreference === "dark" || themePreference === "light") {

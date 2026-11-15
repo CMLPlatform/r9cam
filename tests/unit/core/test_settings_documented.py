@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[3]
 INTERNAL = {
     "templates_path": "packaged app assets, not an operator choice",
     "static_path": "packaged app assets, not an operator choice",
+    "locale_path": "packaged app assets, not an operator choice",
 }
 
 

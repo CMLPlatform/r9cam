@@ -1,0 +1,492 @@
+# Dutch translations for r9cam.
+# Copyright (C) 2026 Simon van Lierde
+# This file is distributed under the same license as the r9cam project.
+# Simon van Lierde, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: r9cam\n"
+"POT-Creation-Date: 2026-11-15 06:20+0100\n"
+"PO-Revision-Date: 2026-11-15 06:20+0100\n"
+"Last-Translator: Simon van Lierde\n"
+"Language: nl\n"
+"Language-Team: nl\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "A YouTube stream is currently active."
+msgstr "Er is nu een YouTube-stream actief."
+
+msgid "API"
+msgstr "API"
+
+msgid "API Docs"
+msgstr "API-documentatie"
+
+msgid "API Key header or browser session is missing"
+msgstr "API-sleutelheader of browsersessie ontbreekt"
+
+msgid "Ask an operator to check the backend URL."
+msgstr "Vraag een beheerder om de backend-URL te controleren."
+
+msgid "Ask an operator to refresh the code."
+msgstr "Vraag een beheerder om de code te vernieuwen."
+
+msgid "Available"
+msgstr "Beschikbaar"
+
+msgid "Backend URL copied."
+msgstr "Backend-URL gekopieerd."
+
+msgid "Backend reachable, but pairing is failing."
+msgstr "Backend bereikbaar, maar het koppelen mislukt."
+
+msgid "Backend responds, so pairing should start automatically."
+msgstr "De backend reageert, dus het koppelen start vanzelf."
+
+msgid "Browser and script access"
+msgstr "Toegang via browser en scripts"
+
+msgid "Camera ID"
+msgstr "Camera-ID"
+
+msgid "Camera Preview"
+msgstr "Cameravoorbeeld"
+
+msgid "Camera not available"
+msgstr "Camera niet beschikbaar"
+
+msgid "Camera not ready"
+msgstr "Camera niet gereed"
+
+msgid "Camera ready"
+msgstr "Camera gereed"
+
+msgid "Cancel"
+msgstr "Annuleren"
+
+msgid "Change"
+msgstr "Wijzigen"
+
+msgid "Check the backend URL under Pairing details."
+msgstr "Controleer de backend-URL onder Koppelgegevens."
+
+msgid "Check the network cable or Wi-Fi. The camera tries again by itself."
+msgstr "Controleer de netwerkkabel of wifi. De camera probeert het vanzelf opnieuw."
+
+msgid "Code expired."
+msgstr "Code verlopen."
+
+msgid "Code expired. Getting a new one..."
+msgstr "Code verlopen. Er wordt een nieuwe opgehaald..."
+
+msgid "Connection status"
+msgstr "Verbindingsstatus"
+
+msgid "Copied"
+msgstr "Gekopieerd"
+
+msgid "Copy"
+msgstr "Kopiëren"
+
+msgid "Copy backend URL"
+msgstr "Backend-URL kopiëren"
+
+msgid "Copy code"
+msgstr "Code kopiëren"
+
+msgid "Copy failed"
+msgstr "Kopiëren mislukt"
+
+msgid "Copy local API key"
+msgstr "Lokale API-sleutel kopiëren"
+
+msgid "Copy pairing code"
+msgstr "Koppelcode kopiëren"
+
+msgid "Copy this key for browser testing, custom scripts, or standalone clients."
+msgstr "Kopieer deze sleutel om te testen in de browser, voor eigen scripts of voor losse clients."
+
+msgid "Could not copy the backend URL. Select it and copy it by hand."
+msgstr "De backend-URL kon niet worden gekopieerd. Selecteer hem en kopieer hem zelf."
+
+msgid "Could not copy the local API key. Select it and copy it by hand."
+msgstr "De lokale API-sleutel kon niet worden gekopieerd. Selecteer hem en kopieer hem zelf."
+
+msgid "Could not copy the pairing code. Select it and copy it by hand."
+msgstr "De koppelcode kon niet worden gekopieerd. Selecteer hem en kopieer hem zelf."
+
+#, python-brace-format
+msgid "Could not get a new code (HTTP {status}). Try again."
+msgstr "Er kon geen nieuwe code worden opgehaald (HTTP {status}). Probeer het opnieuw."
+
+msgid "Could not get a new code. Check your connection and try again."
+msgstr "Er kon geen nieuwe code worden opgehaald. Controleer je verbinding en probeer het opnieuw."
+
+msgid "Could not get a new pairing code"
+msgstr "Geen nieuwe koppelcode opgehaald"
+
+msgid "Could not show the local key from this client. Sign in as an operator and try again."
+msgstr "De lokale sleutel kan vanaf deze client niet worden getoond. Log in als beheerder en probeer het opnieuw."
+
+msgid "Custom backend"
+msgstr "Eigen backend"
+
+msgid "Default R9lab backend"
+msgstr "Standaard R9lab-backend"
+
+msgid "Direct LAN access for browser, app, and scripts."
+msgstr "Directe toegang via het lokale netwerk voor browser, app en scripts."
+
+msgid "Enter this code in R9lab."
+msgstr "Voer deze code in bij R9lab."
+
+msgid "Failed to stop stream"
+msgstr "De stream kon niet worden gestopt"
+
+msgid "Fetching local key..."
+msgstr "Lokale sleutel ophalen..."
+
+msgid "Generate a new pairing code"
+msgstr "Nieuwe koppelcode genereren"
+
+msgid "Get a new code"
+msgstr "Nieuwe code ophalen"
+
+msgid "Getting a new code..."
+msgstr "Nieuwe code ophalen..."
+
+msgid "Getting a new pairing code..."
+msgstr "Nieuwe koppelcode ophalen..."
+
+msgid "HLS path not found — the preview encoder may not be running yet. Wait ~2s for MediaMTX to see the first publish and retry."
+msgstr "HLS-pad niet gevonden. De voorbeeldencoder draait mogelijk nog niet. Wacht ongeveer 2 seconden tot MediaMTX de eerste publicatie ziet en probeer het opnieuw."
+
+msgid "HLS preview"
+msgstr "HLS-voorbeeld"
+
+msgid "HLS preview is only available from the local network"
+msgstr "Het HLS-voorbeeld is alleen beschikbaar vanuit het lokale netwerk"
+
+msgid "Hide details"
+msgstr "Details verbergen"
+
+msgid "Hide local API key"
+msgstr "Lokale API-sleutel verbergen"
+
+msgid "Home"
+msgstr "Startpagina"
+
+msgid "Image capture failed"
+msgstr "Opname mislukt"
+
+msgid "Invalid API Key"
+msgstr "Ongeldige API-sleutel"
+
+msgid "It will disconnect from the backend and re-enter pairing mode. You can re-pair it at any time."
+msgstr "De camera verbreekt de verbinding met de backend en gaat weer in koppelmodus. Je kunt hem op elk moment opnieuw koppelen."
+
+msgid "Keep this page open while the code is active."
+msgstr "Houd deze pagina open zolang de code geldig is."
+
+msgid "Key hidden until revealed."
+msgstr "Sleutel verborgen tot je hem toont."
+
+msgid "Key hidden."
+msgstr "Sleutel verborgen."
+
+msgid "Key shown. It hides again in 60 seconds."
+msgstr "Sleutel getoond. Na 60 seconden wordt hij weer verborgen."
+
+msgid "Latest camera preview thumbnail"
+msgstr "Laatste miniatuur van het cameravoorbeeld"
+
+msgid "Live"
+msgstr "Live"
+
+msgid "Load Preview"
+msgstr "Voorbeeld laden"
+
+msgid "Local API key"
+msgstr "Lokale API-sleutel"
+
+msgid "Local API key copied."
+msgstr "Lokale API-sleutel gekopieerd."
+
+msgid "Local API key has not been generated yet"
+msgstr "De lokale API-sleutel is nog niet aangemaakt"
+
+msgid "Local access"
+msgstr "Lokale toegang"
+
+msgid "Local access disabled"
+msgstr "Lokale toegang uitgeschakeld"
+
+msgid "Local key access is only available from the local network"
+msgstr "Toegang tot de lokale sleutel is alleen beschikbaar vanuit het lokale netwerk"
+
+msgid "Local key is empty."
+msgstr "De lokale sleutel is leeg."
+
+msgid "Log out"
+msgstr "Uitloggen"
+
+msgid "MediaMTX HLS is temporarily unavailable"
+msgstr "MediaMTX HLS is tijdelijk niet beschikbaar"
+
+msgid "Native R9lab app latency boost"
+msgstr "Lagere vertraging in de R9lab-app"
+
+msgid "Needs attention"
+msgstr "Aandacht nodig"
+
+msgid "New code"
+msgstr "Nieuwe code"
+
+msgid "New code ready. Reloading page..."
+msgstr "Nieuwe code klaar. Pagina wordt herladen..."
+
+msgid "No LAN address found"
+msgstr "Geen lokaal netwerkadres gevonden"
+
+msgid "No preview thumbnail cached yet"
+msgstr "Er is nog geen miniatuur van het voorbeeld opgeslagen"
+
+msgid "No preview yet. The camera may be offline."
+msgstr "Nog geen voorbeeld. De camera is mogelijk offline."
+
+msgid "No relay yet. Pairing keeps retrying."
+msgstr "Nog geen relay. Het koppelen blijft het proberen."
+
+msgid "No stream active"
+msgstr "Geen stream actief"
+
+msgid "Not connected"
+msgstr "Niet verbonden"
+
+msgid "Not paired"
+msgstr "Niet gekoppeld"
+
+msgid "Not reachable"
+msgstr "Niet bereikbaar"
+
+msgid "Open setup"
+msgstr "Instellingen openen"
+
+msgid "Pair, refresh, or unpair from this page."
+msgstr "Koppel, vernieuw of ontkoppel vanaf deze pagina."
+
+msgid "Paired"
+msgstr "Gekoppeld"
+
+msgid "Paired and online."
+msgstr "Gekoppeld en online."
+
+msgid "Paired with R9lab"
+msgstr "Gekoppeld met R9lab"
+
+msgid "Paired. Connecting now."
+msgstr "Gekoppeld. Er wordt nu verbinding gemaakt."
+
+msgid "Pairing code"
+msgstr "Koppelcode"
+
+msgid "Pairing code copied."
+msgstr "Koppelcode gekopieerd."
+
+msgid "Pairing code refreshed"
+msgstr "Koppelcode vernieuwd"
+
+msgid "Pairing details"
+msgstr "Koppelgegevens"
+
+msgid "Pairing ready"
+msgstr "Klaar om te koppelen"
+
+msgid "Preset"
+msgstr "Voorinstelling"
+
+msgid "Preview"
+msgstr "Voorbeeld"
+
+msgid "Preview control is only available from the local network"
+msgstr "Voorbeeldbediening is alleen beschikbaar vanuit het lokale netwerk"
+
+msgid "Preview encoder failed to start"
+msgstr "De voorbeeldencoder kon niet starten"
+
+msgid "Preview stream dropped. Reload to retry."
+msgstr "De voorbeeldstream is weggevallen. Laad opnieuw om het nog eens te proberen."
+
+msgid "Preview thumbnail cache is invalid"
+msgstr "De opgeslagen miniatuur van het voorbeeld is ongeldig"
+
+msgid "Preview thumbnail is only available from the local network"
+msgstr "De miniatuur van het voorbeeld is alleen beschikbaar vanuit het lokale netwerk"
+
+msgid "Primary"
+msgstr "Hoofdmenu"
+
+msgid "R9lab RPi Camera home"
+msgstr "R9lab RPi Camera, startpagina"
+
+msgid "R9lab logo"
+msgstr "R9lab-logo"
+
+msgid "Raspberry Pi Camera"
+msgstr "Raspberry Pi Camera"
+
+msgid "Reachable"
+msgstr "Bereikbaar"
+
+msgid "Refresh after pairing or unpairing to see the latest state."
+msgstr "Vernieuw de pagina na het koppelen of ontkoppelen om de actuele status te zien."
+
+msgid "Refreshed"
+msgstr "Vernieuwd"
+
+msgid "Relay backend"
+msgstr "Relay-backend"
+
+msgid "Relay is connected and the camera is ready for remote access."
+msgstr "De relay is verbonden en de camera is klaar voor toegang op afstand."
+
+msgid "Relay pairing still uses the 6-character code above."
+msgstr "Koppelen via de relay gebruikt nog steeds de code van 6 tekens hierboven."
+
+msgid "Remote link connected"
+msgstr "Verbinding op afstand actief"
+
+msgid "Remote link disconnected"
+msgstr "Verbinding op afstand verbroken"
+
+msgid "Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href=\"https://github.com/CMLPlatform/r9lab\" target=\"_blank\" rel=\"noopener\">GitHub page</a>."
+msgstr "Maak op afstand opnames en stream video met een Raspberry Pi-camera. Meer over R9lab vind je op de <a href=\"https://github.com/CMLPlatform/r9lab\" target=\"_blank\" rel=\"noopener\">GitHub-pagina</a>."
+
+msgid "Reveal local API key"
+msgstr "Lokale API-sleutel tonen"
+
+msgid "Revealing..."
+msgstr "Tonen..."
+
+msgid "Same-origin browser request required"
+msgstr "Een browserverzoek vanaf dezelfde oorsprong is vereist"
+
+msgid "Set <code>PAIRING_BACKEND_URL</code> in <code>.env</code> or Compose, then restart."
+msgstr "Stel <code>PAIRING_BACKEND_URL</code> in via <code>.env</code> of Compose en start daarna opnieuw op."
+
+msgid "Setup"
+msgstr "Instellingen"
+
+msgid "Show details"
+msgstr "Details tonen"
+
+msgid "Starting"
+msgstr "Starten"
+
+msgid "Starting..."
+msgstr "Starten..."
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Stop Preview"
+msgstr "Voorbeeld stoppen"
+
+msgid "Stopping..."
+msgstr "Stoppen..."
+
+msgid "Switches to local access automatically after relay pairing when Ethernet is available."
+msgstr "Schakelt na het koppelen via de relay automatisch over op lokale toegang als ethernet beschikbaar is."
+
+msgid "The R9lab server did not accept the pairing request."
+msgstr "De R9lab-server heeft het koppelverzoek niet geaccepteerd."
+
+msgid "The R9lab server did not recognise the pairing address."
+msgstr "De R9lab-server herkent het koppeladres niet."
+
+msgid "The camera cannot reach the R9lab server."
+msgstr "De camera kan de R9lab-server niet bereiken."
+
+msgid "The player script failed to load. Reload the page to try again."
+msgstr "Het afspeelscript kon niet worden geladen. Laad de pagina opnieuw om het nog eens te proberen."
+
+#, python-brace-format
+msgid "The preview could not start (HTTP {status}). Wait a moment and try again."
+msgstr "Het voorbeeld kon niet starten (HTTP {status}). Wacht even en probeer het opnieuw."
+
+msgid "The preview could not start. Check the network and try again."
+msgstr "Het voorbeeld kon niet starten. Controleer het netwerk en probeer het opnieuw."
+
+msgid "The thumbnail below refreshes every 10 seconds. Start a live preview to check framing or focus."
+msgstr "De miniatuur hieronder wordt elke 10 seconden vernieuwd. Start een live voorbeeld om de kadrering of scherpte te controleren."
+
+msgid "Theme: Auto"
+msgstr "Thema: automatisch"
+
+msgid "Theme: Dark"
+msgstr "Thema: donker"
+
+msgid "Theme: Light"
+msgstr "Thema: licht"
+
+msgid "This browser cannot play the live preview."
+msgstr "Deze browser kan het live voorbeeld niet afspelen."
+
+msgid "Too many requests. Try again later."
+msgstr "Te veel verzoeken. Probeer het later opnieuw."
+
+msgid "URL"
+msgstr "URL"
+
+msgid "Unavailable"
+msgstr "Niet beschikbaar"
+
+msgid "Unpair"
+msgstr "Ontkoppelen"
+
+#, python-brace-format
+msgid "Unpair failed (HTTP {status}). Try again."
+msgstr "Ontkoppelen mislukt (HTTP {status}). Probeer het opnieuw."
+
+msgid "Unpair request failed. Check your connection and try again."
+msgstr "Het ontkoppelverzoek is mislukt. Controleer je verbinding en probeer het opnieuw."
+
+msgid "Unpair this camera?"
+msgstr "Deze camera ontkoppelen?"
+
+msgid "Unpaired. Reloading page..."
+msgstr "Ontkoppeld. Pagina wordt herladen..."
+
+msgid "Unpairing..."
+msgstr "Ontkoppelen..."
+
+msgid "Use the local API on your LAN for faster direct access."
+msgstr "Gebruik de lokale API op je netwerk voor snellere, directe toegang."
+
+msgid "Use the same key in your browser or send it with <code>X-API-Key</code>."
+msgstr "Gebruik dezelfde sleutel in je browser of stuur hem mee in <code>X-API-Key</code>."
+
+msgid "Valid for <strong class=\"pairing-countdown\" data-pairing-countdown>...</strong>."
+msgstr "Geldig voor nog <strong class=\"pairing-countdown\" data-pairing-countdown>...</strong>."
+
+msgid "Wait a minute. The camera tries again by itself."
+msgstr "Wacht een minuut. De camera probeert het vanzelf opnieuw."
+
+msgid "Waking the encoder..."
+msgstr "Encoder wordt gewekt..."
+
+msgid "Watch on YouTube"
+msgstr "Bekijk op YouTube"
+
+msgid "YouTube Stream"
+msgstr "YouTube-stream"
+
+msgid "expired"
+msgstr "verlopen"
+
+msgid "not set"
+msgstr "niet ingesteld"
