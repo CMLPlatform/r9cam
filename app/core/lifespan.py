@@ -159,8 +159,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     yield
 
-    # Shutdown order: sleeper first (so it stops the encoder cleanly), then
-    # thermal governor (it also touches the encoder), then the rest.
+    # Shutdown: cancel the four runtime workers together, then the other tasks, then close clients.
     await runtime.stop_runtime_workers()
     runtime.cancel_tasks()
     await runtime.wait_for_managed_tasks()

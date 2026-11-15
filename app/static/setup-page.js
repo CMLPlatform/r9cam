@@ -157,10 +157,11 @@ async function copyText(text, button) {
   }
 
   const kind = button ? button.dataset.copyKind || "code" : "code";
+  const messages = kind === "key" ? keyMessages : pairingMessages;
   if (copied) {
-    pairingMessages.status(STRINGS.copied[kind], "success");
+    messages.status(STRINGS.copied[kind], "success");
   } else {
-    pairingMessages.error(STRINGS.copyFailed[kind]);
+    messages.error(STRINGS.copyFailed[kind]);
   }
   if (!button) {
     return;

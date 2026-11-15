@@ -107,7 +107,7 @@ release-prep version:
     # Keep a Changelog: what accumulated under Unreleased becomes this version, under a
     # fresh, empty Unreleased, and the compare links move along.
     sed -i "0,/^## \[Unreleased\]$/s//## [Unreleased]\n\n## [$version] - $today/" CHANGELOG.md
-    # mdformat lowercases and sorts the link labels, so match [unreleased] in either case.
+    # The Markdown formatter may lowercase link labels, so match [unreleased] in either case.
     sed -i -E "s#^\[[Uu]nreleased\]: (.*)/compare/v[0-9.]+\.\.\.HEAD\$#[unreleased]: \1/compare/v$version...HEAD\n[$version]: \1/compare/$previous...v$version#" CHANGELOG.md
     grep -q "^\[$version\]: " CHANGELOG.md || { echo "CHANGELOG.md has no [unreleased] compare link to move" >&2; exit 1; }
     git status --short
