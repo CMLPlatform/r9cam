@@ -268,6 +268,7 @@ Set these in the `.env` next to `compose.yml`. Every setting has a default; chan
 | `CHECK_STREAM_HEALTH_INTERVAL_S`   | `30`                            | How often stream health is checked.                                                                                                         |
 | `MAX_CAPTURE_PIXELS`               | `20000000`                      | Largest capture accepted, in pixels.                                                                                                        |
 | `MAX_CAPTURE_FILE_BYTES`           | `10485760`                      | Largest capture file accepted, in bytes (10 MiB).                                                                                           |
+| `RAW_CAPTURE`                      | `false`                         | Also save a DNG with each capture. See [Raw Capture And Colour Reference](#raw-capture-and-colour-reference).                               |
 | `UPLOAD_QUEUE_MAX_PENDING_ENTRIES` | `500`                           | Captures held for upload retry; `0` means none.                                                                                             |
 | `UPLOAD_QUEUE_MAX_PENDING_BYTES`   | `2147483648`                    | Total size of captures held for retry, in bytes (2 GiB).                                                                                    |
 | `UPLOAD_QUEUE_DEAD_MAX_ENTRIES`    | `500`                           | Failed uploads kept for inspection.                                                                                                         |
@@ -281,6 +282,23 @@ Set these in the `.env` next to `compose.yml`. Every setting has a default; chan
 | `LOCAL_API_KEY`                    | generated                       | Seed for the local API key. Leave unset: the app generates and stores one.                                                                  |
 | `LOCAL_RELAY_API_KEY`              | generated                       | Seed for the relay-local key. Leave unset.                                                                                                  |
 | `RELAY_BACKEND_URL`                | unset                           | Static relay `wss://` URL. Set it only with `RELAY_CAMERA_ID`, `RELAY_KEY_ID` and `RELAY_PRIVATE_KEY_PEM`; pairing normally fills these in. |
+
+## Raw Capture And Colour Reference
+
+Set `RAW_CAPTURE=true` and restart to save a DNG from the same camera request as each still. It adds a raw stream to the camera pipeline, which uses more memory, so leave it off unless you correct colour from raw data.
+
+- The DNG is the raw frame of the video sensor mode, not the full-sensor frame. Camera Module 3 gives 2304 x 1296 and v2 gives about 1920 x 1080 or 1640 x 1232, depending on the mode libcamera picks.
+- Files go to `data/images/raw/<image_id>.dng` (under `IMAGE_PATH`) and are deleted after `IMAGE_TTL_S` (one hour by default). Raise `IMAGE_TTL_S` if you collect them later, and copy them off the Pi with `rsync`. They are not uploaded. The capture metadata holds `raw_sha256`, which is empty when no DNG was saved.
+- A DNG is about 2 bytes per pixel, so roughly 6 MB on Camera Module 3 and 3 to 4 MB on v2. These figures come from the sensor modes, not from measured files. Check `ls -l data/images/raw` on your Pi before you pick a TTL.
+
+Photograph a colour target at the start of a session, then give every capture of that session the same `session_id`:
+
+```sh
+curl -X POST "$PI/captures?role=colour_reference&session_id=bench-7" -H "X-API-Key: $KEY"
+curl -X POST "$PI/captures" -H "X-API-Key: $KEY"   # later captures stay in session bench-7
+```
+
+`session_id` allows letters, digits, `.`, `_` and `-`, up to 64 characters. Without one, the Pi uses a session id it generated at startup. Each capture's metadata holds `capture_role` (`standard` or `colour_reference`) and `session_id`.
 
 ## Direct Python Run
 

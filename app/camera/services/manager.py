@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import logging
 import secrets
 from io import BytesIO
@@ -11,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from PIL import ImageOps
 from r9cam_models.camera import CameraMode, CameraStatusView
-from r9cam_models.images import ImageCaptureResponse, ImageCaptureStatus
+from r9cam_models.images import CaptureRole, ImageCaptureResponse, ImageCaptureStatus
 
 from app.backend.contract_adapters import build_image_metadata, image_metadata_to_exif
 from app.camera.exceptions import ActiveStreamError
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 _CAPTURE_ID_BYTES = 16
+_SESSION_ID_BYTES = 8
 
 
 class CameraControlsNotSupportedError(RuntimeError):
@@ -84,6 +86,13 @@ def _write_bytes_atomic(image_bytes: bytes, image_path: Path) -> None:
         raise
 
 
+def _write_dng(dng: bytes, path: Path) -> str:
+    """Write the DNG atomically and return its SHA-256. Runs off the event loop."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _write_bytes_atomic(dng, path)
+    return hashlib.sha256(dng).hexdigest()
+
+
 def encode_preview_jpeg(image: PilImage) -> bytes:
     """Encode a smaller JPEG suitable for cached preview thumbnails."""
     frame = ImageOps.contain(image, (640, 400))
@@ -116,6 +125,8 @@ class CameraManager:
         self._upload_queue: UploadQueue | None = None
         self._on_capture_uploaded: Callable[[PilImage], Awaitable[None]] | None = None
         self._stream = ActiveStreamState()
+        # Groups the captures of one session. The operator replaces it by passing a session id.
+        self._session_id = secrets.token_hex(_SESSION_ID_BYTES)
         self.lock = asyncio.Lock()
         self.lock_timeout = 10
 
@@ -180,6 +191,9 @@ class CameraManager:
     async def capture_jpeg(
         self,
         upload_metadata: Mapping[str, object] | None = None,
+        *,
+        role: CaptureRole = CaptureRole.STANDARD,
+        session_id: str | None = None,
     ) -> ImageCaptureResponse:
         """Capture a still, push it to the backend, and fall back to the local queue on failure.
 
@@ -192,7 +206,13 @@ class CameraManager:
         happy path the bytes are uploaded and disk is never touched, and the file
         is only written (atomically) when the sink fails and we fall back to the
         local upload queue.
+
+        When the backend returns a DNG it is kept under ``image_path/raw`` (no sink or queue
+        carries it) and its hash goes into the metadata. ``role`` marks a colour-reference shot;
+        a ``session_id`` becomes the current session for this and later captures.
         """
+        if session_id is not None:
+            self._session_id = session_id
         upload_meta = upload_metadata or {}
 
         image_id = secrets.token_hex(_CAPTURE_ID_BYTES)
@@ -202,8 +222,23 @@ class CameraManager:
         async with self._locked():
             result = await self.backend.capture_image()
             JPEG_CAPTURE_POLICY.validate_dimensions(result.image.size, max_pixels=settings.max_capture_pixels)
+            raw_sha256 = None
+            if result.raw_dng is not None:
+                try:
+                    raw_sha256 = await asyncio.to_thread(
+                        _write_dng, result.raw_dng, settings.image_path / "raw" / f"{image_id}.dng"
+                    )
+                except OSError:
+                    # A full disk loses the DNG, not the capture; the metadata then claims no raw file.
+                    logger.exception("Could not save the DNG for %s", image_id, extra=build_log_extra())
             img_metadata = build_image_metadata(
-                result.image, result.camera_properties, result.capture_metadata, result.tuning_file_sha256
+                result.image,
+                result.camera_properties,
+                result.capture_metadata,
+                result.tuning_file_sha256,
+                capture_role=role,
+                session_id=self._session_id,
+                raw_sha256=raw_sha256,
             )
             image_bytes = await asyncio.to_thread(
                 _encode_jpeg,

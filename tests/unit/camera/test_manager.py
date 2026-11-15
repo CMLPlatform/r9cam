@@ -1,6 +1,7 @@
 """Tests for camera management dependencies and orchestration."""
 
 import asyncio
+import hashlib
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -14,7 +15,7 @@ from fastapi import FastAPI, Request
 from PIL import Image
 from pydantic import AnyUrl, SecretStr
 from r9cam_models.camera import CameraMode
-from r9cam_models.images import ImageCaptureStatus
+from r9cam_models.images import CaptureRole, ImageCaptureStatus
 from r9cam_models.stream import StreamMode
 
 from app.camera import dependencies as camera_deps
@@ -394,6 +395,84 @@ class TestCameraManagerCapture:
         assert _StubSink.put.await_args.kwargs["image_id"] == generated_image_id
         assert _StubSink.put.await_args.kwargs["filename"] == f"{generated_image_id}.jpg"
         backend.capture_image.assert_awaited_once()
+
+    async def test_raw_capture_is_saved_hashed_and_recorded(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A DNG from the backend lands under image_path/raw and its sha256 is in the metadata."""
+        backend = FakeBackend()
+        backend.capture_image.return_value = CaptureResult(
+            image=Image.new("RGB", (64, 64)), camera_properties={}, capture_metadata={}, raw_dng=b"fake-dng"
+        )
+        sink = AsyncMock()
+        sink.put.return_value = StoredImage(image_id="a" * 32, image_url=AnyUrl(EXAMPLE_IMAGE_URL))
+        monkeypatch.setattr(manager_mod.secrets, "token_hex", lambda _n: "b" * 32)
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+        manager = CameraManager(backend=cast("StreamingCameraBackend", backend), sink=sink)
+
+        response = await manager.capture_jpeg()
+
+        assert (tmp_path / "raw" / f"{'b' * 32}.dng").read_bytes() == b"fake-dng"
+        assert response.metadata.raw_sha256 == hashlib.sha256(b"fake-dng").hexdigest()
+        assert sink.put.await_args.kwargs["capture_metadata"]["raw_sha256"] == response.metadata.raw_sha256
+
+    async def test_capture_without_raw_writes_no_dng(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No raw bytes means no raw directory content and no hash."""
+        backend = FakeBackend()
+        backend.capture_image.return_value = CaptureResult(
+            image=Image.new("RGB", (64, 64)), camera_properties={}, capture_metadata={}
+        )
+        sink = AsyncMock()
+        sink.put.return_value = StoredImage(image_id="a" * 32, image_url=AnyUrl(EXAMPLE_IMAGE_URL))
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+        manager = CameraManager(backend=cast("StreamingCameraBackend", backend), sink=sink)
+
+        response = await manager.capture_jpeg()
+
+        assert response.metadata.raw_sha256 is None
+        assert not (tmp_path / "raw").exists()
+
+    async def test_failed_dng_write_keeps_the_jpeg_capture(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A full disk loses the DNG, not the capture: the metadata then claims no raw file."""
+        backend = FakeBackend()
+        backend.capture_image.return_value = CaptureResult(
+            image=Image.new("RGB", (64, 64)), camera_properties={}, capture_metadata={}, raw_dng=b"fake-dng"
+        )
+        sink = AsyncMock()
+        sink.put.return_value = StoredImage(image_id="a" * 32, image_url=AnyUrl(EXAMPLE_IMAGE_URL))
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+        (tmp_path / "raw").write_bytes(b"a file where the directory should be")
+        manager = CameraManager(backend=cast("StreamingCameraBackend", backend), sink=sink)
+
+        response = await manager.capture_jpeg()
+
+        assert response.status == ImageCaptureStatus.UPLOADED
+        assert response.metadata.raw_sha256 is None
+
+    async def test_role_and_session_id_are_recorded_and_the_session_persists(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An operator session id sticks to later captures; a reference shot is marked."""
+        backend = FakeBackend()
+        backend.capture_image.return_value = CaptureResult(
+            image=Image.new("RGB", (64, 64)), camera_properties={}, capture_metadata={}
+        )
+        sink = AsyncMock()
+        sink.put.return_value = StoredImage(image_id="a" * 32, image_url=AnyUrl(EXAMPLE_IMAGE_URL))
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+        manager = CameraManager(backend=cast("StreamingCameraBackend", backend), sink=sink)
+
+        generated = (await manager.capture_jpeg()).metadata
+        ref = (await manager.capture_jpeg(role=CaptureRole.COLOUR_REFERENCE, session_id="bench-7")).metadata
+        later = (await manager.capture_jpeg()).metadata
+
+        assert generated.capture_role == CaptureRole.STANDARD
+        assert generated.session_id
+        assert generated.session_id != "bench-7"
+        assert ref.capture_role == CaptureRole.COLOUR_REFERENCE
+        assert ref.session_id == later.session_id == "bench-7"
 
     async def test_capture_invokes_capture_uploaded_hook_with_captured_frame(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

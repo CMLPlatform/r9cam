@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 from PIL.ExifTags import IFD, Base
 from pydantic import AnyUrl
-from r9cam_models.images import ImageMetadata
+from r9cam_models.images import CaptureRole, ImageMetadata
 from r9cam_models.stream import StreamMode
 
 from app.__version__ import version
@@ -98,6 +98,21 @@ class TestContractAdapters:
         metadata = ImageMetadata.model_validate(old)
         assert metadata.provenance.plugin_version is None
         assert metadata.capture_metadata.lens_position is None
+
+    def test_image_metadata_capture_context_defaults_and_round_trip(self) -> None:
+        """Role, session and raw hash are optional, and survive the JSON the backend receives."""
+        image = Image.new("RGB", (10, 10))
+        plain = build_image_metadata(image, {}, {})
+        assert plain.capture_role == CaptureRole.STANDARD
+        assert plain.session_id is None
+        assert plain.raw_sha256 is None
+
+        ref = build_image_metadata(
+            image, {}, {}, capture_role=CaptureRole.COLOUR_REFERENCE, session_id="plate-1", raw_sha256="a" * 64
+        )
+        restored = ImageMetadata.model_validate(ref.model_dump(mode="json"))
+        assert restored.capture_role == CaptureRole.COLOUR_REFERENCE
+        assert (restored.session_id, restored.raw_sha256) == ("plate-1", "a" * 64)
 
     def test_image_metadata_round_trips_through_json(self) -> None:
         """The dump the plugin uploads validates again on the backend side."""

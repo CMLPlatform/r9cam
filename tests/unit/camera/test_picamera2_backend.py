@@ -86,6 +86,68 @@ class TestPicamera2Backend:
 
         camera.set_controls.assert_not_called()
 
+    async def test_open_configures_no_raw_stream_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """With raw capture off the pipeline stays as it was: no raw stream."""
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        camera.camera_controls = {}
+        monkeypatch.setattr("app.camera.services.picamera2_backend.Picamera2", MagicMock(return_value=camera))
+
+        await backend.open(CameraMode.VIDEO)
+
+        assert camera.create_video_configuration.call_args.kwargs["raw"] is None
+
+    async def test_open_configures_a_raw_stream_when_enabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """RAW_CAPTURE adds a raw stream at picamera2's defaults (sensor format, main-stream size)."""
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        camera.camera_controls = {}
+        monkeypatch.setattr("app.camera.services.picamera2_backend.Picamera2", MagicMock(return_value=camera))
+        monkeypatch.setattr(backend_mod.settings, "raw_capture", True)
+
+        await backend.open(CameraMode.VIDEO)
+
+        assert camera.create_video_configuration.call_args.kwargs["raw"] == {}
+
+    async def test_capture_image_with_raw_uses_one_request_for_jpeg_and_dng(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Image, metadata and DNG come from the same request, which is released afterwards."""
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        camera.camera_properties = {"Model": "mock"}
+        request = camera.capture_request.return_value
+        request.make_image.return_value = "pil-image"
+        request.get_metadata.return_value = {"FrameDuration": 33_333}
+        request.save_dng.side_effect = lambda out: out.write(b"dng-bytes")
+        cast("Any", backend)._camera = camera
+        backend.current_mode = CameraMode.PHOTO
+        monkeypatch.setattr(backend_mod.settings, "raw_capture", True)
+
+        result = await backend.capture_image()
+
+        assert result.raw_dng == b"dng-bytes"
+        assert result.image == "pil-image"
+        assert result.capture_metadata == {"FrameDuration": 33_333}
+        request.make_image.assert_called_once_with("main")
+        request.release.assert_called_once_with()
+        camera.capture_image.assert_not_called()
+
+    async def test_capture_image_with_raw_releases_the_request_on_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A failing DNG save must not leak the request's buffers."""
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        request = camera.capture_request.return_value
+        request.save_dng.side_effect = RuntimeError("no raw stream")
+        cast("Any", backend)._camera = camera
+        backend.current_mode = CameraMode.PHOTO
+        monkeypatch.setattr(backend_mod.settings, "raw_capture", True)
+
+        with pytest.raises(RuntimeError, match="no raw stream"):
+            await backend.capture_image()
+
+        request.release.assert_called_once_with()
+
     async def test_capture_image_reads_main_stream(self) -> None:
         """capture_image must pull from the persistent main stream by name."""
         backend = Picamera2Backend()

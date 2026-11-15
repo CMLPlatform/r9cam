@@ -96,6 +96,13 @@ class CaptureProvenance(BaseModel):
     )
 
 
+class CaptureRole(StrEnum):
+    """What a capture is for within its session."""
+
+    STANDARD = "standard"
+    COLOUR_REFERENCE = "colour_reference"
+
+
 class BaseMetadata(BaseModel):
     """Base metadata model for both images and streams."""
 
@@ -110,6 +117,20 @@ class ImageMetadata(BaseMetadata):
 
     image_properties: ImageProperties
     provenance: CaptureProvenance = Field(default_factory=CaptureProvenance)
+    capture_role: CaptureRole = Field(
+        default=CaptureRole.STANDARD,
+        description="colour_reference marks the operator's colour-reference shot (for example a colour checker)",
+    )
+    session_id: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9_.-]{1,64}$",
+        description="Groups the captures of one session, so a dataset can pair them with the session's reference shot",
+    )
+    raw_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+        description="SHA-256 of the DNG saved on the Pi from the same request. None when no raw file exists",
+    )
 
 
 class ImageCaptureStatus(StrEnum):
