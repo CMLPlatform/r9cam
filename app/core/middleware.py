@@ -83,7 +83,7 @@ _ACTION_MAX_ATTEMPTS = 20
 _RATE_LIMIT_POLICIES: dict[tuple[str, str], _RateLimitPolicy] = {
     _LOGIN_ROUTE: _RateLimitPolicy(max_attempts=_LOGIN_MAX_FAILED_ATTEMPTS, failed_only=True),
     ("DELETE", "/pairing"): _RateLimitPolicy(max_attempts=_ACTION_MAX_ATTEMPTS, failed_only=False),
-    ("PATCH", "/camera/controls"): _RateLimitPolicy(max_attempts=_ACTION_MAX_ATTEMPTS, failed_only=False),
+    ("PATCH", "/camera/controls"): _RateLimitPolicy(max_attempts=_ACTION_MAX_ATTEMPTS, failed_only=True),
     ("POST", "/captures"): _RateLimitPolicy(max_attempts=_ACTION_MAX_ATTEMPTS, failed_only=False),
     ("POST", "/pairing/code"): _RateLimitPolicy(max_attempts=_ACTION_MAX_ATTEMPTS, failed_only=False),
     ("POST", "/preview/start"): _RateLimitPolicy(max_attempts=_ACTION_MAX_ATTEMPTS, failed_only=False),
@@ -101,8 +101,6 @@ class RateLimiter:
     with Starlette's `BaseHTTPMiddleware.dispatch`.
     """
 
-    LOGIN_MAX_FAILED_ATTEMPTS = _LOGIN_MAX_FAILED_ATTEMPTS
-    ACTION_MAX_ATTEMPTS = _ACTION_MAX_ATTEMPTS
     WINDOW_SIZE = 300
     MAX_TRACKED_BUCKETS = 1000
 
@@ -125,9 +123,7 @@ class RateLimiter:
             return await call_next(request)
         bucket_key = self._bucket_key(request, route=route)
         now = time.monotonic()
-        attempts = self._fresh_attempts(bucket_key, now)
-        counted_attempts = sum(1 for _, failed in attempts if failed) if policy.failed_only else len(attempts)
-        if counted_attempts >= policy.max_attempts:
+        if self._is_blocked(bucket_key, policy, now):
             logger.warning(
                 "Security event: rate limit blocked request",
                 extra=build_security_log_extra(
@@ -142,6 +138,20 @@ class RateLimiter:
         response = await call_next(request)
         self._record(bucket_key, now, failed=response.status_code >= 400)
         return response
+
+    def _is_blocked(self, bucket_key: str, policy: _RateLimitPolicy, now: float) -> bool:
+        attempts = self._fresh_attempts(bucket_key, now)
+        counted = sum(1 for _, failed in attempts if failed) if policy.failed_only else len(attempts)
+        return counted >= policy.max_attempts
+
+    def login_blocked(self, request: Request) -> bool:
+        """Return whether this client IP has exhausted its failed-auth budget."""
+        key = self._bucket_key(request, route=_LOGIN_ROUTE)
+        return self._is_blocked(key, _RATE_LIMIT_POLICIES[_LOGIN_ROUTE], time.monotonic())
+
+    def record_auth_failure(self, request: Request) -> None:
+        """Count a failed request authentication against the client's login bucket."""
+        self._record(self._bucket_key(request, route=_LOGIN_ROUTE), time.monotonic(), failed=True)
 
     def _fresh_attempts(self, bucket_key: str, now: float) -> list[tuple[float, bool]]:
         """Return and persist attempts still inside the fixed window."""
@@ -160,11 +170,14 @@ class RateLimiter:
     def _bucket_key(self, request: Request, *, route: tuple[str, str]) -> str:
         """Return a stable bucket key without storing raw credentials."""
         route_key = ":".join(route)
+        client_ip = request.client.host if request.client else "unknown"
+        # Failed-auth budgets key by IP only: header and cookie values are attacker-chosen.
+        if route == _LOGIN_ROUTE:
+            return _hashed_bucket(f"{route_key}:ip", client_ip)
         if api_key := request.headers.get(settings.auth_key_name):
             return _hashed_bucket(f"{route_key}:api", api_key)
         if session_token := request.cookies.get(settings.browser_session_cookie_name):
             return _hashed_bucket(f"{route_key}:session", session_token)
-        client_ip = request.client.host if request.client else "unknown"
         return _hashed_bucket(f"{route_key}:ip", client_ip)
 
 
@@ -186,6 +199,16 @@ def _rate_limit_response() -> JSONResponse:
 
 
 _rate_limiter = RateLimiter()
+
+
+def record_auth_failure(request: Request) -> None:
+    """Count a failed authentication against the client IP's login bucket."""
+    _rate_limiter.record_auth_failure(request)
+
+
+def auth_failures_blocked(request: Request) -> bool:
+    """Return whether the client IP is locked out by failed authentications."""
+    return _rate_limiter.login_blocked(request)
 
 
 async def rate_limit_middleware(request: Request, call_next: Callable) -> Response:
@@ -261,7 +284,7 @@ async def security_headers_middleware(request: Request, call_next: Callable) -> 
         "Content-Security-Policy",
         _csp_for_request_path(request.url.path, nonce=request.state.csp_nonce),
     )
-    if settings.base_url.scheme == _HTTPS_SCHEME:
+    if settings.base_url.scheme == _HTTPS_SCHEME or settings.tls_enabled:
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
 

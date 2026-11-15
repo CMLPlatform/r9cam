@@ -651,3 +651,21 @@ class TestCorsConfig:
         assert resp.status_code == 200
         assert resp.headers[ALLOW_ORIGIN_HEADER] == origin
         assert resp.headers[ALLOW_PRIVATE_NETWORK_HEADER] == TRUE_HEADER_VALUE
+
+
+class TestAuthFailureRateLimit:
+    """Failed request authentication feeds the client IP's failed-auth budget."""
+
+    async def test_repeated_invalid_keys_lock_out_the_client(self, unauthed_client: AsyncClient) -> None:
+        """Random invalid API keys must hit 429 instead of guessing forever."""
+        from app.core.middleware import _LOGIN_MAX_FAILED_ATTEMPTS, _rate_limiter  # noqa: PLC0415
+
+        _rate_limiter._attempts.clear()
+        try:
+            for i in range(_LOGIN_MAX_FAILED_ATTEMPTS):
+                resp = await unauthed_client.get("/camera", headers={"X-API-Key": f"guess-{i}"})
+                assert resp.status_code == 403
+            resp = await unauthed_client.get("/camera", headers={"X-API-Key": VALID_API_KEY})
+            assert resp.status_code == 429
+        finally:
+            _rate_limiter._attempts.clear()
