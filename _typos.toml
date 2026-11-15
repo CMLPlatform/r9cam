@@ -14,4 +14,5 @@ Requeueing = "Requeueing"
 
 [files]
 # History: past entries keep their wording.
-extend-exclude = ["CHANGELOG.md"]
+# Vendored minified builds are not ours to fix.
+extend-exclude = ["CHANGELOG.md", "app/static/vendor/"]
