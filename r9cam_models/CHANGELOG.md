@@ -7,6 +7,14 @@ are listed only in the GitHub tags (`relab-rpi-cam-models-v*`, and `r9cam-models
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-15
+
+### Fixed
+
+- `DeviceImageUploadAck` and `DevicePreviewThumbnailAck` ignore unknown fields, so a backend
+  that adds a field to its acknowledgement no longer fails validation on the camera. The
+  models the camera sends still reject unknown fields.
+
 ## [0.6.1] - 2026-10-27
 
 ### Added
