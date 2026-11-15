@@ -67,7 +67,6 @@ class TestApplyRelayCredentials:
 
         assert runtime_state.relay_backend_url == EXAMPLE_RELAY_BACKEND_URL
         assert runtime_state.relay_camera_id == RELAY_CAMERA_ID
-        assert runtime_state.relay_auth_scheme == RELAY_AUTH_SCHEME
         assert runtime_state.relay_key_id == RELAY_KEY_ID
         assert runtime_state.relay_private_key_pem == RELAY_PRIVATE_KEY_PEM
         assert runtime_state.local_relay_api_key.startswith("LOCAL_")
@@ -88,14 +87,12 @@ class TestApplyRelayCredentials:
         runtime_state = RuntimeState(
             relay_backend_url=ENV_RELAY_BACKEND_URL,
             relay_camera_id=ENV_RELAY_CAMERA_ID,
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=ENV_RELAY_KEY_ID,
             relay_private_key_pem=ENV_RELAY_PRIVATE_KEY_PEM,
         )
         creds = {
             "relay_backend_url": EXAMPLE_RELAY_BACKEND_URL,
             "relay_camera_id": RELAY_CAMERA_ID,
-            "relay_auth_scheme": RELAY_AUTH_SCHEME,
             "relay_key_id": RELAY_KEY_ID,
             "relay_private_key_pem": RELAY_PRIVATE_KEY_PEM,
         }
@@ -113,7 +110,6 @@ class TestApplyRelayCredentials:
         runtime_state = RuntimeState(
             relay_backend_url=ENV_RELAY_BACKEND_URL,
             relay_camera_id=ENV_RELAY_CAMERA_ID,
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=ENV_RELAY_KEY_ID,
             relay_private_key_pem=ENV_RELAY_PRIVATE_KEY_PEM,
         )
@@ -140,7 +136,6 @@ class TestSetRuntimeRelayCredentials:
             runtime_state=runtime_state,
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id=RELAY_CAMERA_ID,
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
@@ -148,20 +143,6 @@ class TestSetRuntimeRelayCredentials:
         assert runtime_state.relay_enabled is True
         assert runtime_state.relay_camera_id == RELAY_CAMERA_ID
         assert runtime_state.relay_key_id == RELAY_KEY_ID
-
-    def test_rejects_non_device_assertion_auth_scheme(self) -> None:
-        """Credential validation should be wired into the runtime boundary."""
-        # Detailed validation cases live in tests/unit/relay/test_credentials.py;
-        # this guards that set_runtime_relay_credentials actually invokes them.
-        with pytest.raises(ValueError, match="device_assertion"):
-            set_runtime_relay_credentials(
-                runtime_state=RuntimeState(),
-                relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
-                relay_camera_id=RELAY_CAMERA_ID,
-                relay_auth_scheme="bearer",
-                relay_key_id=RELAY_KEY_ID,
-                relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
-            )
 
 
 class TestAuthorizedApiKeysMutation:
@@ -246,7 +227,6 @@ class TestPersistedRelayCredentialsOrigin:
         creds = {
             "relay_backend_url": FOREIGN_RELAY_BACKEND_URL,
             "relay_camera_id": RELAY_CAMERA_ID,
-            "relay_auth_scheme": RELAY_AUTH_SCHEME,
             "relay_key_id": RELAY_KEY_ID,
             "relay_private_key_pem": RELAY_PRIVATE_KEY_PEM,
         }

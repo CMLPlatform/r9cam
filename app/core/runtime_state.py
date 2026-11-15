@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.core.settings import Settings
 
-_DEVICE_ASSERTION_AUTH_SCHEME = "device_assertion"
 _LOCAL_RELAY_API_KEY_BYTES = 32
 
 
@@ -20,7 +19,6 @@ class RuntimeState:
 
     relay_backend_url: str = ""
     relay_camera_id: str = ""
-    relay_auth_scheme: str = _DEVICE_ASSERTION_AUTH_SCHEME
     relay_key_id: str = ""
     relay_private_key_pem: str = ""
     local_relay_api_key: str = ""
@@ -33,7 +31,6 @@ class RuntimeState:
         return cls(
             relay_backend_url=app_settings.relay_backend_url,
             relay_camera_id=app_settings.relay_camera_id,
-            relay_auth_scheme=app_settings.relay_auth_scheme,
             relay_key_id=app_settings.relay_key_id,
             relay_private_key_pem=app_settings.relay_private_key_pem,
             local_relay_api_key=app_settings.local_relay_api_key,
@@ -45,11 +42,7 @@ class RuntimeState:
     def relay_enabled(self) -> bool:
         """Whether relay credentials are currently available."""
         return bool(
-            self.relay_backend_url
-            and self.relay_camera_id
-            and self.relay_auth_scheme == _DEVICE_ASSERTION_AUTH_SCHEME
-            and self.relay_key_id
-            and self.relay_private_key_pem
+            self.relay_backend_url and self.relay_camera_id and self.relay_key_id and self.relay_private_key_pem
         )
 
     def set_relay_credentials(
@@ -57,14 +50,12 @@ class RuntimeState:
         *,
         relay_backend_url: str,
         relay_camera_id: str,
-        relay_auth_scheme: str,
         relay_key_id: str,
         relay_private_key_pem: str,
     ) -> None:
         """Replace the active relay credentials."""
         self.relay_backend_url = relay_backend_url
         self.relay_camera_id = relay_camera_id
-        self.relay_auth_scheme = relay_auth_scheme
         self.relay_key_id = relay_key_id
         self.relay_private_key_pem = relay_private_key_pem
         self.ensure_local_relay_api_key()
@@ -79,7 +70,6 @@ class RuntimeState:
         """Clear the active relay credentials without touching local keys."""
         self.relay_backend_url = ""
         self.relay_camera_id = ""
-        self.relay_auth_scheme = ""
         self.relay_key_id = ""
         self.relay_private_key_pem = ""
 

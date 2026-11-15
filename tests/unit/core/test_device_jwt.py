@@ -50,7 +50,6 @@ def _signing_runtime() -> Iterator[None]:
     runtime.runtime_state.set_relay_credentials(
         relay_backend_url="wss://backend.example/ws",
         relay_camera_id=_CAMERA_ID_DEFAULT,
-        relay_auth_scheme="device_assertion",
         relay_key_id=_KID_DEFAULT,
         relay_private_key_pem=_fresh_p256_pem(),
     )
@@ -116,7 +115,6 @@ class TestBuildDeviceAssertionRoundTrip:
         runtime.runtime_state.set_relay_credentials(
             relay_backend_url="wss://backend.example/ws",
             relay_camera_id=_CAMERA_ID_ROUND_TRIP,
-            relay_auth_scheme="device_assertion",
             relay_key_id="cam-key-round-trip",
             relay_private_key_pem=private_pem,
         )
@@ -145,7 +143,6 @@ class TestBuildDeviceAssertionKeyPolicy:
         runtime.runtime_state.set_relay_credentials(
             relay_backend_url="wss://backend.example/ws",
             relay_camera_id=_CAMERA_ID_DEFAULT,
-            relay_auth_scheme="device_assertion",
             relay_key_id=_KID_DEFAULT,
             relay_private_key_pem="not a private key",
         )

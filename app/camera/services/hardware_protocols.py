@@ -29,15 +29,6 @@ class Picamera2Like(Protocol):
     def capture_metadata(self) -> dict | None:
         """Capture metadata for the last image or frame."""
 
-    def switch_mode_and_capture_image(self, config: object) -> PilImage:
-        """Switch to the provided configuration and capture a still image."""
-
-    def start_recording(self, encoder: object, output: object) -> None:
-        """Start recording using the provided encoder and output."""
-
-    def stop_recording(self) -> None:
-        """Stop recording."""
-
     def start_encoder(self, encoder: object, output: object, *, name: str = "main") -> None:
         """Attach an encoder to a named stream without restarting the camera."""
 
@@ -50,11 +41,5 @@ class Picamera2Like(Protocol):
     def autofocus_cycle(self, *, wait: bool | None = None, signal_function: object | None = None) -> object:
         """Run a Picamera2 autofocus cycle."""
 
-    def create_still_configuration(self, **kwargs: object) -> dict:
-        """Create a still capture configuration."""
-
     def create_video_configuration(self, **kwargs: object) -> dict:
         """Create a video capture configuration."""
-
-    def create_preview_configuration(self, **kwargs: object) -> dict:
-        """Create a low-resolution preview capture configuration."""

@@ -97,17 +97,6 @@ class TestRelayUrlValidation:
         with pytest.raises(ValueError, match="Relay bootstrap config must set"):
             Settings(relay_backend_url=EXAMPLE_RELAY_BACKEND_URL, relay_camera_id="cam-1")
 
-    def test_non_device_assertion_relay_scheme_is_rejected(self) -> None:
-        """Relay bootstrap config only supports device assertions."""
-        with pytest.raises(ValueError, match="RELAY_AUTH_SCHEME must be device_assertion"):
-            Settings(
-                relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
-                relay_camera_id="cam-1",
-                relay_auth_scheme="bearer",
-                relay_key_id="key-1",
-                relay_private_key_pem="pem",
-            )
-
 
 class TestAuthorizedApiKeysValidation:
     """Tests for the authorized_api_keys field validator."""
@@ -538,7 +527,6 @@ class TestConfigBootstrapHelpers:
             runtime_state,
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="cam-1",
-            relay_auth_scheme="device_assertion",
             relay_key_id="key-1",
             relay_private_key_pem=fresh_p256_pem(),
         )
@@ -557,7 +545,6 @@ class TestConfigBootstrapHelpers:
                 runtime_state,
                 relay_backend_url=EXAMPLE_RELAY_BACKEND_URL_UNSECURE,
                 relay_camera_id="cam-1",
-                relay_auth_scheme="device_assertion",
                 relay_key_id="key-1",
                 relay_private_key_pem="pem",
             )
@@ -573,7 +560,6 @@ class TestConfigBootstrapHelpers:
             runtime_state,
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL_UNSECURE,
             relay_camera_id="cam-1",
-            relay_auth_scheme="device_assertion",
             relay_key_id="key-1",
             relay_private_key_pem=fresh_p256_pem(),
             app_settings=app_settings,

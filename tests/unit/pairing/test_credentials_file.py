@@ -53,7 +53,7 @@ def test_save_moves_the_old_file_to_the_new_path(legacy_home: tuple[Path, Path])
     """A save keeps the old fields, writes the new path and removes the old file with its key."""
     new, legacy = legacy_home
 
-    pairing_credentials.save_relay_credentials("https://api.example", "cam-new", "device_assertion", "key-1", "new-pem")
+    pairing_credentials.save_relay_credentials("https://api.example", "cam-new", "key-1", "new-pem")
 
     saved = json.loads(new.read_text())
     assert saved["local_api_key"] == "old-key"

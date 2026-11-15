@@ -148,14 +148,12 @@ class TestLifespan:
         app = FastAPI()
         monkeypatch.setattr(settings, "relay_backend_url", EXAMPLE_RELAY_BACKEND_URL)
         monkeypatch.setattr(settings, "relay_camera_id", "cam-1")
-        monkeypatch.setattr(settings, "relay_auth_scheme", "device_assertion")
         monkeypatch.setattr(settings, "relay_key_id", "key-1")
         monkeypatch.setattr(settings, "relay_private_key_pem", "private-key")
         monkeypatch.setattr(settings, "pairing_backend_url", "")
         runtime.runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="cam-1",
-            relay_auth_scheme="device_assertion",
             relay_key_id="key-1",
             relay_private_key_pem="private-key",
         )
