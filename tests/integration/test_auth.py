@@ -669,3 +669,18 @@ class TestAuthFailureRateLimit:
             assert resp.status_code == 429
         finally:
             _rate_limiter._attempts.clear()
+
+    async def test_stale_session_cookie_does_not_lock_out_the_client(self, unauthed_client: AsyncClient) -> None:
+        """An open tab polling with an expired session must not lock its IP out of login."""
+        from app.core.middleware import _LOGIN_MAX_FAILED_ATTEMPTS, _rate_limiter  # noqa: PLC0415
+
+        _rate_limiter._attempts.clear()
+        try:
+            cookie_name = settings.browser_session_cookie_name
+            for _ in range(_LOGIN_MAX_FAILED_ATTEMPTS + 1):
+                resp = await unauthed_client.get("/camera", cookies={cookie_name: "expired-session"})
+                assert resp.status_code == 401
+            resp = await unauthed_client.get("/camera", headers={"X-API-Key": VALID_API_KEY})
+            assert resp.status_code == 200
+        finally:
+            _rate_limiter._attempts.clear()

@@ -182,8 +182,7 @@ async def verify_request(
         verify_cookie_write_csrf(request)
         return "browser-session"
 
-    if request.cookies.get(settings.browser_session_cookie_name):
-        record_auth_failure(request)
+    # NOTE: a stale session cookie is not counted: an open tab polling after expiry would lock its IP out of login.
     logger.warning(
         "Security event: request authentication missing",
         extra=build_security_log_extra(
