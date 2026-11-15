@@ -45,7 +45,7 @@
   ]
 
   requires-python = ">=3.13" # NOTE: Debian Trixie ships picamera2 for 3.13 only; the Dockerfile and renovate.json pin it
-  version         = "0.7.2"  # NOTE: set by `just release-prep`
+  version         = "0.8.0"  # NOTE: set by `just release-prep`
 
   [project.urls]
     Homepage   = "https://github.com/CMLPlatform/r9cam"

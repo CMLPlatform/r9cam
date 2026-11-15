@@ -3,3 +3,4 @@
 # any other key. Add yours before the first release, then commit it to main:
 #   echo "$(git config user.email) namespaces=\"git\" $(cat "$(git config --type=path user.signingkey | sed 's/\.pub$//').pub")" >>.github/allowed_signers
 # Format: "ALLOWED SIGNERS" in ssh-keygen(1).
+90462640+simonvanlierde@users.noreply.github.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINPvs81OEwnKDXs7qEdGwmfJKBgCDCiiKBLisEhE2V7D

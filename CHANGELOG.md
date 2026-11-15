@@ -8,6 +8,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-15
+
+**Upgrading:**
+
+- Pairing now makes an Ed25519 key, which the R9lab backend accepts from
+  [r9lab#501](https://github.com/CMLPlatform/r9lab/issues/501) on. Against an older backend, set
+  `DEVICE_KEY_ALGORITHM=ES256` before pairing.
+- A Pi still on 0.6 pairs again after the upgrade, then deletes
+  `~/.config/relab/relay_credentials.json`.
+
 ### Added
 
 - A capture can also save a DNG next to the JPEG when `RAW_CAPTURE=true`, and
@@ -379,6 +389,7 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [0.7.0]: https://github.com/CMLPlatform/r9cam/compare/v0.6.2...v0.7.0
 [0.7.1]: https://github.com/CMLPlatform/r9cam/compare/v0.7.0...v0.7.1
 [0.7.2]: https://github.com/CMLPlatform/r9cam/compare/v0.7.1...v0.7.2
-[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.7.2...HEAD
+[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/CMLPlatform/r9cam/compare/v0.7.2...v0.8.0
 [#121]: https://github.com/CMLPlatform/r9cam/issues/121
 [#122]: https://github.com/CMLPlatform/r9cam/issues/122
