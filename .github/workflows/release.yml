@@ -125,11 +125,15 @@ jobs:
             dist/*.whl
             dist/*.tar.gz
 
+      # sbom-path takes one literal path, not a glob as subject-path does.
+      - id: sbom
+        run: echo "path=$(echo dist/*.tar.gz.cdx.json)" >>"$GITHUB_OUTPUT"
+
       - name: Attest the SBOM
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: dist/*.tar.gz
-          sbom-path: dist/*.tar.gz.cdx.json
+          sbom-path: ${{ steps.sbom.outputs.path }}
 
       - name: Upload the release assets
         env:
