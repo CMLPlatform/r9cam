@@ -1,15 +1,7 @@
 {
-	"[python]": {
-		"editor.codeActionsOnSave": {
-			"source.fixAll": "explicit",
-			"source.organizeImports": "explicit"
-		},
-		"editor.defaultFormatter": "charliermarsh.ruff"
-	},
-	"ty.configuration": {
-		"environment": {
-			"root": ["./"],
-			"python": ".venv/"
-		}
-	}
+  "editor.formatOnSave": true,
+  "[markdown]": { "editor.defaultFormatter": "rvben.rumdl" },
+  "[toml]": { "editor.defaultFormatter": "tombi-toml.tombi" },
+  "[yaml]": { "editor.defaultFormatter": "bluebrown.yamlfmt" },
+  "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" }
 }

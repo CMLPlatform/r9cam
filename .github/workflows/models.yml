@@ -9,7 +9,7 @@ name: Models
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'r9cam_models/**'
       - 'tests/unit/core/test_contract_package.py'
@@ -19,7 +19,7 @@ on:
       - '.github/workflows/models.yml'
       - '.github/workflows/models-check-reusable.yml'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'r9cam_models/**'
       - 'tests/unit/core/test_contract_package.py'

@@ -1,9 +1,10 @@
 name: dco
 
 # Every commit in a pull request must carry a Signed-off-by line: the Developer
-# Certificate of Origin, as CONTRIBUTING.md asks. That holds for maintainers and bots
-# too; Renovate adds the line through commitBody in renovate.json. The job reads the
-# commits through the API and never checks out the pull request's code.
+# Certificate of Origin, as CONTRIBUTING.md asks and the silver badge's dco criterion
+# requires of every developer, the maintainers included. A commit a bot wrote, in a pull
+# request a bot opened, is skipped: Dependabot can't sign off, and a bot can't certify the
+# DCO anyway. A human commit pushed onto a bot's branch is still checked.
 on:
   pull_request:
 
@@ -27,15 +28,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
+          PR_BY_BOT: ${{ github.event.pull_request.user.type == 'Bot' }}
         run: |-
           set -euo pipefail
           missing=$(gh api --paginate "repos/$REPO/pulls/$PR/commits" --jq '.[]
             | select((.parents | length) < 2)
-            | select([.commit.message | split("\n")[] | select(test("^Signed-off-by: .+ <[^>]+>\r?$"))] | length == 0)
+            | select(env.PR_BY_BOT != "true" or .author.type != "Bot")
+            | select([.commit.message | split("\n")[] | select(test("^Signed-off-by: .+ <[^>]+>\\s*$"))] | length == 0)
             | .sha[0:7] + " " + (.commit.message | split("\n")[0])')
           if [ -n "$missing" ]; then
             echo "These commits have no Signed-off-by line:"
             echo "$missing"
-            echo "Add it with 'git rebase --signoff upstream/main' (the branch you started from), then force-push."
+            echo "Add it with 'git fetch origin && git rebase --signoff origin/main'."
+            echo "(Use the remote that points at this repository: origin in a clone of it, often upstream in a fork.)"
+            echo "If the branch is already pushed, update it with 'git push --force-with-lease'."
             exit 1
           fi

@@ -18,7 +18,7 @@ Device-side software for automated image capture on Raspberry Pi, integrated wit
 - **[Installation Guide](INSTALL.md)** - hardware setup, pairing, Docker, standalone mode, and troubleshooting
 - **[Architecture](ARCHITECTURE.md)** - runtime design, relay flow, auth boundaries, and configuration model
 - **[Contributing](CONTRIBUTING.md)** - local development, tests, quality checks, and release workflow
-- **[Roadmap](ROADMAP.md)**, **[Governance](GOVERNANCE.md)** and **[Code of Conduct](.github/CODE_OF_CONDUCT.md)** - what is planned, who decides, and how we work together
+- **[Roadmap](docs/roadmap.md)**, **[Governance](GOVERNANCE.md)** and **[Code of Conduct](.github/CODE_OF_CONDUCT.md)** - what is planned, who decides, and how we work together
 - **[Platform Docs](https://docs.r9lab.io/user-guides/rpi-cam/)** - camera management in R9lab
 
 ## What It Does
@@ -101,6 +101,15 @@ See [INSTALL.md#observability](INSTALL.md#observability) for operator configurat
 ## Troubleshooting
 
 Use [INSTALL.md#troubleshooting](INSTALL.md#troubleshooting) for operator issues. Use [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and test workflow.
+
+## Development
+
+You need [uv](https://docs.astral.sh/uv/) and [just](https://just.systems). Off a Pi the camera is unavailable, so the app starts without a preview and the camera routes return errors. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest.
+
+```sh
+just install
+just check
+```
 
 ## Licensing
 

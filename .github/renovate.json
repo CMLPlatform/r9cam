@@ -77,6 +77,13 @@
       "allowedVersions": "<3.14"
     },
     {
+      "description": "Template releases, from .copier-answers.yml. Their tags carry no release date, so the week's wait above would hold them back for good.",
+      "matchManagers": [
+        "copier"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
       "groupName": "docker",
       "matchManagers": [
         "dockerfile",
