@@ -33,9 +33,13 @@
           </div>
         </a>
         <div class="site-header__controls">
-          {% block site_header_nav %}
-
-          {% endblock %}
+          <nav class="site-header__nav" aria-label="Primary">
+            <a href="{{ url_for('homepage') }}" class="btn btn--ghost"{% if active_nav == 'home' %} aria-current="page"{% endif %}>Home</a>
+            <a href="{{ url_for('setup_page') }}" class="btn btn--ghost"{% if active_nav == 'setup' %} aria-current="page"{% endif %}>Setup</a>
+            {% if api_docs_enabled %}
+              <a href="{{ url_for('swagger_ui_html') }}" class="btn btn--ghost">API Docs</a>
+            {% endif %}
+          </nav>
           {% if operator_authenticated %}
             <form action="{{ url_for('logout') }}" method="post" class="site-header__logout">
               <button class="btn logout" type="submit">Log out</button>
@@ -56,6 +60,7 @@
               </svg>
             </span>
           </button>
+          <span class="sr-only" role="status" data-theme-announce></span>
         </div>
       </header>
       {% block body %}

@@ -28,7 +28,7 @@ from tests.constants import (
 )
 from tests.fakes import FakePairingService, FakeRelayService, SpyRuntime
 
-SETUP_TITLE = "RPi Camera — Setup"
+SETUP_TITLE = "r9cam — Setup"
 SETUP_COPY_TEXT = "Pair, refresh, or unpair from this page."
 PAIRING_URL_DEBUG_TEXT = "Pairing details"
 # The full label, since a bare "URL" also turns up in the random CSP nonce now and then.
@@ -44,6 +44,7 @@ EXAMPLE_RELAY_CAMERA_ID = "cam-1"
 PAIRED_TEXT = "Paired"
 PAIRING_FAILED_TEXT = "Pairing failed"
 PAIRED_SUCCESS_TEXT = "Connecting now."
+NO_LAN_ADDRESS_TEXT = "No LAN address found"
 THIS_IP_PLACEHOLDER = "&lt;this-ip&gt;"
 COPY_PAIRING_CODE_LABEL = "Copy pairing code"
 NEW_PAIRING_CODE_LABEL = "Generate a new pairing code"
@@ -58,7 +59,7 @@ REVEAL_LOCAL_KEY_TEXT = "Reveal local API key"
 LOCAL_API_KEY_PLACEHOLDER = "Key hidden until revealed."
 SETUP_LOCAL_API_KEY_VALUE = "test-local-api-key"
 HLS_PREVIEW_TEXT = "HLS preview"
-PREVIEW_HLS_URL = f"http://{THIS_IP_PLACEHOLDER}:8018/preview/hls/cam-preview/index.m3u8"
+HLS_PATH = "/preview/hls/cam-preview/index.m3u8"
 API_TEXT = "API"
 PAIRING_EXPIRY_ATTR = "data-pairing-expiry"
 PAIRING_TTL_ATTR = 'data-ttl-ms="600000"'
@@ -66,7 +67,7 @@ PAIRING_REFRESH_HINT_TEXT = "Refresh after pairing or unpairing to see the lates
 SETUP_ADVANCED_OPEN = '<details class="setup-advanced" open'
 SETUP_PAIRING_INSTRUCTION = "Enter this code in R9lab."
 SETUP_NO_RELAY_RETRY = "No relay yet. Pairing keeps retrying."
-SETUP_OPEN_HINT = "click to open"
+SETUP_OPEN_HINT = "hint-closed"
 SETUP_LOCAL_DNS_SUFFIX = ".local"
 PAIRING_TASK_NAME = "pairing"
 HTTP_EQUIV_REFRESH = 'http-equiv="refresh"'
@@ -315,7 +316,102 @@ class TestSetupPage:
         self._pairing_state.error = PAIRING_FAILED_TEXT
         self._pairing_state.expires_at = None
         resp = await unauthed_client.get("/setup")
-        assert PAIRING_FAILED_TEXT in resp.text
+        assert "Needs attention" in resp.text
+        assert PAIRING_FAILED_TEXT not in resp.text
+
+    @pytest.mark.parametrize(
+        ("raw_error", "sentence", "next_step"),
+        [
+            (
+                "Pairing backend unreachable — retrying…",
+                "The camera cannot reach the R9lab server.",
+                "Check the network cable or Wi-Fi.",
+            ),
+            (
+                "Pairing backend is reachable, but the pairing API was not found at the configured URL.",
+                "The R9lab server did not recognise the pairing address.",
+                "Ask an operator to check the backend URL.",
+            ),
+            (
+                "Backend rejected the request (HTTP 503)",
+                "The R9lab server did not accept the pairing request.",
+                "Wait a minute.",
+            ),
+        ],
+    )
+    async def test_setup_page_explains_pairing_errors_in_plain_words(
+        self,
+        unauthed_client: AsyncClient,
+        raw_error: str,
+        sentence: str,
+        next_step: str,
+    ) -> None:
+        """Each error state shows one plain sentence and one next step, not the raw error text."""
+        self._pairing_state.status = "error"
+        self._pairing_state.code = None
+        self._pairing_state.error = raw_error
+        resp = await unauthed_client.get("/setup")
+        assert sentence in resp.text
+        assert next_step in resp.text
+        assert "status-chip--error" in resp.text
+        assert raw_error not in resp.text
+
+    async def test_setup_page_keeps_the_raw_pairing_error_in_the_details(self, client: AsyncClient) -> None:
+        """Operators still find the raw error text inside the pairing details."""
+        self._pairing_state.status = "error"
+        self._pairing_state.error = "Backend rejected the request (HTTP 503)"
+        client.cookies.set(settings.browser_session_cookie_name, create_session())
+        resp = await client.get("/setup")
+        details = resp.text.split('<details class="setup-debug">')[1].split("</details>")[0]
+        assert "Backend rejected the request (HTTP 503)" in details
+        assert "Wait a minute." in resp.text
+
+    async def test_setup_page_has_status_and_alert_regions(self, unauthed_client: AsyncClient) -> None:
+        """Status text goes to a polite region and failures to a persistent alert region."""
+        resp = await unauthed_client.get("/setup")
+        assert 'id="pairing-action-status" role="status"' in resp.text
+        assert 'id="pairing-action-error" role="alert"' in resp.text
+
+    async def test_setup_page_reads_the_pairing_code_letter_by_letter(self, unauthed_client: AsyncClient) -> None:
+        """The code carries a spaced aria-label so screen readers do not read it as a word."""
+        self._pairing_state.status = "waiting"
+        self._pairing_state.code = PAIRING_CODE
+        self._pairing_state.expires_at = datetime.now(UTC) + timedelta(minutes=10)
+        resp = await unauthed_client.get("/setup")
+        assert 'aria-label="A B C 2 3 4"' in resp.text
+        assert "data-expired-hint" in resp.text
+        assert "Ask an operator to refresh the code." in resp.text
+        assert "data-expired-refresh" not in resp.text
+
+    async def test_setup_page_offers_operators_a_refresh_button_for_expired_codes(self, client: AsyncClient) -> None:
+        """Operators get a labelled refresh button that the script reveals on expiry."""
+        self._pairing_state.status = "waiting"
+        self._pairing_state.code = PAIRING_CODE
+        self._pairing_state.expires_at = datetime.now(UTC) + timedelta(minutes=10)
+        client.cookies.set(settings.browser_session_cookie_name, create_session())
+        resp = await client.get("/setup")
+        assert "data-expired-refresh" in resp.text
+        assert "data-expired-hint" not in resp.text
+
+    async def test_setup_page_labels_copy_buttons_and_flips_hints(self, client: AsyncClient) -> None:
+        """Copy buttons name what they copy, and the details hint flips with the open state."""
+        self._runtime.runtime_state.set_local_api_key(SETUP_LOCAL_API_KEY_VALUE)
+        client.cookies.set(settings.browser_session_cookie_name, create_session())
+        resp = await client.get("/setup")
+        assert 'aria-label="Copy backend URL"' in resp.text
+        assert 'aria-label="Copy local API key"' in resp.text
+        assert "hint-open" in resp.text
+        assert "data-local-key-hide" in resp.text
+
+    async def test_setup_page_marks_setup_as_current(self, unauthed_client: AsyncClient) -> None:
+        """The nav marks the Setup link as the current page."""
+        resp = await unauthed_client.get("/setup")
+        assert 'aria-current="page">Setup</a>' in resp.text
+
+    def test_scripts_do_not_use_blocking_alerts(self) -> None:
+        """Failures go to the inline alert region, never to window.alert."""
+        for script in (settings.static_path).glob("*.js"):
+            assert "alert(" not in script.read_text(encoding="utf-8"), script.name
 
     async def test_setup_page_shows_paired_status(
         self,
@@ -407,10 +503,33 @@ class TestSetupPage:
         assert LOCAL_API_KEY_PLACEHOLDER in resp.text
         assert SETUP_LOCAL_API_KEY_VALUE not in resp.text
         assert HLS_PREVIEW_TEXT in resp.text
-        assert PREVIEW_HLS_URL in resp.text
         assert API_TEXT in resp.text
 
-    async def test_setup_page_falls_back_to_this_ip_placeholder_when_no_mdns_name(
+    @pytest.mark.parametrize(
+        ("candidate_url", "tls"),
+        [("http://192.168.1.50:8018", False), ("https://192.168.1.50:8443", True)],
+    )
+    async def test_setup_page_builds_api_and_hls_urls_from_candidate_urls(
+        self,
+        client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        candidate_url: str,
+        tls: bool,  # noqa: FBT001
+    ) -> None:
+        """Both URL lists carry the scheme and port that the local API really serves on."""
+        if tls:
+            monkeypatch.setattr(settings, "tls_cert_file", "/certs/cert.pem")
+            monkeypatch.setattr(settings, "tls_key_file", "/certs/key.pem")
+        self._get_candidate_urls.side_effect = None
+        self._get_candidate_urls.return_value = [candidate_url]
+        self._runtime.runtime_state.set_local_api_key(SETUP_LOCAL_API_KEY_VALUE)
+        client.cookies.set(settings.browser_session_cookie_name, create_session())
+        resp = await client.get("/setup")
+        assert f'<code class="setup-value-card__content">{candidate_url}</code>' in resp.text
+        assert f"<code>{candidate_url}{HLS_PATH}</code>" in resp.text
+        assert NO_LAN_ADDRESS_TEXT not in resp.text
+
+    async def test_setup_page_says_no_lan_address_found_when_there_is_none(
         self,
         client: AsyncClient,
     ) -> None:
@@ -419,7 +538,8 @@ class TestSetupPage:
         client.cookies.set(settings.browser_session_cookie_name, create_session())
         resp = await client.get("/setup")
         assert resp.status_code == 200
-        assert THIS_IP_PLACEHOLDER in resp.text
+        assert NO_LAN_ADDRESS_TEXT in resp.text
+        assert THIS_IP_PLACEHOLDER not in resp.text
         assert SETUP_LOCAL_DNS_SUFFIX not in resp.text
 
 

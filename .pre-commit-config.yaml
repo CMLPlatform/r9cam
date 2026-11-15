@@ -3,6 +3,7 @@ repos:
       rev: v6.0.0
       hooks:
           - id: check-added-large-files
+            exclude: ^app/static/vendor/
           - id: check-case-conflict # Check for files with names that differ only in case.
           - id: check-executables-have-shebangs
           - id: check-shebang-scripts-are-executable

@@ -1,17 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}RPi Camera — Setup{% endblock %}
+{% set active_nav = 'setup' %}
+
+{% block title %}r9cam — Setup{% endblock %}
 
 {% block body_class %}setup-page{% endblock %}
-
-{% block site_header_nav %}
-  <nav class="site-header__nav" aria-label="Primary">
-    <a href="{{ url_for('homepage') }}" class="btn btn--ghost">Home</a>
-    {% if api_docs_enabled %}
-    <a href="{{ url_for('swagger_ui_html') }}" class="btn btn--ghost">API Docs</a>
-    {% endif %}
-  </nav>
-{% endblock %}
 
 {% block head_extra %}
 {% endblock %}
@@ -40,7 +33,7 @@
       {% elif pairing.status in ('waiting', 'registering') and pairing.code %}
       <div class="status-chip status-chip--live">Pairing ready</div>
       {% elif pairing.status == status_error %}
-      <div class="status-chip status-chip--muted">Needs attention</div>
+      <div class="status-chip status-chip--error">Needs attention</div>
       {% else %}
       <div class="status-chip status-chip--muted">Not connected</div>
       {% endif %}
@@ -84,9 +77,9 @@
           <p class="pairing-code-panel__lead">Enter this code in R9lab.</p>
         </div>
         <div class="pairing-code-shell">
-          <div class="pairing-code" id="pairing-code">{{ pairing.code }}</div>
+          <div class="pairing-code" id="pairing-code" role="img" aria-label="{{ pairing.code | list | join(' ') }}">{{ pairing.code }}</div>
           <button class="setup-copy-code-btn" type="button" aria-label="Copy pairing code" title="Copy pairing code"
-            data-copy-source="pairing-code">
+            data-copy-source="pairing-code" data-copy-kind="code">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M9 4.5h8.25A2.25 2.25 0 0 1 19.5 6.75V15" fill="none" stroke="currentColor" stroke-width="1.7"
                 stroke-linecap="round" stroke-linejoin="round" />
@@ -109,7 +102,6 @@
           {% endif %}
         </div>
       </div>
-      <div class="pairing-action-status" id="pairing-action-status" aria-live="polite"></div>
       <div class="pairing-meta">
         <span class="pairing-validity" data-pairing-expiry data-expires-at="{{ pairing_expires_at_iso }}"
           data-ttl-ms="{{ pairing_code_ttl_seconds * 1000 }}">
@@ -121,10 +113,24 @@
         <span>Keep this page open while the code is active.</span>
         <span class="setup-debug__hint">Refresh after pairing or unpairing to see the latest state.</span>
       </div>
+      {% if operator_authenticated %}
+      <button class="btn" type="button" data-expired-refresh hidden>Get a new code</button>
+      {% else %}
+      <p class="setup-debug__hint" data-expired-hint hidden>Ask an operator to refresh the code.</p>
+      {% endif %}
       {% elif pairing.status == status_error %}
       <div class="setup-state-banner setup-state-banner--warning">
         <div class="setup-state-banner__copy">
-          <p class="offline">{{ pairing.error or 'Pairing error. Retrying.' }}</p>
+          {% if pairing_error_kind == 'unreachable' %}
+          <p class="offline">The camera cannot reach the R9lab server.</p>
+          <span class="setup-debug__text">Check the network cable or Wi-Fi. The camera tries again by itself.</span>
+          {% elif pairing_error_kind == 'wrong_url' %}
+          <p class="offline">The R9lab server did not recognise the pairing address.</p>
+          <span class="setup-debug__text">{% if operator_authenticated %}Check the backend URL under Pairing details.{% else %}Ask an operator to check the backend URL.{% endif %}</span>
+          {% else %}
+          <p class="offline">The R9lab server did not accept the pairing request.</p>
+          <span class="setup-debug__text">Wait a minute. The camera tries again by itself.</span>
+          {% endif %}
         </div>
       </div>
       {% else %}
@@ -135,18 +141,21 @@
       </div>
       {% endif %}
 
+      <p class="pairing-action-status" id="pairing-action-status" role="status"></p>
+      <p class="pairing-action-status" id="pairing-action-error" role="alert" data-state="failed"></p>
+
       {% if operator_authenticated %}
       <details class="setup-debug">
         <summary>
           <span>Pairing details</span>
-          <span class="setup-debug__summary-hint">click to open</span>
+          <span class="setup-debug__summary-hint"><span class="hint-closed">Show details</span><span class="hint-open">Hide details</span></span>
         </summary>
         <div class="setup-debug__body">
           <div class="setup-debug__row">
             <span class="setup-debug__label">URL</span>
             <div class="setup-debug__value">
               <code id="pairing-backend-url">{{ pairing_backend_url }}</code>
-              <button class="btn setup-copy-btn" type="button" data-copy-source="pairing-backend-url">
+              <button class="btn setup-copy-btn" type="button" data-copy-source="pairing-backend-url" data-copy-kind="url" aria-label="Copy backend URL">
                 Copy
               </button>
             </div>
@@ -237,18 +246,21 @@
                 <button class="btn setup-copy-btn" type="button" data-local-key-reveal>
                   Reveal local API key
                 </button>
-                <button class="btn setup-copy-btn" type="button" data-copy-source="local-api-key" data-local-key-copy disabled>
+                <button class="btn setup-copy-btn" type="button" data-local-key-hide hidden>
+                  Hide local API key
+                </button>
+                <button class="btn setup-copy-btn" type="button" data-copy-source="local-api-key" data-copy-kind="key" data-local-key-copy aria-label="Copy local API key" disabled>
                   Copy
                 </button>
               </div>
               <code id="local-api-key" class="setup-value-card__content setup-value-card__content--secret">Key hidden until revealed.</code>
-              <p class="setup-debug__hint" id="local-key-status" aria-live="polite"></p>
+              <p class="setup-debug__hint" id="local-key-status" role="status"></p>
+              <p class="setup-debug__hint" id="local-key-error" role="alert" data-state="failed"></p>
             </div>
             <div class="setup-debug__row">
               <span class="setup-debug__label">HLS preview</span>
               <span class="setup-debug__text">
-                {% for ip in lan_ips %}<code>http://{{ ip }}:8018/preview/hls/cam-preview/index.m3u8</code>{% if not loop.last
-                %}<br>{% endif %}{% endfor %}
+                {% for url in hls_urls %}<code>{{ url }}</code>{% if not loop.last %}<br>{% endif %}{% else %}No LAN address found{% endfor %}
               </span>
             </div>
             <div class="setup-value-card">
@@ -256,8 +268,10 @@
                 <span class="setup-debug__label">API</span>
               </div>
               <div class="setup-value-stack">
-                {% for ip in lan_ips %}
-                <code class="setup-value-card__content">http://{{ ip }}:8018</code>
+                {% for url in api_urls %}
+                <code class="setup-value-card__content">{{ url }}</code>
+                {% else %}
+                <span class="setup-debug__text">No LAN address found</span>
                 {% endfor %}
               </div>
             </div>

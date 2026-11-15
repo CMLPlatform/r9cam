@@ -1,6 +1,24 @@
 const HLS_SRC = "/preview/hls/cam-preview/index.m3u8";
 const THUMBNAIL_SRC = "/preview-thumbnail.jpg";
 const START_DELAY_MS = 2000;
+const THUMBNAIL_REFRESH_MS = 10000;
+
+// User-facing text, kept together for a later translation pass.
+const STRINGS = {
+  loadPreview: "Load Preview",
+  stopPreview: "Stop Preview",
+  starting: "Starting...",
+  stopping: "Stopping...",
+  wakingEncoder: "Waking the encoder...",
+  chipPreview: "Preview",
+  chipLive: "Live",
+  chipStarting: "Starting",
+  streamDropped: "Preview stream dropped. Reload to retry.",
+  startFailed: (status) => `The preview could not start (HTTP ${status}). Wait a moment and try again.`,
+  networkError: "The preview could not start. Check the network and try again.",
+  hlsUnsupported: "This browser cannot play the live preview.",
+  hlsScriptMissing: "The player script failed to load. Reload the page to try again.",
+};
 
 let hls = null;
 let state = "idle";
@@ -11,19 +29,54 @@ function setChip(kind, text) {
   chip.textContent = text;
 }
 
-function showThumbnail() {
+function setThumbnailAvailable(available) {
+  document.getElementById("preview-thumbnail").hidden = !available;
+  document.getElementById("preview-empty").hidden = available;
+}
+
+function refreshThumbnail() {
   document.getElementById("preview-thumbnail").src = `${THUMBNAIL_SRC}?t=${Date.now()}`;
-  document.getElementById("preview-thumbnail").hidden = false;
+}
+
+function showThumbnail() {
+  refreshThumbnail();
   document.getElementById("preview-video").hidden = true;
+  document.getElementById("preview-thumbnail").hidden = false;
+  document.getElementById("preview-empty").hidden = true;
+}
+
+function setupThumbnail() {
+  const img = document.getElementById("preview-thumbnail");
+  // A late load or error must not unhide the thumbnail over a live video.
+  img.addEventListener("load", () => state === "idle" && setThumbnailAvailable(true));
+  img.addEventListener("error", () => state === "idle" && setThumbnailAvailable(false));
+  // The image may have failed before this module ran.
+  if (img.complete && img.naturalWidth === 0) {
+    setThumbnailAvailable(false);
+  }
+  window.setInterval(() => {
+    if (state === "idle" && !document.hidden) {
+      refreshThumbnail();
+    }
+  }, THUMBNAIL_REFRESH_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (state === "idle" && !document.hidden) {
+      refreshThumbnail();
+    }
+  });
 }
 
 function showVideo() {
   document.getElementById("preview-thumbnail").hidden = true;
+  document.getElementById("preview-empty").hidden = true;
   document.getElementById("preview-video").hidden = false;
 }
 
 function attachPlayer() {
   const video = document.getElementById("preview-video");
+  if (!window.Hls && !video.canPlayType("application/vnd.apple.mpegurl")) {
+    throw new Error(STRINGS.hlsScriptMissing);
+  }
   if (window.Hls && window.Hls.isSupported()) {
     hls = new window.Hls({
       liveSyncDurationCount: 2,
@@ -36,14 +89,14 @@ function attachPlayer() {
     hls.on(window.Hls.Events.MANIFEST_PARSED, () => video.play());
     hls.on(window.Hls.Events.ERROR, (_evt, data) => {
       if (data.fatal) {
-        stopPreview("Preview stream dropped — reload to retry.");
+        stopPreview(STRINGS.streamDropped);
       }
     });
   } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
     video.src = HLS_SRC;
     video.play();
   } else {
-    throw new Error("HLS playback not supported in this browser.");
+    throw new Error(STRINGS.hlsUnsupported);
   }
 }
 
@@ -55,28 +108,28 @@ async function startPreview() {
   const btn = document.getElementById("preview-btn");
   const msg = document.getElementById("preview-msg");
   btn.disabled = true;
-  btn.textContent = "Starting...";
-  msg.textContent = "Waking the encoder...";
-  setChip("muted", "Starting");
+  btn.textContent = STRINGS.starting;
+  msg.textContent = STRINGS.wakingEncoder;
+  setChip("muted", STRINGS.chipStarting);
   try {
     const resp = await fetch("/preview/start", { method: "POST" });
     if (!resp.ok) {
-      throw new Error(`Server failed to start preview (HTTP ${resp.status})`);
+      throw new Error(STRINGS.startFailed(resp.status));
     }
     await new Promise((resolve) => window.setTimeout(resolve, START_DELAY_MS));
     showVideo();
     attachPlayer();
     state = "live";
     btn.disabled = false;
-    btn.textContent = "Stop Preview";
+    btn.textContent = STRINGS.stopPreview;
     msg.textContent = "";
-    setChip("live", "Live");
+    setChip("live", STRINGS.chipLive);
   } catch (err) {
     state = "idle";
     btn.disabled = false;
-    btn.textContent = "Load Preview";
-    msg.textContent = `Preview unavailable: ${err.message}`;
-    setChip("muted", "Preview");
+    btn.textContent = STRINGS.loadPreview;
+    msg.textContent = err instanceof TypeError ? STRINGS.networkError : err.message;
+    setChip("muted", STRINGS.chipPreview);
   }
 }
 
@@ -88,7 +141,7 @@ async function stopPreview(message = "") {
   const btn = document.getElementById("preview-btn");
   const msg = document.getElementById("preview-msg");
   btn.disabled = true;
-  btn.textContent = "Stopping...";
+  btn.textContent = STRINGS.stopping;
   if (hls) {
     hls.destroy();
     hls = null;
@@ -104,9 +157,9 @@ async function stopPreview(message = "") {
   showThumbnail();
   state = "idle";
   btn.disabled = false;
-  btn.textContent = "Load Preview";
+  btn.textContent = STRINGS.loadPreview;
   msg.textContent = message;
-  setChip("muted", "Preview");
+  setChip("muted", STRINGS.chipPreview);
 }
 
 function togglePreview() {
@@ -118,6 +171,7 @@ function togglePreview() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  setupThumbnail();
   const button = document.querySelector("[data-preview-toggle]");
   if (button) {
     button.addEventListener("click", togglePreview);

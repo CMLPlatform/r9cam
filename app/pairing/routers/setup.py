@@ -19,7 +19,7 @@ from app.core.runtime_state import ConnectionMode, connection_mode
 from app.core.settings import DEFAULT_PAIRING_BACKEND_URL, settings
 from app.core.templates_config import templates
 from app.observability.logging import build_log_extra
-from app.pairing.routers.local_access import API_PORT, get_candidate_urls
+from app.pairing.routers.local_access import get_candidate_urls
 from app.pairing.services.credentials import delete_relay_credentials
 from app.pairing.services.service import (
     PAIRING_CODE_TTL_SECONDS,
@@ -32,6 +32,9 @@ if TYPE_CHECKING:
     from app.core.runtime import AppRuntime
 
 _STATUS_ERROR = "error"
+_ERROR_NOT_FOUND = "not found"
+_ERROR_UNREACHABLE = "unreachable"
+HLS_PLAYLIST_PATH = "/preview/hls/cam-preview/index.m3u8"
 _PAIRING_BACKEND_REACHABILITY_TIMEOUT = httpx.Timeout(connect=1.5, read=1.5, write=1.5, pool=1.5)
 
 logger = logging.getLogger(__name__)
@@ -64,6 +67,17 @@ async def _pairing_backend_reachable() -> bool:
     return True
 
 
+def _pairing_error_kind(error: str | None) -> str:
+    """Sort the pairing service's error text into the few states the page explains."""
+    text = (error or "").lower()
+    kind = "rejected"
+    if _ERROR_NOT_FOUND in text:
+        kind = "wrong_url"
+    elif _ERROR_UNREACHABLE in text:
+        kind = "unreachable"
+    return kind
+
+
 @public_router.get("/setup")
 async def setup_page(request: Request) -> HTMLResponse:
     """HTML page showing camera config status and pairing code."""
@@ -81,14 +95,10 @@ async def setup_page(request: Request) -> HTMLResponse:
     mode = connection_mode(runtime.runtime_state, settings)
     has_local_key = bool(runtime.runtime_state.local_api_key)
 
-    lan_ips: list[str] = []
-    connection_host = ""
+    api_urls: list[str] = []
     pairing_backend_reachable = False
     if operator_authenticated:
-        candidate_urls = get_candidate_urls()
-        # Strip scheme and port so the template can compose its own URLs.
-        lan_ips = [u.removeprefix("http://").removesuffix(f":{API_PORT}") for u in candidate_urls] or ["<this-ip>"]
-        connection_host = lan_ips[0]
+        api_urls = get_candidate_urls()
         pairing_backend_reachable = mode is ConnectionMode.PAIRED or (
             mode is ConnectionMode.PAIRING and await _pairing_backend_reachable()
         )
@@ -98,6 +108,7 @@ async def setup_page(request: Request) -> HTMLResponse:
         "setup.html",
         {
             "pairing": pairing,
+            "pairing_error_kind": _pairing_error_kind(pairing.error),
             "pairing_expires_at_iso": pairing_expires_at_iso,
             "mode": mode.value,
             "relay_backend_url": runtime.runtime_state.relay_backend_url if operator_authenticated else "",
@@ -111,8 +122,8 @@ async def setup_page(request: Request) -> HTMLResponse:
             "local_auth_enabled": settings.local_mode_enabled and has_local_key,
             "has_local_api_key": has_local_key if operator_authenticated else False,
             "operator_authenticated": operator_authenticated,
-            "connection_host": connection_host,
-            "lan_ips": lan_ips,
+            "api_urls": api_urls,
+            "hls_urls": [f"{url}{HLS_PLAYLIST_PATH}" for url in api_urls],
             "pairing_backend_reachable": pairing_backend_reachable,
             "api_docs_enabled": settings.api_docs_enabled,
         },

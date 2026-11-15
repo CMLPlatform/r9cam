@@ -6,10 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient
 from PIL import Image
 from pydantic import AnyUrl
+from r9cam_models.camera import CameraMode
 from r9cam_models.stream import StreamMode
 
 from app.camera.routers import hls as hls_mod
 from app.camera.services.manager import CameraManager
+from app.core.runtime import AppRuntime
 from app.core.settings import settings
 from tests.constants import (
     COOP_SAME_ORIGIN,
@@ -39,7 +41,6 @@ LOGO_SRC = "/static/logo.png"
 SITE_JS_SRC = "/static/site.js"
 THEME_INIT_JS_SRC = "/static/theme-init.js"
 HOMEPAGE_PREVIEW_JS_SRC = "/static/homepage-preview.js"
-HLS_CDN_JS_SRC = "https://cdn.jsdelivr.net/npm/hls.js@1.6.16/dist/hls.min.js"
 HLS_JS_SRI = "sha384-5E8B0pTlZZJMabWpC0fyYf6OUpe15jJij34BqBAh4NXoHAlLNOjCPRrwtOXOQFAn"
 HLS_CROSSORIGIN_ATTR = 'crossorigin="anonymous"'
 HLS_VENDOR_JS_SRC = "/static/vendor/hls-1.6.16.min.js"
@@ -66,9 +67,9 @@ class TestHomepage:
         assert HTML_CONTENT_TYPE in resp.headers["content-type"]
 
     async def test_homepage_sets_strict_csp_for_pinned_preview_assets(self, unauthed_client: AsyncClient) -> None:
-        """The landing page CSP should allow local scripts and the pinned HLS CDN without inline scripts."""
+        """The landing page CSP should allow local scripts only without inline scripts."""
         resp = await unauthed_client.get("/")
-        assert SETUP_CSP_CDN in resp.headers[HEADER_CSP]
+        assert SETUP_CSP_CDN not in resp.headers[HEADER_CSP]
         assert SETUP_CSP_INLINE not in resp.headers[HEADER_CSP]
         assert SETUP_CSP_CONNECT_SELF in resp.headers[HEADER_CSP]
         assert SETUP_CSP_BROAD_CONNECT not in resp.headers[HEADER_CSP]
@@ -100,10 +101,10 @@ class TestHomepage:
         assert SITE_JS_SRC in resp.text
         assert THEME_INIT_JS_SRC in resp.text
         assert HOMEPAGE_PREVIEW_JS_SRC in resp.text
-        assert HLS_CDN_JS_SRC in resp.text
+        assert HLS_VENDOR_JS_SRC in resp.text
         assert HLS_JS_SRI in resp.text
         assert HLS_CROSSORIGIN_ATTR in resp.text
-        assert HLS_VENDOR_JS_SRC not in resp.text
+        assert SETUP_CSP_CDN not in resp.text
 
     async def test_homepage_keeps_primary_actions_in_header_only(self, unauthed_client: AsyncClient) -> None:
         """The homepage should avoid duplicating setup navigation or linking production docs."""
@@ -113,6 +114,57 @@ class TestHomepage:
         assert API_DOCS_LINK_TEXT not in resp.text
         assert HOMEPAGE_SECONDARY_COPY in resp.text
 
+    async def test_homepage_marks_home_as_current_and_setup_as_plain_link(self, unauthed_client: AsyncClient) -> None:
+        """The active nav link carries aria-current, and Setup is not styled as the primary action."""
+        resp = await unauthed_client.get("/")
+        assert 'aria-current="page">Home</a>' in resp.text
+        assert "btn--nav-primary" not in resp.text
+
+    async def test_homepage_announces_preview_status_changes(self, unauthed_client: AsyncClient) -> None:
+        """The preview chip and message are live regions, and a missing thumbnail has an empty state."""
+        resp = await unauthed_client.get("/")
+        assert 'id="preview-chip" role="status"' in resp.text
+        assert 'id="preview-msg" class="preview-message" role="status"' in resp.text
+        assert "No preview yet. The camera may be offline." in resp.text
+
+    async def test_theme_toggle_has_a_live_region(self, unauthed_client: AsyncClient) -> None:
+        """A visually hidden status element announces the new theme."""
+        resp = await unauthed_client.get("/")
+        assert "data-theme-announce" in resp.text
+
+    async def test_homepage_status_line_reports_a_not_ready_unpaired_device(
+        self,
+        unauthed_client: AsyncClient,
+    ) -> None:
+        """A device without camera or credentials says so and links to Setup."""
+        resp = await unauthed_client.get("/")
+        assert "Camera not available" in resp.text
+        assert "Not paired" in resp.text
+        assert "Remote link" not in resp.text
+        assert '/setup">Open setup</a>' in resp.text
+
+    async def test_homepage_status_line_reports_a_paired_device(
+        self,
+        unauthed_client: AsyncClient,
+        app_runtime: AppRuntime,
+    ) -> None:
+        """A paired device with an open camera reports each part, including a dropped relay link."""
+        app_runtime.camera_manager.backend.current_mode = CameraMode.PHOTO
+        app_runtime.runtime_state.set_relay_credentials(
+            relay_backend_url="wss://relay.example",
+            relay_camera_id="cam-1",
+            relay_auth_scheme="device_assertion",
+            relay_key_id="key-1",
+            relay_private_key_pem="pem",
+        )
+        resp = await unauthed_client.get("/")
+        assert "Camera ready" in resp.text
+        assert "Paired with R9lab" in resp.text
+        assert "Remote link disconnected" in resp.text
+        app_runtime.relay_state.mark_connected()
+        resp = await unauthed_client.get("/")
+        assert "Remote link connected" in resp.text
+
     async def test_favicon_returns_ico(self, unauthed_client: AsyncClient) -> None:
         """Test that the favicon route returns an ICO file."""
         resp = await unauthed_client.get("/favicon.ico")
@@ -120,7 +172,7 @@ class TestHomepage:
 
     async def test_static_allowlist_serves_known_asset_extensions(self, unauthed_client: AsyncClient) -> None:
         """Static serving should allow only the asset extensions the UI actually uses."""
-        for path in (LOGO_SRC, SITE_JS_SRC, "/static/styles.css", "/static/favicon.ico"):
+        for path in (LOGO_SRC, SITE_JS_SRC, HLS_VENDOR_JS_SRC, "/static/styles.css", "/static/favicon.ico"):
             resp = await unauthed_client.get(path)
 
             assert resp.status_code == 200

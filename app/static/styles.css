@@ -641,7 +641,11 @@ body.setup-page a {
     flex: none;
 }
 
-.setup-copy-code-btn .sr-only {
+[hidden] {
+    display: none !important;
+}
+
+.sr-only {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -666,11 +670,15 @@ body.setup-page a {
 }
 
 .pairing-action-status {
-    min-height: 1.1em;
-    margin-top: 8px;
+    min-height: 0;
+    margin: 8px 0 0;
     color: var(--setup-subtle);
     font-size: 0.88rem;
     font-weight: 600;
+}
+
+.pairing-action-status:empty {
+    margin: 0;
 }
 
 .pairing-action-status[data-state="success"] {
@@ -1187,6 +1195,41 @@ body.setup-page a {
 .preview-message {
     font-size: 0.9rem;
     color: var(--setup-muted);
+}
+
+.preview-empty {
+    display: grid;
+    place-items: center;
+    width: min(100%, 360px);
+    aspect-ratio: 4/3;
+    padding: 16px;
+    border: 1px dashed var(--setup-border);
+    border-radius: 12px;
+    background: var(--setup-soft);
+    color: var(--setup-muted);
+    text-align: center;
+}
+
+.preview-empty[hidden] {
+    display: none;
+}
+
+.device-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 20px;
+    margin: 0;
+    color: var(--setup-text);
+    font-weight: 600;
+}
+
+.device-status a {
+    display: inline-block;
+    padding-block: 12px;
+    color: var(--setup-accent);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
 }
 
 .setup-dialog {

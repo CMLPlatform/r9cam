@@ -7,6 +7,8 @@ from fastapi.responses import FileResponse, HTMLResponse
 from r9cam_models.stream import StreamMode
 
 from app.camera.dependencies import CameraManagerDependency
+from app.core.runtime import get_request_runtime
+from app.core.runtime_state import ConnectionMode, connection_mode
 from app.core.settings import settings
 from app.core.templates_config import templates
 from app.utils.file_policy import JPEG_CAPTURE_POLICY, CaptureFileValidationError
@@ -21,10 +23,14 @@ async def homepage(request: Request, camera_manager: CameraManagerDependency) ->
     youtube_url: str | None = None
     if camera_manager.stream.mode == StreamMode.YOUTUBE and camera_manager.stream.url:
         youtube_url = str(camera_manager.stream.url)
+    runtime = get_request_runtime(request)
     return templates.TemplateResponse(
         request,
         "homepage.html",
         {
+            "camera_ready": camera_manager.backend.is_open,
+            "paired": connection_mode(runtime.runtime_state, settings) is ConnectionMode.PAIRED,
+            "relay_connected": runtime.relay_state.is_connected,
             "api_docs_enabled": settings.api_docs_enabled,
             "youtube_url": youtube_url,
         },

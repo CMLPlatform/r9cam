@@ -60,7 +60,8 @@ class TestContentSecurityPolicy:
         csp = middleware_mod._csp_for_request_path("/", nonce=_NONCE)
 
         assert _BLOB_WORKER_CSP_DIRECTIVE in csp
-        assert f"script-src 'self' 'nonce-{_NONCE}' https://cdn.jsdelivr.net" in csp
+        assert f"script-src 'self' 'nonce-{_NONCE}';" in csp
+        assert "cdn.jsdelivr.net" not in csp
         assert _OBJECT_SRC_NONE_DIRECTIVE in csp
         assert _SETUP_CONNECT_SELF_DIRECTIVE in csp
         assert _HTTP_SCHEME_SOURCE not in csp
