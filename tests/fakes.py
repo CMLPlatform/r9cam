@@ -53,6 +53,7 @@ class FakeBackend:
         self.image = Image.new("RGB", (100, 100), color="red")
         self.camera_properties = {"Model": "mock-camera"}
         self.capture_metadata: dict[str, JsonValue] = {"FrameDuration": 33333}
+        self.raw_dng: bytes | None = None  # set to simulate a backend that returns a DNG with the still
         self.last_youtube_config: YoutubeStreamConfig | None = None
         self.controls: dict[str, JsonValue] = {}
 
@@ -78,6 +79,7 @@ class FakeBackend:
             image=self.image,
             camera_properties=self.camera_properties,
             capture_metadata=self.capture_metadata,
+            raw_dng=self.raw_dng,
         )
 
     async def capture_preview_frame(self) -> Image.Image:

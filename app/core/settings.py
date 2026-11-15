@@ -286,6 +286,9 @@ class Settings(BaseSettings):
     max_capture_pixels: int = Field(default=20_000_000, ge=1)
     max_capture_file_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
 
+    # Also save a DNG from the same request as each still, kept under ``image_path/raw`` for ``image_ttl_s``.
+    raw_capture: bool = False
+
     @property
     def tls_enabled(self) -> bool:
         """Return whether the local API serves HTTPS itself."""

@@ -67,6 +67,7 @@ class TestClearDirectory:
         assert clear_mock.await_args_list == [
             ((tmp_path,), {"time_to_live_s": settings.image_ttl_s}),
             ((tmp_path / "preview-thumbnail",), {"time_to_live_s": settings.image_ttl_s}),
+            ((tmp_path / "raw",), {"time_to_live_s": settings.image_ttl_s}),
         ]
 
 

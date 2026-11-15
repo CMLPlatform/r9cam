@@ -183,6 +183,10 @@ Remote (relay-proxied) preview deliberately stays on LL-HLS; the rationale and t
 
 Capture requests produce image bytes and bounded metadata, then pass them to the configured `ImageSink`.
 
+`POST /captures` also takes two optional query parameters, which the relay forwards as it does any params: `role=colour_reference` marks the operator's colour-reference shot, and `session_id` sets the session the captures belong to. The manager keeps one current session id (generated at startup, replaced when the operator passes one). Both go into `ImageMetadata` (`capture_role`, `session_id`), so a dataset can pair a session's captures with its reference shot.
+
+With `RAW_CAPTURE=true`, `Picamera2Backend` configures a raw stream and takes the still, its metadata and a DNG from one `capture_request()`, so all three describe the same frame. With it off the pipeline and the still path are unchanged. The manager writes the DNG to `image_path/raw/<capture id>.dng`, removed by `cleanup_images` after `IMAGE_TTL_S`, and records its SHA-256 as `raw_sha256`. The DNG does not travel through the sink or the upload queue: the backend upload takes one `file` part, and a second part is not part of the contract. The operator collects the file from the Pi.
+
 ## Image Sinks And Upload Queue
 
 `app/delivery/base.py::ImageSink` abstracts capture persistence:

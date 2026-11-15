@@ -26,6 +26,9 @@ class Picamera2Like(Protocol):
     def capture_image(self, name: str = "main") -> PilImage:
         """Capture a still image from the named stream (PIL Image at runtime)."""
 
+    def capture_request(self) -> Any:  # noqa: ANN401  # picamera2's CompletedRequest
+        """Capture one request holding every configured stream; the caller must ``release()`` it."""
+
     def capture_metadata(self) -> dict | None:
         """Capture metadata for the last image or frame."""
 
