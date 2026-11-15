@@ -470,6 +470,35 @@ class TestCameraManagerCapture:
 
         assert response.status == ImageCaptureStatus.UPLOADED
 
+    async def test_hung_sink_falls_back_to_upload_queue(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A sink that never returns hits the inner deadline and the JPEG goes to the queue."""
+        backend = FakeBackend()
+        backend.capture_image.return_value = CaptureResult(
+            image=Image.new("RGB", (64, 64), color="red"),
+            camera_properties={"Model": "mock-camera"},
+            capture_metadata={"FrameDuration": 33_333},
+        )
+
+        async def _hang(**_kwargs: object) -> StoredImage:
+            await asyncio.sleep(60)
+            raise AssertionError
+
+        class _HangingSink:
+            put = staticmethod(_hang)
+
+        queue = AsyncMock()
+        manager = CameraManager(
+            backend=cast("StreamingCameraBackend", backend), sink=_HangingSink(), upload_queue=queue
+        )
+        monkeypatch.setattr(manager_mod, "_SINK_PUT_TIMEOUT_S", 0.05)
+        monkeypatch.setattr(settings, "image_path", tmp_path / "images")
+        settings.image_path.mkdir()
+
+        response = await manager.capture_jpeg()
+
+        assert response.status == ImageCaptureStatus.QUEUED
+        queue.enqueue.assert_awaited_once()
+
     async def test_capture_allows_active_youtube_stream(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Normal still capture should remain allowed while a YouTube stream is active."""
         backend = FakeBackend()
@@ -679,6 +708,19 @@ class TestCameraManagerStopStreaming:
         await manager.stop_streaming()
 
         backend.stop_stream.assert_awaited_once()
+        assert not manager.stream.is_active
+
+    async def test_clears_state_when_backend_stop_raises(self) -> None:
+        """A failing backend stop must not leave the stream active."""
+        backend = FakeBackend()
+        backend.stop_stream.side_effect = RuntimeError("boom")
+        manager = CameraManager(backend=cast("StreamingCameraBackend", backend))
+        manager.stream.mode = StreamMode.YOUTUBE
+        manager.stream.url = AnyUrl(f"{YOUTUBE_WATCH_URL_PREFIX}valid-broadcast")
+        manager.stream.started_at = datetime.now(UTC)
+
+        await manager.stop_streaming()
+
         assert not manager.stream.is_active
 
 

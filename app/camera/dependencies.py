@@ -23,11 +23,6 @@ def get_camera_manager(request: Request) -> CameraManager:
 CameraManagerDependency = Annotated[CameraManager, Depends(get_camera_manager)]
 
 
-def _stream_mode(manager: CameraManager) -> object | None:
-    """Return the current stream mode without assuming every test double has it."""
-    return getattr(manager.stream, "mode", None)
-
-
 async def check_stream_duration(manager: CameraManager) -> None:
     """Stop streams that exceed maximum duration."""
     if (
@@ -41,7 +36,7 @@ async def check_stream_duration(manager: CameraManager) -> None:
             logger.exception(
                 "Failed to stop stream when exceeding max duration",
                 exc_info=e,
-                extra=build_log_extra(stream_mode=_stream_mode(manager)),
+                extra=build_log_extra(stream_mode=manager.stream.mode),
             )
 
 
@@ -59,14 +54,14 @@ async def check_stream_health(manager: CameraManager) -> None:
         if stream_info is None:
             logger.warning(
                 "Stream info became unavailable; stopping stream",
-                extra=build_log_extra(stream_mode=_stream_mode(manager)),
+                extra=build_log_extra(stream_mode=manager.stream.mode),
             )
             await manager.stop_streaming()
     except (OSError, RuntimeError) as e:
         logger.warning(
             "Stream health check failed: %s. Stopping stream for recovery.",
             e,
-            extra=build_log_extra(stream_mode=_stream_mode(manager)),
+            extra=build_log_extra(stream_mode=manager.stream.mode),
         )
         with contextlib.suppress(RuntimeError):
             await manager.stop_streaming()
