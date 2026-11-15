@@ -1,17 +1,10 @@
 {% extends "base.html" %}
 
+{% set active_nav = 'setup' %}
+
 {% block title %}RPi Camera — Setup{% endblock %}
 
 {% block body_class %}setup-page{% endblock %}
-
-{% block site_header_nav %}
-  <nav class="site-header__nav" aria-label="Primary">
-    <a href="{{ url_for('homepage') }}" class="btn btn--ghost">Home</a>
-    {% if api_docs_enabled %}
-    <a href="{{ url_for('swagger_ui_html') }}" class="btn btn--ghost">API Docs</a>
-    {% endif %}
-  </nav>
-{% endblock %}
 
 {% block head_extra %}
 {% endblock %}

@@ -1,20 +1,13 @@
 {% extends 'base.html' %}
 
+{% set active_nav = 'home' %}
+
 {% block title %}
-  RPi Camera
+  r9cam
 {% endblock %}
 
 {% block body_class %}
   setup-page
-{% endblock %}
-
-{% block site_header_nav %}
-  <nav class="site-header__nav" aria-label="Primary">
-    <a href="{{ url_for('setup_page') }}" class="btn btn--ghost btn--nav-primary">Setup</a>
-    {% if api_docs_enabled %}
-      <a href="{{ url_for('swagger_ui_html') }}" class="btn btn--ghost">API Docs</a>
-    {% endif %}
-  </nav>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -34,12 +27,26 @@
 
     <section class="setup-status">
       <div class="setup-status-grid">
-        <div class="status-chip status-chip--muted" id="preview-chip">Preview</div>
+        <p class="device-status">
+          <span class="device-status__item">{% if camera_ready %}Camera ready{% else %}Camera not available{% endif %}</span>
+          <span class="device-status__item">{% if paired %}Paired with R9lab{% else %}Not paired{% endif %}</span>
+          {% if paired %}
+            <span class="device-status__item">{% if relay_connected %}Remote link connected{% else %}Remote link disconnected{% endif %}</span>
+          {% endif %}
+          <a href="{{ url_for('setup_page') }}">Open setup</a>
+        </p>
+      </div>
+    </section>
+
+    <section class="setup-status">
+      <div class="setup-status-grid">
+        <div class="status-chip status-chip--muted" id="preview-chip" role="status">Preview</div>
         <h2>Camera Preview</h2>
-        <p class="setup-status__lead">The thumbnail below refreshes periodically. Start a live preview to check framing or focus.</p>
+        <p class="setup-status__lead">The thumbnail below refreshes every 10 seconds. Start a live preview to check framing or focus.</p>
         <img id="preview-thumbnail" class="preview-video" src="{{ url_for('preview_thumbnail') }}" alt="Latest camera preview thumbnail" />
+        <p id="preview-empty" class="preview-empty" hidden>No preview yet. The camera may be offline.</p>
         <video id="preview-video" class="preview-video" controls playsinline muted hidden></video>
-        <p id="preview-msg" class="preview-message"></p>
+        <p id="preview-msg" class="preview-message" role="status"></p>
         <div class="setup-actions">
           <button class="btn" id="preview-btn" data-preview-toggle type="button">Load Preview</button>
         </div>
