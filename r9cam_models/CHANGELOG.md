@@ -17,8 +17,6 @@ are listed only in the GitHub tags (`relab-rpi-cam-models-v*`, and `r9cam-models
   optional `alg`. An EC P-256 key validates as before; `y` is now optional in the type, so
   check it for `None` on EC keys.
 
-## [0.6.2] - 2026-11-15
-
 ### Fixed
 
 - `DeviceImageUploadAck` and `DevicePreviewThumbnailAck` ignore unknown fields, so a backend
@@ -86,6 +84,5 @@ backend and the plugin together: both sides of the device seam now reject payloa
 [0.5.2]: https://github.com/CMLPlatform/r9cam/compare/relab-rpi-cam-models-v0.5.0...relab-rpi-cam-models-v0.5.2
 [0.6.0]: https://github.com/CMLPlatform/r9cam/compare/relab-rpi-cam-models-v0.5.2...r9cam-models-v0.6.0
 [0.6.1]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.6.0...r9cam-models-v0.6.1
-[0.6.2]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.6.1...r9cam-models-v0.6.2
-[0.7.0]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.6.2...r9cam-models-v0.7.0
+[0.7.0]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.6.1...r9cam-models-v0.7.0
 [unreleased]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.7.0...HEAD

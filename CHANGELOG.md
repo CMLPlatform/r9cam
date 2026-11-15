@@ -59,7 +59,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   still says `http`.
 - The S3 sink works with keys that may not create buckets: it checks the bucket first.
 - Captures keep their `image_url` when the backend adds fields to its upload reply
-  (r9cam-models 0.6.2).
+  (r9cam-models 0.7.0).
 - Dark-mode text and status colours meet WCAG AA contrast, and keyboard focus is visible in
   both themes.
 
