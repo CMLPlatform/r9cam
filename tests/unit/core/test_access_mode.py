@@ -27,7 +27,6 @@ def test_derived_connection_mode(
         runtime_state.set_relay_credentials(
             relay_backend_url="wss://relay.example/ws",
             relay_camera_id="cam-1",
-            relay_auth_scheme="device_assertion",
             relay_key_id="key-1",
             relay_private_key_pem="pem",
         )

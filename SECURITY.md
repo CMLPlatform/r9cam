@@ -24,7 +24,7 @@ A fix ships in a new release. When the release is out, we publish the GitHub sec
 
 ## Scope
 
-The [assurance case](ARCHITECTURE.md#assurance-case) describes the threat model and trust boundaries behind this scope.
+The [assurance case](docs/assurance-case.md) describes the threat model and trust boundaries behind this scope.
 
 In scope:
 

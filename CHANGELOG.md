@@ -8,8 +8,24 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Added
+
+- The home page shows whether the camera is ready, the relay is connected and the device is
+  paired, and the preview thumbnail refreshes every 10 seconds.
+- Issue and pull request templates, a cold-install check, and a dependency licence check in CI.
+
 ### Changed
 
+- The setup page announces status changes to screen readers, explains pairing errors in one plain
+  sentence with a next step, offers a new code when the old one expires, and hides a revealed
+  local API key again after 60 seconds.
+- hls.js is served from the device, so the live preview works on a network without internet.
+- With TLS on, the setup page and `/system/local-access` hand out `https` URLs with the
+  configured port.
+- `CAMERA_BACKEND` and `RELAY_AUTH_SCHEME` are gone: each accepted one value only. A paired
+  device's credentials file still loads.
+- The release workflow publishes a draft release only after all assets are attached. The
+  roadmap moved to `docs/roadmap.md` and the assurance case to `docs/assurance-case.md`.
 - The citation title in `CITATION.cff` is now `r9cam`, matching `codemeta.json`; the subtitle
   opens the abstract. `codemeta.json` declares CodeMeta 3.0, the version Software Heritage reads.
 - A dead-lettered capture is retried when the relay reconnects after an outage. Before, it

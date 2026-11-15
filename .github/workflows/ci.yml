@@ -7,7 +7,7 @@ name: CI
 # on purpose — a secret reaching main is exactly what a post-merge scan is for.
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - '**.md'
       - '.gitignore'
@@ -22,11 +22,11 @@ permissions:
   contents: read
 
 jobs:
-  # Lint and test share one runner on purpose: both need the same synced env, the
-  # suite runs in seconds, and acquiring a hosted runner costs minutes. Splitting
-  # them buys parallelism the queue takes straight back.
+  # Lint, types, the dependency audit and the licence check run in python.yml, and the
+  # git hooks in checks.yml. This job holds what only this repo needs: the coverage gate
+  # (and its Codecov upload), the openapi schema check and the fuzz harness smoke run.
   check:
-    name: Lint & Test
+    name: Coverage & fuzz smoke
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -38,17 +38,10 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
           python-version: "3.13"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: ~/.cache/prek
-          key: prek-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
-
       - run: uv sync --locked --all-groups
 
-      # Covers ruff (check + format), ty, gitleaks over the tree, actionlint,
-      # uv-lock and the openapi schema check — repo-wide, so no other job repeats them.
-      - name: Run prek
-        run: uv run prek run --all-files
+      - name: Check the openapi schema
+        run: uv run python -m scripts.export_openapi --check
 
       # A short fixed-seed run, so renaming a private name the harness imports
       # fails here and not only in the slow ClusterFuzzLite job.

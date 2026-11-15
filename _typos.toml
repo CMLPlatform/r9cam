@@ -1,0 +1,18 @@
+# Words typos must leave alone. Add your own below.
+[default]
+# Hex ids (trace ids, hashes) can spell short words.
+extend-ignore-re = ["\\b[0-9a-f]{16,}\\b"]
+
+[default.extend-words]
+# NumPy's API spells it this way (`array.flags.writeable`).
+writeable = "writeable"
+WRITEABLE = "WRITEABLE"
+# The PyPI package certifi.
+certifi = "certifi"
+# The log message in app/relay/service.py and the test that asserts it.
+Requeueing = "Requeueing"
+
+[files]
+# History: past entries keep their wording.
+# Vendored minified builds are not ours to fix.
+extend-exclude = ["CHANGELOG.md", "app/static/vendor/"]

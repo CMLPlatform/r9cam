@@ -6,9 +6,9 @@ name: CodSpeed
 # the latest main run, so main needs its own baseline.
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
     # Only what the benchmarks import or install. Docs, fuzzing and model-publishing changes
     # can't move a result.
     paths:

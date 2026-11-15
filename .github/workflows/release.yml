@@ -1,17 +1,20 @@
 name: Release
 
-# Publishing a GitHub release (drafted by `just release-publish <version>`) creates its tag
-# and starts this: the wheel, the sdist and the SBOM go onto that release, and the arm64
-# container image goes to GHCR.
+# A pushed version tag (`just release-publish <version>`) starts this. It drafts the GitHub
+# release from the CHANGELOG section, uploads the wheel, the sdist and the sdist's SBOM to
+# the draft, pushes the arm64 container image to GHCR, and only then publishes the release,
+# so a release is never public without its assets (immutable releases accept no later
+# upload). If the notes check fails before the draft exists, fix CHANGELOG.md, delete the
+# tag (a tags-ruleset bypass is needed) and tag again.
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
 
 permissions: {}
 
 # Queue, never cancel: a release gets its assets exactly once.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.release.tag_name }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -26,11 +29,20 @@ jobs:
         with:
           persist-credentials: false
 
-      # A release published by hand from a commit `release-prep` never bumped would ship
-      # distributions whose version files name the previous release.
+      # Publish only a tag signed with a key in .github/allowed_signers on the default
+      # branch: .github/scripts/verify-tag.sh says why.
+      - name: Refuse a tag not signed with an allowed key
+        env:
+          TAG: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/verify-tag.sh" --fetch "$TAG" "origin/$DEFAULT_BRANCH"
+
+      # A tag pushed from a commit `release-prep` never bumped would ship distributions
+      # whose version files name the previous release.
       - name: Tag matches the version files
         env:
-          TAG_NAME: ${{ github.event.release.tag_name }}
+          TAG_NAME: ${{ github.ref_name }}
         run: |
           version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
           [ "$TAG_NAME" = "v$version" ] || {
@@ -38,11 +50,43 @@ jobs:
             exit 1
           }
 
+  # Drafts the release with the CHANGELOG section as its notes. A rerun finds the draft
+  # and leaves it, so the failed jobs can be re-run.
+  draft:
+    name: Draft release
+    needs: check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # create the draft release
+    timeout-minutes: 5
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Create the draft
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          python3 scripts/release_notes.py "$version" <CHANGELOG.md >"$RUNNER_TEMP/notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
+            echo "::error::CHANGELOG.md has no [$version] section"
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG already exists; leaving it"
+            exit 0
+          fi
+          gh release create "$TAG" --draft --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+
   # A separate job so the OIDC token that signs the attestations is never available
   # to the version check.
   assets:
     name: Release assets
-    needs: check
+    needs: draft
     runs-on: ubuntu-24.04
     permissions:
       contents: write # upload the assets to the GitHub release
@@ -50,7 +94,7 @@ jobs:
       attestations: write # store the attestations on the repository
     timeout-minutes: 10
     env:
-      TAG: ${{ github.event.release.tag_name }}
+      TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -64,12 +108,14 @@ jobs:
           python-version: "3.13"
 
       # The SBOM lists the locked runtime dependencies, which is what the container
-      # image installs. It does not cover the Debian packages in the image.
+      # image installs, and is named after the sdist it belongs to. It does not cover the
+      # Debian packages in the image.
       - name: Build the distributions and the SBOM
         run: |
           uv build --out-dir dist --clear
+          sdist="$(basename dist/*.tar.gz)"
           uv export --format cyclonedx1.5 --preview-features sbom-export --locked --no-dev \
-            --output-file dist/r9cam.cdx.json
+            --output-file "dist/$sdist.cdx.json"
 
       - name: Attest build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -81,18 +127,18 @@ jobs:
       - name: Attest the SBOM
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: dist/*.whl
-          sbom-path: dist/r9cam.cdx.json
+          subject-path: dist/*.tar.gz
+          sbom-path: dist/*.tar.gz.cdx.json
 
       - name: Upload the release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$TAG" dist/*.whl dist/*.tar.gz dist/r9cam.cdx.json --clobber --repo "$GITHUB_REPOSITORY"
+        run: gh release upload "$TAG" dist/*.whl dist/*.tar.gz dist/*.tar.gz.cdx.json --clobber --repo "$GITHUB_REPOSITORY"
 
   # The Pi pulls this image instead of building it. Built on an arm64 runner, so no QEMU.
   image:
     name: Container image
-    needs: check
+    needs: draft
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
@@ -106,7 +152,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.ref_name }}
           persist-credentials: false
 
       # Tags 0.7.0, 0.7 and latest. A pre-release gets only its full version.
@@ -211,3 +257,18 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           sbom-path: r9cam-image.cdx.json
           push-to-registry: true
+
+  # Last, once every asset and the image are in: publishing makes the release immutable.
+  publish:
+    name: Publish release
+    needs: [assets, image]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # publish the draft
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Publish the draft
+        run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"

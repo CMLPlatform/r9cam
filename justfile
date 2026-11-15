@@ -1,165 +1,98 @@
 set dotenv-load := true
 
+# Task runner: https://just.systems. `just` lists the recipes, `just <name>` runs one.
+#
+# Each stack's recipes are in just/, prefixed (`py-`) because
+# imports share one namespace, except the few only one kind has, such as `pipeline` or `up`.
+import? 'just/python.just'
+
+# List the recipes (what a bare `just` runs).
 default:
     @just --list
 
-install:
-    uv sync --all-groups --no-group fuzz
-
-dev:
-    APP_ENV=development uv run fastapi dev
-
-test:
-    uv run pytest --cov=app --cov=r9cam_models --cov-report=term-missing
-
-test-unit:
-    uv run pytest tests/unit
-
-test-integration:
-    uv run pytest tests/integration
-
-test-slowest:
-    uv run pytest --durations=20 -q
-
-bench:
-    uv run pytest tests/benchmarks --codspeed
-
-# Mutation-test the relay seam and the upload queue. Survivors land in reports/mutation/.
-# A mutant-name pattern (just mutation "app.delivery.queue*") limits the run and skips the baseline diff, which only means something on a full run.
-# A pattern run also keeps .mutation/, so mutants of unchanged files stay cached. `just clean` empties it.
-mutation *ARGS:
-    @if [ -z '{{ARGS}}' ]; then rm -rf .mutation; fi
-    mkdir -p .mutation/src reports/mutation
-    # -p keeps mtimes, so mutmut regenerates mutants only for changed files.
-    cp -rp app scripts tests typings pyproject.toml uv.lock .mutation/
-    cp -rp r9cam_models/src/r9cam_models .mutation/src/
-    cd .mutation && uv run --project .. mutmut run --max-children "$(nproc)" {{ARGS}}
-    cd .mutation && uv run --project .. mutmut results | grep -E ': (survived|no tests)$' | sed 's/^ *//; s/: .*//' | grep -E "^($(printf '%s' '{{ARGS}}' | sed 's/\*/.*/g; s/ /|/g; s/^$/./'))" | LC_ALL=C sort > ../reports/mutation/survivors.txt
-    @echo "Survivors and untested: $(wc -l < reports/mutation/survivors.txt)"
-    @if [ -z '{{ARGS}}' ]; then \
-        echo "Survivor counts per function that differ from tests/mutation-baseline.txt (< baseline, > this run):"; \
-        sed 's/ *#.*//; /^$/d; s/__mutmut_[0-9]*$//' tests/mutation-baseline.txt | uniq -c > .mutation/baseline-counts.txt; \
-        sed 's/__mutmut_[0-9]*$//' reports/mutation/survivors.txt | uniq -c | diff .mutation/baseline-counts.txt -; \
-    fi
-
-# Fuzz the relay trust boundary. Flags go to libFuzzer, for example `just fuzz -runs=20000 -seed=1`.
-fuzz *flags="-max_total_time=60":
-    mkdir -p reports/fuzz
-    uv run --group fuzz python fuzz/relay_frames.py -artifact_prefix=reports/fuzz/ {{flags}}
-
-typecheck:
-    uv run ty check .
-
-lint:
-    uv run ruff check --no-fix .
-    just typecheck
-
-format:
-    uv run ruff check --fix .
-    uv run ruff format .
-
-openapi:
-    uv run python -m scripts.export_openapi
-
-openapi-check:
-    uv run python -m scripts.export_openapi --check
-
-prek:
-    uv run prek run --all-files
-
+# The stack checks CI runs. `just hooks` runs the git hooks, which CI also runs.
 check:
-    just lint
-    just test
+    @just py-check
+    @if just --show local-check >/dev/null 2>&1; then just local-check; fi
 
-audit:
-    uv audit --preview-features audit --locked --no-dev
+# Fix and format every stack here, as each stack's `fmt` recipe does.
+fmt:
+    @just py-fmt
 
-build:
-    uv build
+# The checks workflow skips the hooks in its SKIP list, which the stack workflows run
+# instead. Here they all run, so this can fail where the checks workflow passes.
 
-clean:
-    rm -rf dist/ .venv/ .pytest_cache/ __pycache__/ .mutation/ reports/
+# Run every git hook over the whole repo, not just staged files.
+hooks:
+    prek run -a
 
-# Python that prints local_api_key from the credentials file ($R9CAM_CREDENTIALS_FILE, else ~/.config/r9cam).
-# The /local-key route needs the key itself, so the key is read from the file instead.
-key_reader := "import json, os, pathlib; p = pathlib.Path(os.getenv('R9CAM_CREDENTIALS_FILE') or pathlib.Path.home() / '.config/r9cam/relay_credentials.json'); print(json.loads(p.read_text()).get('local_api_key', ''))"
-
-# Print the local direct-connection API key from inside the Compose app container.
-show-key:
-    docker compose exec app python -c "{{ key_reader }}"
-
-# Print the key for a direct Python run (no container).
-show-key-direct:
-    python3 -c "{{ key_reader }}"
-
-# Releases, as in r9lab:
-#
-#   just release-prep 0.7.0      branch release/v0.7.0 from origin/main, set every version
-#                                file and turn CHANGELOG.md's Unreleased into [0.7.0]
-#   (write the section, commit, open a PR and merge it)
-#   just release-publish 0.7.0   sign and push the v0.7.0 tag, then draft the GitHub
-#                                release from that CHANGELOG section
-#
-# Publishing the draft on GitHub starts release.yml, which uploads the wheel, the sdist
-# and the SBOM.
-release-prep version:
+# Protect the default branch (no deletion, no force-push, linear history, PRs squash-merged after the always-on checks pass and one approval) and the v* tags. Turn on secret scanning with push protection, private vulnerability reporting, CodeQL default setup and Dependabot alerts. Safe to rerun.
+repo-settings:
     #!/usr/bin/env bash
     set -euo pipefail
-    version={{ quote(version) }}
-    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "expected a version like 0.7.0, got '$version'" >&2; exit 2; }
-    [[ -z "$(git status --porcelain)" ]] || { echo "the working tree has changes; commit or stash them first" >&2; exit 1; }
-    git fetch --quiet origin main --tags
-    git switch --create "release/v$version" origin/main
-    previous="$(git describe --tags --abbrev=0 --match 'v*' origin/main)"
-    today="$(date +%F)"
-    uv run cz bump --files-only --yes "$version"
-    uv lock --quiet
-    sed -i -E "s/^date-released: .*/date-released: $today/" CITATION.cff
-    sed -i -E "s/(\"datePublished\": )\"[^\"]*\"/\1\"$today\"/" codemeta.json
-    # Keep a Changelog: what accumulated under Unreleased becomes this version, under a
-    # fresh, empty Unreleased, and the compare links move along.
-    sed -i "0,/^## \[Unreleased\]$/s//## [Unreleased]\n\n## [$version] - $today/" CHANGELOG.md
-    # mdformat lowercases and sorts the link labels, so match [unreleased] in either case.
-    sed -i -E "s#^\[[Uu]nreleased\]: (.*)/compare/v[0-9.]+\.\.\.HEAD\$#[unreleased]: \1/compare/v$version...HEAD\n[$version]: \1/compare/$previous...v$version#" CHANGELOG.md
-    grep -q "^\[$version\]: " CHANGELOG.md || { echo "CHANGELOG.md has no [unreleased] compare link to move" >&2; exit 1; }
-    git status --short
-    echo "Commits since $previous, to write the [$version] section from:"
-    git log --format='  %s' "$previous..origin/main"
-    echo "Write the [$version] section of CHANGELOG.md, then commit and open a PR."
-
-# Sign and push the tag for a merged version, then draft its GitHub release from its
-# CHANGELOG section.
-release-publish version:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    version={{ quote(version) }}
-    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "expected a version like 0.7.0, got '$version'" >&2; exit 2; }
-    git fetch --quiet origin main
-    main_version="$(git show origin/main:pyproject.toml | python3 -c 'import sys, tomllib; print(tomllib.load(sys.stdin.buffer)["project"]["version"])')"
-    [[ "$main_version" == "$version" ]] || {
-        echo "origin/main is at $main_version, not $version: merge the release PR first" >&2
+    err=$(mktemp)
+    trap 'rm -f "$err"' EXIT
+    fail() {
+        cat "$err" >&2
+        grep -qE 'HTTP (403|404)' "$err" && echo "Rulesets on a private repo need a paid GitHub plan (or the repo does not exist, or you lack admin rights)." >&2
+        grep -q 'must be part of the ruleset source' "$err" && echo "The main ruleset lets the Renovate app bypass the review, and GitHub accepts that only once the app is installed on this repo: add it at https://github.com/apps/renovate, then rerun." >&2
         exit 1
     }
-    tag="v$version"
-    sha="$(git rev-parse origin/main)"
-    notes="$(git show origin/main:CHANGELOG.md | python3 scripts/release_notes.py "$version")"
-    # Tag with your own key so GitHub shows it verified; a tag gh creates is unsigned. A tag left by
-    # an earlier run that stopped after the push is reused, but only on the same commit.
-    if git rev-parse --quiet --verify "refs/tags/$tag" >/dev/null; then
-        [[ "$(git rev-parse "$tag^{commit}")" == "$sha" ]] || { echo "tag $tag exists locally on another commit" >&2; exit 1; }
+    # Merge-method switches live on the repo itself; the ruleset also limits the PR button.
+    gh api -X PATCH repos/{owner}/{repo} -F allow_squash_merge=true -F allow_merge_commit=false -F allow_rebase_merge=false -F delete_branch_on_merge=true -F web_commit_signoff_required=true >/dev/null 2>"$err" || fail
+    # Push protection refuses a push that holds a known secret format, before it reaches the repo.
+    # A private repo without Secret Protection refuses this, so it warns instead of failing.
+    if gh api -X PATCH repos/{owner}/{repo} -f 'security_and_analysis[secret_scanning][status]=enabled' -f 'security_and_analysis[secret_scanning_push_protection][status]=enabled' >/dev/null 2>"$err"; then
+        echo "Turned on secret scanning and push protection."
     else
-        git tag --sign "$tag" --message "$tag" "$sha"
+        echo "Warning: secret scanning could not be turned on (a private repo needs Secret Protection): $(cat "$err")" >&2
     fi
-    git verify-tag "$tag" >/dev/null 2>&1 || { echo "tag $tag is not signed with a key git trusts" >&2; exit 1; }
-    # ls-remote exits 2 when the tag is missing, 0 when it exists, anything else on an error.
-    found=0
-    remote="$(git ls-remote --exit-code --tags origin "refs/tags/$tag^{}")" || found=$?
-    if [[ "$found" == 2 ]]; then
-        git push origin "refs/tags/$tag"
-    elif [[ "$found" == 0 ]]; then
-        [[ "${remote%%[[:space:]]*}" == "$sha" ]] || { echo "tag $tag exists on origin on another commit" >&2; exit 1; }
+    # Adopt an existing ruleset by name, else one with the same target that protects the same
+    # refs as the file, updating it in place. The list has no conditions, so each candidate is read.
+    for name in main main-checks tags; do
+        file=.github/rulesets/$name.json
+        case "$name" in
+            main) want='["~DEFAULT_BRANCH"]' filter='.[] | select(.target == "branch" and (.name | test("checks?") | not)) | .id' ;;
+            main-checks) want='["~DEFAULT_BRANCH"]' filter='.[] | select(.target == "branch" and (.name | test("checks?"))) | .id' ;;
+            tags) want='["refs/tags/v*"]' filter='.[] | select(.target == "tag") | .id' ;;
+        esac
+        id=$(gh api "repos/{owner}/{repo}/rulesets?includes_parents=false" --jq "first(.[] | select(.name == \"$name\") | .id) // empty" 2>"$err") || fail
+        if [ -z "$id" ]; then
+            candidates=$(gh api "repos/{owner}/{repo}/rulesets?includes_parents=false" --jq "$filter" 2>"$err") || fail
+            for candidate in $candidates; do
+                same=$(gh api "repos/{owner}/{repo}/rulesets/$candidate" --jq ".conditions.ref_name.include == $want" 2>"$err") || fail
+                if [ "$same" = true ]; then
+                    id=$candidate
+                    break
+                fi
+            done
+        fi
+        if [ -n "$id" ]; then
+            gh api -X PUT "repos/{owner}/{repo}/rulesets/$id" --input "$file" >"$err" 2>&1 || fail
+            echo "Updated ruleset '$name' ($id)."
+        else
+            # gh prints GitHub's reason for a refusal on stdout, so fail() needs both.
+            gh api -X POST repos/{owner}/{repo}/rulesets --input "$file" >"$err" 2>&1 || fail
+            echo "Created ruleset '$name'."
+        fi
+    done
+    # SECURITY.md sends reports to a private security advisory, which this turns on.
+    gh api -X PUT repos/{owner}/{repo}/private-vulnerability-reporting >/dev/null 2>"$err" || fail
+    echo "Turned on private vulnerability reporting."
+    # CodeQL default setup scans every PR and push to main.
+    if gh api -X PATCH repos/{owner}/{repo}/code-scanning/default-setup -f state=configured >"$err" 2>&1; then
+        echo "Turned on CodeQL default setup."
     else
-        echo "could not list origin's tags" >&2; exit 1
+        echo "Warning: CodeQL default setup could not be turned on, so code scanning stays off: $(cat "$err")" >&2
     fi
-    gh release create "$tag" --draft --verify-tag --title "$tag" --notes "$notes"
-    echo "Review the draft, then publish it: that starts release.yml."
+    # Dependabot alerts let Renovate open security PRs and turn on the dependency graph.
+    gh api -X PUT repos/{owner}/{repo}/vulnerability-alerts >/dev/null 2>"$err" || fail
+    echo "Turned on Dependabot alerts."
+    if [ -f .github/first-release.md ]; then echo "First-release checklist: gh issue create --title 'First release' --body-file .github/first-release.md"; fi
+# Set the GitHub About box from your answers: description and a topic per stack. Adds topics, never removes yours. Safe to rerun.
+repo-about:
+    gh repo edit --description 'Raspberry Pi Camera plugin for R9lab platform' --add-topic python
+
+# A repo's own recipes that copier updates never touch. A `local-check` recipe there runs
+# at the end of `just check`.
+import? 'just/local.just'

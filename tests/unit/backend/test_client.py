@@ -52,7 +52,6 @@ def _active_runtime() -> Iterator[AppRuntime]:
     runtime.runtime_state.set_relay_credentials(
         relay_backend_url="wss://backend.example/ws",
         relay_camera_id=str(uuid4()),
-        relay_auth_scheme="device_assertion",
         relay_key_id="fake-kid",
         relay_private_key_pem="fake-pem",
     )

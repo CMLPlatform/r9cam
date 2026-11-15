@@ -7,8 +7,6 @@ import re
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from r9cam_models import RelayAuthScheme
-
 _SAFE_RELAY_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9._~-]+$")
 _MAX_RELAY_CAMERA_ID_LENGTH = 128
 _MAX_RELAY_KEY_ID_LENGTH = 64
@@ -38,14 +36,10 @@ def load_relay_signing_private_key(private_key_pem: str) -> ec.EllipticCurvePriv
 def validate_relay_credentials(
     *,
     relay_camera_id: str,
-    relay_auth_scheme: str,
     relay_key_id: str,
     relay_private_key_pem: str,
 ) -> None:
     """Validate relay device-assertion credentials at process trust boundaries."""
-    if relay_auth_scheme != RelayAuthScheme.DEVICE_ASSERTION:
-        msg = "relay_auth_scheme must be device_assertion."
-        raise ValueError(msg)
     _validate_relay_identifier(
         relay_camera_id,
         field_name="relay_camera_id",

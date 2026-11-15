@@ -34,7 +34,7 @@ _HTTPS_SCHEME = "https"
 
 _HOMEPAGE_CSP = (
     "default-src 'self'; "
-    "script-src 'self'{script_nonce} https://cdn.jsdelivr.net; "
+    "script-src 'self'{script_nonce}; "
     "worker-src 'self' blob:; "
     "style-src 'self'; "
     "img-src 'self' data:; "

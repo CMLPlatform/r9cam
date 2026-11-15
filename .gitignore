@@ -69,3 +69,6 @@ compose.override.yml
 .mutation/
 mutants/
 reports/
+
+# The rumdl hook's cache.
+.rumdl_cache/

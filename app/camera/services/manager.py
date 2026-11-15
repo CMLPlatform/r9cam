@@ -29,7 +29,7 @@ from app.camera.services.backend import (
 )
 from app.camera.services.picamera2_backend import Picamera2Backend
 from app.camera.streaming.stream_state import ActiveStreamState
-from app.core.settings import CAMERA_BACKEND_PICAMERA2, settings
+from app.core.settings import settings
 from app.delivery import ImageSink, ImageSinkError, get_image_sink
 from app.delivery.queue import UploadQueue, UploadQueueFullError
 from app.observability.logging import build_log_extra
@@ -105,11 +105,7 @@ class CameraManager:
         sink: ImageSink | None = None,
     ) -> None:
         if backend is None:
-            if settings.camera_backend == CAMERA_BACKEND_PICAMERA2:
-                backend = Picamera2Backend()
-            else:
-                msg = f"Unsupported camera backend: {settings.camera_backend}"
-                raise ValueError(msg)
+            backend = Picamera2Backend()
         self.backend = backend
         # The image sink is resolved lazily on first ``capture_jpeg`` so that
         # instantiating a ``CameraManager`` (e.g. the module-level singleton

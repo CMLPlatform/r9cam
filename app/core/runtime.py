@@ -184,7 +184,7 @@ class AppRuntime:
         return self.create_task(run_upload_queue_worker(self.camera_manager.upload_queue), name="upload_queue_worker")
 
     async def stop_runtime_workers(self) -> None:
-        """Stop runtime-owned long-lived worker loops in dependency order."""
+        """Cancel the runtime-owned long-lived worker loops together and wait for them."""
         await self.stop_tasks(
             {
                 "preview_sleeper",

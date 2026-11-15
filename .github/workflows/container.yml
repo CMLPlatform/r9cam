@@ -11,7 +11,7 @@ name: Container
 # schedule below re-scans main against newly published advisories.
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'Dockerfile'
       - 'pyproject.toml'
