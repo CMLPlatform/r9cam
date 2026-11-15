@@ -123,7 +123,7 @@ class UploadQueue:
             next_attempt_at=now,
         )
         async with self._enqueue_lock:
-            self._ensure_capacity_for(image_path=image_path, metadata_payload=metadata_payload)
+            await asyncio.to_thread(self._ensure_capacity_for, image_path=image_path, metadata_payload=metadata_payload)
             await asyncio.to_thread(shutil.move, str(image_path), str(target_image))
             await asyncio.to_thread(write_json_atomic, target_metadata, metadata_payload)
 
@@ -218,7 +218,7 @@ class UploadQueue:
         eventually dead-letters via the normal retry schedule.
         """
         successes = 0
-        for entry in self.iter_pending():
+        for entry in await asyncio.to_thread(self.iter_pending):
             if not self.is_due(entry):
                 continue
             try:

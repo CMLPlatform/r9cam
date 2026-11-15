@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 
+from app.core.middleware import auth_failures_blocked, record_auth_failure
 from app.core.runtime import get_active_runtime_state, get_request_runtime
 from app.core.runtime_state import RuntimeState
 from app.core.settings import settings
@@ -158,9 +159,12 @@ async def verify_request(
     x_api_key_header: Annotated[str | None, Security(api_key_header)] = None,
 ) -> str:
     """Verify API access using a valid API key header or browser session."""
+    if auth_failures_blocked(request):
+        raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
     authorized_api_keys = reload_authorized_keys(get_request_runtime(request).runtime_state)
     if x_api_key_header:
         if not _is_authorized(x_api_key_header, authorized_api_keys):
+            record_auth_failure(request)
             logger.warning(
                 "Security event: API-key authentication failed",
                 extra=build_security_log_extra(
@@ -178,6 +182,7 @@ async def verify_request(
         verify_cookie_write_csrf(request)
         return "browser-session"
 
+    # NOTE: a stale session cookie is not counted: an open tab polling after expiry would lock its IP out of login.
     logger.warning(
         "Security event: request authentication missing",
         extra=build_security_log_extra(

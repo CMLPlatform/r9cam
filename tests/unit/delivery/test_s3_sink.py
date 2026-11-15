@@ -37,6 +37,7 @@ class _FakeS3Client:
     def __init__(self) -> None:
         self.put_object = AsyncMock(return_value={"ETag": '"deadbeef"'})
         self.create_bucket = AsyncMock(return_value={})
+        self.head_bucket = AsyncMock(side_effect=ClientError({"Error": {"Code": "404", "Message": ""}}, "HeadBucket"))
         self.exit_count = 0
 
     async def __aenter__(self) -> Self:
@@ -250,3 +251,37 @@ class TestS3CompatibleSink:
                 capture_metadata={},
                 upload_metadata={},
             )
+
+    async def test_existing_bucket_is_not_created(self, fake_s3_client: _FakeS3Client) -> None:
+        """A least-privilege key that cannot create buckets still uploads to an existing one."""
+        fake_s3_client.head_bucket = AsyncMock(return_value={})
+        fake_s3_client.create_bucket = AsyncMock(
+            side_effect=ClientError({"Error": {"Code": "AccessDenied", "Message": ""}}, "CreateBucket")
+        )
+
+        await _make_sink().put(
+            image_id="f3b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8",
+            image_bytes=b"jpeg",
+            filename="img.jpg",
+            capture_metadata={},
+            upload_metadata={},
+        )
+
+        fake_s3_client.create_bucket.assert_not_awaited()
+        fake_s3_client.put_object.assert_awaited_once()
+
+    async def test_head_bucket_denied_skips_create(self, fake_s3_client: _FakeS3Client) -> None:
+        """A key without ListBucket gets 403 on HeadBucket and goes straight to the put."""
+        fake_s3_client.head_bucket = AsyncMock(
+            side_effect=ClientError({"Error": {"Code": "403", "Message": ""}}, "HeadBucket")
+        )
+
+        await _make_sink().put(
+            image_id="f4b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8",
+            image_bytes=b"jpeg",
+            filename="img.jpg",
+            capture_metadata={},
+            upload_metadata={},
+        )
+
+        fake_s3_client.create_bucket.assert_not_awaited()

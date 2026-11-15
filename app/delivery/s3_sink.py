@@ -43,6 +43,15 @@ logger = logging.getLogger(__name__)
 _DEFAULT_KEY_PREFIX = "r9cam"
 _DEFAULT_REGION = "us-east-1"
 _BUCKET_ALREADY_CODES = {"BucketAlreadyOwnedByYou", "BucketAlreadyExists"}
+_BUCKET_MISSING_CODES = {"404", "NoSuchBucket", "NotFound"}
+_BUCKET_DENIED_CODES = {"403", "AccessDenied", "Forbidden"}
+
+
+def _error_code(exc: Exception) -> str:
+    response = getattr(exc, "response", None)
+    return (response or {}).get("Error", {}).get("Code", "")
+
+
 _FALLBACK_PRODUCT_SEGMENT = "unsorted"
 _MAX_OBJECT_KEY_SEGMENT_LENGTH = 64
 _UNSAFE_SEGMENT_CHARS = re.compile(r"[^A-Za-z0-9_.-]+")
@@ -161,19 +170,27 @@ class S3CompatibleSink:
         if self._bucket_ensured:
             return
         try:
+            await s3.head_bucket(Bucket=self._bucket)
+        except Exception as exc:
+            # Only a missing bucket is created. A least-privilege key may be denied
+            # CreateBucket (and HeadBucket), and the put then reports any real problem.
+            if _error_code(exc) in _BUCKET_MISSING_CODES:
+                await self._create_bucket(s3)
+            elif _error_code(exc) not in _BUCKET_DENIED_CODES:
+                raise
+        self._bucket_ensured = True
+
+    async def _create_bucket(self, s3: Any) -> None:  # noqa: ANN401  # aioboto3 client is dynamically typed
+        try:
             kwargs: dict[str, object] = {"Bucket": self._bucket}
             if self._region and self._region != _DEFAULT_REGION:
                 kwargs["CreateBucketConfiguration"] = {"LocationConstraint": self._region}
             await s3.create_bucket(**kwargs)
             logger.info("Created S3 bucket %r at %s", self._bucket, self._endpoint_url, extra=build_log_extra())
         except Exception as exc:
-            # Swallow "bucket already exists" errors from any S3-compatible server.
-            # Both codes appear across AWS S3 / MinIO / RustFS depending on ownership.
-            response = getattr(exc, "response", None)
-            code = (response or {}).get("Error", {}).get("Code", "")
-            if code not in _BUCKET_ALREADY_CODES:
+            # Lost a race with another creator: both codes appear across AWS S3 / MinIO / RustFS.
+            if _error_code(exc) not in _BUCKET_ALREADY_CODES:
                 raise
-        self._bucket_ensured = True
 
     def _build_object_key(
         self,

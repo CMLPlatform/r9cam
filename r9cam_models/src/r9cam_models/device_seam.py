@@ -204,7 +204,7 @@ class DeviceImageUploadAck(BaseModel):
     image_id: _SafeIdentifier = Field(description="Stored backend image ID.")
     image_url: _HttpOrRelativeUrl = Field(description="Backend-hosted URL for the stored image")
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class DevicePreviewThumbnailAck(BaseModel):
@@ -212,7 +212,7 @@ class DevicePreviewThumbnailAck(BaseModel):
 
     preview_thumbnail_url: _HttpOrRelativeUrl = Field(description="Backend-hosted URL for the cached preview thumbnail")
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class RelayMessageType(StrEnum):

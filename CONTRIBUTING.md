@@ -20,7 +20,7 @@ Start the API with reload:
 just dev
 ```
 
-The local API docs are available at `http://localhost:8018/docs`, and the setup UI is available at `http://localhost:8018/setup`.
+`just dev` serves on `http://localhost:8000`: API docs at `/docs`, setup UI at `/setup`. Off a Pi the camera is unavailable, so the app starts without a preview thumbnail and camera routes return errors.
 
 ## Common Commands
 
@@ -98,7 +98,7 @@ The suite has two primary layers:
 - `tests/unit/`: pure functions, services, small collaborators, and focused worker behavior
 - `tests/integration/`: ASGI app, route, auth, middleware, and lifespan behavior
 
-Custom markers mirror that split:
+Custom markers mirror that split. `tests/conftest.py` adds `unit` and `integration` by file path, so do not add them by hand; only `slow` is also set by test name there:
 
 - `@pytest.mark.unit`
 - `@pytest.mark.integration`
@@ -107,7 +107,7 @@ Custom markers mirror that split:
 Prefer these patterns:
 
 - use shared runtime/app fixtures from `tests/conftest.py`
-- use typed helpers from `tests/support/`
+- use the shared fakes in `tests/fakes.py` and constants in `tests/constants.py`
 - test externally meaningful behavior before internal call choreography
 - patch private module internals only when there is no stable seam
 - keep integration tests focused on route behavior and app wiring

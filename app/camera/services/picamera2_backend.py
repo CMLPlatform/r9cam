@@ -101,6 +101,32 @@ def tuning_file_sha256(model: str | None) -> str | None:
         return None
 
 
+_ENCODER_START_TIMEOUT_S = 30.0
+
+
+async def _start_encoder(camera: Picamera2Like, encoder: object, output: object, name: str) -> None:
+    """Start an encoder thread, bounded by a deadline.
+
+    A timeout or cancel cannot stop the thread, so a start that lands late is
+    stopped again rather than left running untracked.
+    """
+    future = asyncio.ensure_future(asyncio.to_thread(camera.start_encoder, encoder, output, name=name))
+
+    def _stop_if_started(done: asyncio.Future[None]) -> None:
+        if done.cancelled() or done.exception() is not None:
+            return
+        logger.warning("Encoder %s started after its deadline; stopping it", name, extra=build_log_extra())
+        asyncio.ensure_future(asyncio.to_thread(camera.stop_encoder, encoder)).add_done_callback(
+            lambda t: t.cancelled() or t.exception()  # retrieve, so a failed stop is not "never retrieved"
+        )
+
+    try:
+        await asyncio.wait_for(asyncio.shield(future), timeout=_ENCODER_START_TIMEOUT_S)
+    except (TimeoutError, asyncio.CancelledError):
+        future.add_done_callback(_stop_if_started)
+        raise
+
+
 class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
     """Concrete camera backend backed by Picamera2.
 
@@ -208,10 +234,7 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
         """Attach ``encoder`` to the lores stream and wait for it to start."""
         camera = self._require_camera()
         try:
-            await asyncio.wait_for(
-                asyncio.to_thread(camera.start_encoder, encoder, output, name="lores"),
-                timeout=30.0,
-            )
+            await _start_encoder(camera, encoder, output, "lores")
         except TimeoutError as exc:
             msg = "Preview pipeline ffmpeg startup timeout"
             raise RuntimeError(msg) from exc
@@ -265,10 +288,7 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
         try:
             stream_output = build_hires_rtsp_output()
             encoder = H264Encoder()
-            await asyncio.wait_for(
-                asyncio.to_thread(camera.start_encoder, encoder, stream_output, name="main"),
-                timeout=30.0,
-            )
+            await _start_encoder(camera, encoder, stream_output, "main")
             self._main_encoder = encoder
         except TimeoutError as e:
             await self._mediamtx.clear_egress("cam-hires")
@@ -285,10 +305,10 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
     async def stop_stream(self) -> None:
         """Stop the main encoder and clear the MediaMTX egress."""
         camera = self._require_camera()
+        encoder, self._main_encoder = self._main_encoder, None
         try:
-            if self._main_encoder is not None:
-                await asyncio.to_thread(camera.stop_encoder, self._main_encoder)
-                self._main_encoder = None
+            if encoder is not None:
+                await asyncio.to_thread(camera.stop_encoder, encoder)
         finally:
             # Always clear the MediaMTX egress even if the encoder stop raised —
             # leaving a stale ``runOnReady`` on the path would make the next

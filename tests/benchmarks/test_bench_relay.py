@@ -129,7 +129,7 @@ def _handle(relay: tuple[asyncio.AbstractEventLoop, AsyncClient], path: str) -> 
     loop, client = relay
     ws = AsyncMock()
     msg = {"id": "msg-0123456789abcdef", "type": "request", "method": "GET", "path": path}
-    loop.run_until_complete(_handle_command(cast("ClientConnection", ws), client, msg))
+    loop.run_until_complete(_handle_command(cast("ClientConnection", ws), client, msg, asyncio.Lock()))
     return ws
 
 

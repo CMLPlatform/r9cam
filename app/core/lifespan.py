@@ -17,7 +17,7 @@ from app.camera.routers.hls import aclose_hls_client
 from app.core.bootstrap import bootstrap_runtime_state
 from app.core.runtime import AppRuntime, ensure_app_runtime
 from app.core.runtime_state import ConnectionMode, connection_mode
-from app.core.settings import settings
+from app.core.settings import APP_ENV_DEVELOPMENT, settings
 from app.observability.logging import setup_logging
 from app.utils.files import cleanup_images, setup_directory
 
@@ -49,14 +49,16 @@ def _log_startup_banner(runtime: AppRuntime) -> None:
     else:
         mode_line = "IDLE        set PAIRING_BACKEND_URL in .env to enable pairing"
 
-    local_key_hint = "run:  just show-key" if runtime.runtime_state.local_api_key else "not yet generated"
+    local_key_hint = (
+        "run:  just show-key  (see INSTALL.md)" if runtime.runtime_state.local_api_key else "not yet generated"
+    )
     pairing_hint = "pairing code will appear below in a boxed log banner" if mode is ConnectionMode.PAIRING else None
     pairing_hint_line = f"  Note     : {pairing_hint}\n" if pairing_hint else ""
 
     sep = "═" * 54
     banner = (
         f"\n{sep}\n"
-        f"  R9lab RPi Camera  v{version}\n"
+        f"  r9cam  v{version}\n"
         f"  Setup    : {setup_url}\n"
         f"  Mode     : {mode_line}\n"
         f"{pairing_hint_line}"
@@ -64,6 +66,18 @@ def _log_startup_banner(runtime: AppRuntime) -> None:
         f"{sep}"
     )
     logger.info(banner)
+
+
+async def _prime_preview_thumbnail(runtime: AppRuntime) -> bool:
+    """Capture the first thumbnail; a camera-less host is tolerated only in development."""
+    try:
+        return await runtime.preview_thumbnail_worker.refresh_once(reason="startup")
+    except (CameraInitializationError, RuntimeError):
+        # Off-Pi dev has no picamera2; a production host without a camera stack must still fail loudly.
+        if settings.app_env != APP_ENV_DEVELOPMENT:
+            raise
+        logger.warning("No camera available in development; serving without a preview thumbnail", exc_info=True)
+        return True
 
 
 @asynccontextmanager
@@ -125,7 +139,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Prime a baseline thumbnail before the sleeper has a chance to wake the
     # encoder, so /preview-thumbnail.jpg serves a real image from the first
     # page load.
-    primed = await runtime.preview_thumbnail_worker.refresh_once(reason="startup")
+    primed = await _prime_preview_thumbnail(runtime)
     if not primed:
         logger.warning(
             "Preview thumbnail could not be primed at startup — /preview-thumbnail.jpg will 404 until the next refresh"

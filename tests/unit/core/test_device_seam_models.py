@@ -535,12 +535,13 @@ def test_local_access_info_rejects_extra_fields() -> None:
         )
 
 
-def test_device_upload_acks_reject_extra_fields() -> None:
-    """Upload acknowledgements should reject unknown fields."""
-    with pytest.raises(ValidationError):
-        DeviceImageUploadAck.model_validate({"image_id": "a" * 32, "image_url": "/x", "extra": "field"})
-    with pytest.raises(ValidationError):
-        DevicePreviewThumbnailAck.model_validate({"preview_thumbnail_url": "/x", "extra": "field"})
+def test_device_upload_acks_ignore_extra_fields() -> None:
+    """Inbound backend acks tolerate fields a newer backend adds."""
+    image = DeviceImageUploadAck.model_validate({"image_id": "a" * 32, "image_url": "/x", "extra": "field"})
+    thumb = DevicePreviewThumbnailAck.model_validate({"preview_thumbnail_url": "/x", "extra": "field"})
+    assert image.image_url == "/x"
+    assert thumb.preview_thumbnail_url == "/x"
+    assert "extra" not in image.model_dump()
 
 
 # --- Relay path control-character rejection ---

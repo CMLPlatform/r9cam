@@ -92,6 +92,9 @@ def encode_preview_jpeg(image: PilImage) -> bytes:
     return buffer.getvalue()
 
 
+_SINK_PUT_TIMEOUT_S = 20
+
+
 class CameraManager:
     """Main camera manager class which handles camera setup, streaming, and cleanup."""
 
@@ -110,7 +113,7 @@ class CameraManager:
         self.backend = backend
         # The image sink is resolved lazily on first ``capture_jpeg`` so that
         # instantiating a ``CameraManager`` (e.g. the module-level singleton
-        # in ``dependencies/camera_management.py``) doesn't fire factory
+        # in the app runtime) doesn't fire factory
         # validation errors when imports happen before env is loaded.
         self._sink: ImageSink | None = sink
         self._upload_queue_override = upload_queue
@@ -216,14 +219,17 @@ class CameraManager:
         capture_metadata_dict = img_metadata.model_dump(mode="json")
 
         try:
-            stored = await self.sink.put(
-                image_id=image_id,
-                image_bytes=image_bytes,
-                filename=filename,
-                capture_metadata=capture_metadata_dict,
-                upload_metadata=upload_meta,
-            )
-        except ImageSinkError as exc:
+            # Inner deadline below the relay's 30 s command timeout, so a hung sink
+            # falls back to the queue instead of being cancelled with the JPEG in memory only.
+            async with asyncio.timeout(_SINK_PUT_TIMEOUT_S):
+                stored = await self.sink.put(
+                    image_id=image_id,
+                    image_bytes=image_bytes,
+                    filename=filename,
+                    capture_metadata=capture_metadata_dict,
+                    upload_metadata=upload_meta,
+                )
+        except (ImageSinkError, TimeoutError) as exc:
             logger.warning(
                 "Image sink for %s failed; enqueueing for retry: %s",
                 image_id,
@@ -371,8 +377,12 @@ class CameraManager:
                 err_msg = "No stream active"
                 raise RuntimeError(err_msg)
             logger.info("Stopping stream", extra=build_log_extra(stream_mode=self.stream.mode))
-            await backend.stop_stream()
-            self._stream.reset()
+            try:
+                await backend.stop_stream()
+            except Exception:
+                logger.exception("Backend stop_stream failed; clearing stream state anyway")
+            finally:
+                self._stream.reset()
 
     async def cleanup(self, *, force: bool = False) -> None:
         """Clean up camera and streaming resources. If force is True, this happens even if there is an active stream."""
