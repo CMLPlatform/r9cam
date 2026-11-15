@@ -80,11 +80,17 @@ build:
 clean:
     rm -rf dist/ .venv/ .pytest_cache/ __pycache__/ .mutation/ reports/
 
-# Print the local direct-connection API key from the local key endpoint.
-# With TLS on (TLS_CERT_FILE in .env) it asks over HTTPS and skips the certificate check: the
-# certificate names the Pi, not 127.0.0.1.
+# Python that prints local_api_key from the credentials file ($R9CAM_CREDENTIALS_FILE, else ~/.config/r9cam).
+# The /local-key route needs the key itself, so the key is read from the file instead.
+key_reader := "import json, os, pathlib; p = pathlib.Path(os.getenv('R9CAM_CREDENTIALS_FILE') or pathlib.Path.home() / '.config/r9cam/relay_credentials.json'); print(json.loads(p.read_text()).get('local_api_key', ''))"
+
+# Print the local direct-connection API key from inside the Compose app container.
 show-key:
-    @python3 -c 'import os, ssl, sys; from urllib.request import urlopen; scheme = "https" if os.environ.get("TLS_CERT_FILE") else "http"; sys.stdout.write(urlopen(f"{scheme}://127.0.0.1:8018/local-key", timeout=2, context=ssl._create_unverified_context()).read().decode("utf-8", "replace").strip() + "\n")'
+    docker compose exec app python -c "{{ key_reader }}"
+
+# Print the key for a direct Python run (no container).
+show-key-direct:
+    python3 -c "{{ key_reader }}"
 
 # Releases, as in r9lab:
 #

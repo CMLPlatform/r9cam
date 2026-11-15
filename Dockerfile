@@ -105,7 +105,7 @@ ENV R9CAM_GIT_SHA=$GIT_SHA
 
 # With TLS on, probe over HTTPS without verifying: the certificate names the Pi, not localhost.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import os, ssl, urllib.request; scheme = 'https' if os.environ.get('TLS_CERT_FILE') else 'http'; urllib.request.urlopen(f'{scheme}://localhost:8018/', context=ssl._create_unverified_context())" || exit 1
+    CMD python -c "import os, ssl, urllib.request; scheme = 'https' if os.environ.get('TLS_CERT_FILE') else 'http'; ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE; urllib.request.urlopen(f'{scheme}://localhost:8018/', context=ctx)" || exit 1
 
 EXPOSE 8018
 

@@ -1,6 +1,6 @@
 # Installation And Setup Guide
 
-This guide is for operators installing and running the RPI Camera Plugin on a Raspberry Pi.
+This guide is for operators installing and running r9cam on a Raspberry Pi.
 
 ## Requirements
 
@@ -187,16 +187,17 @@ X-API-Key: <local-api-key>
 
 Paired R9lab apps can fetch the key through the relay and switch to LAN/Ethernet direct access for lower preview latency. Custom clients can use the key without pairing.
 
-Retrieve the key from an SSH session:
+Retrieve the key from an SSH session. The `/local-key` route needs the key itself, so these read it from the credentials file. Under Compose the file lives in the `relay_credentials` volume, so run it in the container:
 
 ```sh
 just show-key
+# same as: docker compose exec app python -c "import json,pathlib; print(json.loads((pathlib.Path.home()/'.config/r9cam/relay_credentials.json').read_text()).get('local_api_key',''))"
 ```
 
-Or read it directly from the credentials file:
+For a direct Python run the file is on the host (`~/.config/r9cam/relay_credentials.json`, or `R9CAM_CREDENTIALS_FILE`):
 
 ```sh
-python3 -c "import json,pathlib; print(json.loads((pathlib.Path.home()/'.config/r9cam/relay_credentials.json').read_text()).get('local_api_key',''))"
+just show-key-direct
 ```
 
 Disable direct local API access with:
@@ -248,7 +249,38 @@ The API serves HTTPS itself when `TLS_CERT_FILE` and `TLS_KEY_FILE` both point a
 
 1. Check it: `curl -k https://192.168.1.42:8018/`.
 
-An `https` `BASE_URL` also marks session cookies `Secure` and turns on HSTS. For a direct Python run, set the same variables with paths on the Pi.
+The certificate is loaded once at startup, so after renewing it run `docker compose restart app`. An `https` `BASE_URL` also marks session cookies `Secure` and turns on HSTS. For a direct Python run, set the same variables with paths on the Pi.
+
+## Optional Settings
+
+Set these in the `.env` next to `compose.yml`. Every setting has a default; change one only when you have a reason. Durations are seconds. The modes above and [Observability](#observability) cover the rest.
+
+| Variable                           | Default                         | Meaning                                                                                                                                     |
+| ---------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEBUG`                            | `false`                         | Verbose debug mode. Only allowed with `APP_ENV=development`.                                                                                |
+| `LOG_PATH`                         | `logs` in the app folder        | Directory for log files.                                                                                                                    |
+| `IMAGE_PATH`                       | `data/images` in the app folder | Directory where captures wait before upload.                                                                                                |
+| `IMAGE_TTL_S`                      | `3600`                          | How long a capture file is kept before cleanup removes it.                                                                                  |
+| `CLEANUP_INTERVAL_S`               | `600`                           | How often cleanup runs.                                                                                                                     |
+| `PREVIEW_HIBERNATE_AFTER_S`        | `300`                           | Stop the preview encoder after this long without relay traffic. `0` keeps it always on.                                                     |
+| `MAX_STREAM_DURATION_S`            | `18000`                         | A stream is stopped after this long.                                                                                                        |
+| `CHECK_STREAM_INTERVAL_S`          | `60`                            | How often the stream duration limit is checked.                                                                                             |
+| `CHECK_STREAM_HEALTH_INTERVAL_S`   | `30`                            | How often stream health is checked.                                                                                                         |
+| `MAX_CAPTURE_PIXELS`               | `20000000`                      | Largest capture accepted, in pixels.                                                                                                        |
+| `MAX_CAPTURE_FILE_BYTES`           | `10485760`                      | Largest capture file accepted, in bytes (10 MiB).                                                                                           |
+| `UPLOAD_QUEUE_MAX_PENDING_ENTRIES` | `500`                           | Captures held for upload retry; `0` means none.                                                                                             |
+| `UPLOAD_QUEUE_MAX_PENDING_BYTES`   | `2147483648`                    | Total size of captures held for retry, in bytes (2 GiB).                                                                                    |
+| `UPLOAD_QUEUE_DEAD_MAX_ENTRIES`    | `500`                           | Failed uploads kept for inspection.                                                                                                         |
+| `RELAY_MAX_CONCURRENT_COMMANDS`    | `8`                             | Relay commands run at the same time.                                                                                                        |
+| `RELAY_MAX_PENDING_COMMANDS`       | `32`                            | Relay commands allowed to wait for a free slot.                                                                                             |
+| `PAIRING_POLL_INTERVAL_S`          | `3`                             | Delay between pairing status checks.                                                                                                        |
+| `PAIRING_REGISTER_TIMEOUT_RETRY_S` | `1`                             | Delay before retrying a pairing registration that timed out.                                                                                |
+| `AUTH_KEY_NAME`                    | `X-API-Key`                     | Header that carries the API key.                                                                                                            |
+| `SESSION_COOKIE_NAME`              | `r9cam_session`                 | Browser session cookie name (`__Host-` is added when cookies are `Secure`).                                                                 |
+| `AUTH_COOKIE_SECURE`               | from `BASE_URL`                 | Force the `Secure` cookie flag on or off. Unset: on when `BASE_URL` is `https`.                                                             |
+| `LOCAL_API_KEY`                    | generated                       | Seed for the local API key. Leave unset: the app generates and stores one.                                                                  |
+| `LOCAL_RELAY_API_KEY`              | generated                       | Seed for the relay-local key. Leave unset.                                                                                                  |
+| `RELAY_BACKEND_URL`                | unset                           | Static relay `wss://` URL. Set it only with `RELAY_CAMERA_ID`, `RELAY_KEY_ID` and `RELAY_PRIVATE_KEY_PEM`; pairing normally fills these in. |
 
 ## Direct Python Run
 

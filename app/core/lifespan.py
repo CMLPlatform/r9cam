@@ -49,14 +49,16 @@ def _log_startup_banner(runtime: AppRuntime) -> None:
     else:
         mode_line = "IDLE        set PAIRING_BACKEND_URL in .env to enable pairing"
 
-    local_key_hint = "run:  just show-key" if runtime.runtime_state.local_api_key else "not yet generated"
+    local_key_hint = (
+        "run:  just show-key  (see INSTALL.md)" if runtime.runtime_state.local_api_key else "not yet generated"
+    )
     pairing_hint = "pairing code will appear below in a boxed log banner" if mode is ConnectionMode.PAIRING else None
     pairing_hint_line = f"  Note     : {pairing_hint}\n" if pairing_hint else ""
 
     sep = "═" * 54
     banner = (
         f"\n{sep}\n"
-        f"  R9lab RPi Camera  v{version}\n"
+        f"  r9cam  v{version}\n"
         f"  Setup    : {setup_url}\n"
         f"  Mode     : {mode_line}\n"
         f"{pairing_hint_line}"
