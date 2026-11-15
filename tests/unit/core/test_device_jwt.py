@@ -17,7 +17,6 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 from app.core.runtime import AppRuntime, set_active_runtime
 from app.relay.device_jwt import (
-    DEVICE_ASSERTION_ALGORITHM,
     DEVICE_ASSERTION_AUDIENCE,
     DEVICE_ASSERTION_TTL_SECONDS,
     build_device_assertion,
@@ -68,7 +67,7 @@ class TestBuildDeviceAssertion:
         """The JOSE header declares ES256 and points ``kid`` at the camera's relay key."""
         token = build_device_assertion()
         header = jwt.get_unverified_header(token)
-        assert header["alg"] == DEVICE_ASSERTION_ALGORITHM
+        assert header["alg"] == "ES256"
         assert header["kid"] == _KID_DEFAULT
 
     def test_token_payload_has_expected_claims(self) -> None:
@@ -127,7 +126,7 @@ class TestBuildDeviceAssertionRoundTrip:
         decoded = jwt.decode(
             token,
             public_pem,
-            algorithms=[DEVICE_ASSERTION_ALGORITHM],
+            algorithms=["ES256"],
             audience=DEVICE_ASSERTION_AUDIENCE,
         )
 
