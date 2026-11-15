@@ -474,6 +474,25 @@ class TestCameraManagerCapture:
         assert ref.capture_role == CaptureRole.COLOUR_REFERENCE
         assert ref.session_id == later.session_id == "bench-7"
 
+    async def test_a_failed_capture_does_not_change_the_session(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A session id sent with a capture that fails must not stick to later captures."""
+        backend = FakeBackend()
+        ok = CaptureResult(image=Image.new("RGB", (64, 64)), camera_properties={}, capture_metadata={})
+        backend.capture_image.side_effect = [ok, RuntimeError("camera busy"), ok]
+        sink = AsyncMock()
+        sink.put.return_value = StoredImage(image_id="a" * 32, image_url=AnyUrl(EXAMPLE_IMAGE_URL))
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+        manager = CameraManager(backend=cast("StreamingCameraBackend", backend), sink=sink)
+
+        first = (await manager.capture_jpeg()).metadata
+        with pytest.raises(RuntimeError, match="camera busy"):
+            await manager.capture_jpeg(session_id="bench-8")
+        later = (await manager.capture_jpeg()).metadata
+
+        assert later.session_id == first.session_id
+
     async def test_capture_invokes_capture_uploaded_hook_with_captured_frame(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

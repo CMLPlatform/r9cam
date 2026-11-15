@@ -102,6 +102,10 @@ def tuning_file_sha256(model: str | None) -> str | None:
         return None
 
 
+# The DNG is written in the same call, so allow more than the 10 s metadata timeout.
+_RAW_CAPTURE_TIMEOUT_S = 20
+
+
 def _capture_with_raw(camera: Picamera2Like) -> tuple[PilImage, dict | None, bytes]:
     """Take the still, its metadata and a DNG from one request, so all three describe the same frame."""
     request = camera.capture_request()
@@ -227,7 +231,9 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
         camera = self._require_camera()
         raw_dng = None
         if settings.raw_capture:
-            image, capture_metadata, raw_dng = await asyncio.to_thread(_capture_with_raw, camera)
+            image, capture_metadata, raw_dng = await asyncio.wait_for(
+                asyncio.to_thread(_capture_with_raw, camera), timeout=_RAW_CAPTURE_TIMEOUT_S
+            )
         else:
             image = await asyncio.to_thread(camera.capture_image, "main")
             capture_metadata = await asyncio.wait_for(asyncio.to_thread(camera.capture_metadata), timeout=10)

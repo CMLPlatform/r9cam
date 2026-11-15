@@ -211,8 +211,7 @@ class CameraManager:
         carries it) and its hash goes into the metadata. ``role`` marks a colour-reference shot;
         a ``session_id`` becomes the current session for this and later captures.
         """
-        if session_id is not None:
-            self._session_id = session_id
+        capture_session_id = session_id or self._session_id
         upload_meta = upload_metadata or {}
 
         image_id = secrets.token_hex(_CAPTURE_ID_BYTES)
@@ -237,7 +236,7 @@ class CameraManager:
                 result.capture_metadata,
                 result.tuning_file_sha256,
                 capture_role=role,
-                session_id=self._session_id,
+                session_id=capture_session_id,
                 raw_sha256=raw_sha256,
             )
             image_bytes = await asyncio.to_thread(
@@ -246,6 +245,8 @@ class CameraManager:
                 image_metadata_to_exif(img_metadata),
             )
             JPEG_CAPTURE_POLICY.validate_size(image_bytes, max_bytes=settings.max_capture_file_bytes)
+            # Only a capture that succeeded starts a new session.
+            self._session_id = capture_session_id
 
         capture_metadata_dict = img_metadata.model_dump(mode="json")
 
