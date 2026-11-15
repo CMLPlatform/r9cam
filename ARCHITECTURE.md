@@ -100,7 +100,7 @@ Any path used at request time is either encoded or checked against an allowlist 
 
 ## Cryptography
 
-Relay device assertions are short-lived ES256 JWTs signed with the Pi's P-256 key. We validate that key when settings load, credentials are saved, and runtime state is applied, so bad key types fail early.
+Relay device assertions are short-lived JWTs signed with the Pi's key: ES256 for a P-256 key (the default) or EdDSA for an Ed25519 key. `DEVICE_KEY_ALGORITHM` picks the type at pairing; after that the stored key's type sets the token's `alg`, so credentials saved before the setting existed keep signing ES256. We validate that key when settings load, credentials are saved, and runtime state is applied, so bad key types fail early.
 
 Relay private keys, relay key IDs, camera IDs, and local API keys live in `~/.config/r9cam/relay_credentials.json` (or the path in `R9CAM_CREDENTIALS_FILE`). The file is written atomically with `0600` permissions. Pairing creates a fresh key pair; unpairing deletes the file.
 
@@ -182,6 +182,10 @@ Preview publishes to a local MediaMTX sidecar over RTSP; browsers consume the st
 Remote (relay-proxied) preview deliberately stays on LL-HLS; the rationale and the WebRTC/WHEP migration conditions are recorded in [ADR 0001](docs/adr/0001-preview-streaming-hls-over-relay.md).
 
 Capture requests produce image bytes and bounded metadata, then pass them to the configured `ImageSink`.
+
+`POST /captures` also takes two optional query parameters, which the relay forwards as it does any params: `role=colour_reference` marks the operator's colour-reference shot, and `session_id` sets the session the captures belong to. The manager keeps one current session id (generated at startup, replaced when the operator passes one). Both go into `ImageMetadata` (`capture_role`, `session_id`), so a dataset can pair a session's captures with its reference shot.
+
+With `RAW_CAPTURE=true`, `Picamera2Backend` configures a raw stream and takes the still, its metadata and a DNG from one `capture_request()`, so all three describe the same frame. With it off the pipeline and the still path are unchanged. The manager writes the DNG to `image_path/raw/<capture id>.dng`, removed by `cleanup_images` after `IMAGE_TTL_S`, and records its SHA-256 as `raw_sha256`. The DNG does not travel through the sink or the upload queue: the backend upload takes one `file` part, and a second part is not part of the contract. The operator collects the file from the Pi.
 
 ## Image Sinks And Upload Queue
 

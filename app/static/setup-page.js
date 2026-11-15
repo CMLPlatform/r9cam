@@ -1,5 +1,7 @@
-// User-facing text, kept together for a later translation pass.
-const STRINGS = {
+import { formatRemainingTime, loadStrings } from "./i18n.js";
+
+// English fallback; the server renders the page language into #i18n-strings.
+const STRINGS = loadStrings("page", {
   copied: {
     code: "Pairing code copied.",
     url: "Backend URL copied.",
@@ -36,7 +38,7 @@ const STRINGS = {
   keyHidden: "Key hidden.",
   keyFailed: "Could not show the local key from this client. Sign in as an operator and try again.",
   countdownExpired: "expired",
-};
+});
 
 const STATUS_SUCCESS_MS = 4000;
 const LOCAL_KEY_VISIBLE_MS = 60000;
@@ -360,13 +362,7 @@ function setupCountdown() {
     if (ms <= 0) {
       return STRINGS.countdownExpired;
     }
-    const totalSeconds = Math.ceil(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    if (minutes > 0) {
-      return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
-    }
-    return `${seconds}s`;
+    return formatRemainingTime(Math.ceil(ms / 1000));
   };
 
   const tick = () => {

@@ -10,6 +10,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ### Added
 
+- A capture can also save a DNG next to the JPEG when `RAW_CAPTURE=true`, and
+  `POST /captures?role=colour_reference&session_id=...` marks a colour-reference shot for a
+  session, so a dataset can correct colour across cameras and sessions. The DNG stays on the
+  device.
+- The setup and home pages, and the API errors they show, are in Dutch when the browser asks
+  for it, with English as the fallback. ([#122])
+- `DEVICE_KEY_ALGORITHM=EdDSA` pairs with an Ed25519 key instead of P-256. It needs a backend
+  that accepts EdDSA device tokens; ES256 stays the default. ([#121])
 - The home page shows whether the camera is ready, the relay is connected and the device is
   paired, and the preview thumbnail refreshes every 10 seconds.
 - Issue and pull request templates, a cold-install check, and a dependency licence check in CI.
@@ -39,6 +47,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ### Fixed
 
+- The image takes Debian security updates at build time, so it ships zlib1g with the fixes
+  for CVE-2026-85091 and CVE-2026-76844 before a new `debian:trixie-slim` image has them.
 - A passphrase-protected `TLS_KEY_FILE` now stops startup with a message that the key must be
   unencrypted. Before, the app could wait at a password prompt on a host with a terminal.
 - A capture taken through the relay is queued for upload when the backend upload hangs, instead
@@ -361,3 +371,5 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [0.7.1]: https://github.com/CMLPlatform/r9cam/compare/v0.7.0...v0.7.1
 [0.7.2]: https://github.com/CMLPlatform/r9cam/compare/v0.7.1...v0.7.2
 [unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.7.2...HEAD
+[#121]: https://github.com/CMLPlatform/r9cam/issues/121
+[#122]: https://github.com/CMLPlatform/r9cam/issues/122

@@ -1,0 +1,492 @@
+# Translations template for r9cam.
+# Copyright (C) 2026 Simon van Lierde
+# This file is distributed under the same license as the r9cam project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: r9cam VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-11-15 06:25+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "A YouTube stream is currently active."
+msgstr ""
+
+msgid "API"
+msgstr ""
+
+msgid "API Docs"
+msgstr ""
+
+msgid "API Key header or browser session is missing"
+msgstr ""
+
+msgid "Ask an operator to check the backend URL."
+msgstr ""
+
+msgid "Ask an operator to refresh the code."
+msgstr ""
+
+msgid "Available"
+msgstr ""
+
+msgid "Backend URL copied."
+msgstr ""
+
+msgid "Backend reachable, but pairing is failing."
+msgstr ""
+
+msgid "Backend responds, so pairing should start automatically."
+msgstr ""
+
+msgid "Browser and script access"
+msgstr ""
+
+msgid "Camera ID"
+msgstr ""
+
+msgid "Camera Preview"
+msgstr ""
+
+msgid "Camera not available"
+msgstr ""
+
+msgid "Camera not ready"
+msgstr ""
+
+msgid "Camera ready"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Change"
+msgstr ""
+
+msgid "Check the backend URL under Pairing details."
+msgstr ""
+
+msgid "Check the network cable or Wi-Fi. The camera tries again by itself."
+msgstr ""
+
+msgid "Code expired."
+msgstr ""
+
+msgid "Code expired. Getting a new one..."
+msgstr ""
+
+msgid "Connection status"
+msgstr ""
+
+msgid "Copied"
+msgstr ""
+
+msgid "Copy"
+msgstr ""
+
+msgid "Copy backend URL"
+msgstr ""
+
+msgid "Copy code"
+msgstr ""
+
+msgid "Copy failed"
+msgstr ""
+
+msgid "Copy local API key"
+msgstr ""
+
+msgid "Copy pairing code"
+msgstr ""
+
+msgid "Copy this key for browser testing, custom scripts, or standalone clients."
+msgstr ""
+
+msgid "Could not copy the backend URL. Select it and copy it by hand."
+msgstr ""
+
+msgid "Could not copy the local API key. Select it and copy it by hand."
+msgstr ""
+
+msgid "Could not copy the pairing code. Select it and copy it by hand."
+msgstr ""
+
+#, python-brace-format
+msgid "Could not get a new code (HTTP {status}). Try again."
+msgstr ""
+
+msgid "Could not get a new code. Check your connection and try again."
+msgstr ""
+
+msgid "Could not get a new pairing code"
+msgstr ""
+
+msgid "Could not show the local key from this client. Sign in as an operator and try again."
+msgstr ""
+
+msgid "Custom backend"
+msgstr ""
+
+msgid "Default R9lab backend"
+msgstr ""
+
+msgid "Direct LAN access for browser, app, and scripts."
+msgstr ""
+
+msgid "Enter this code in R9lab."
+msgstr ""
+
+msgid "Failed to stop stream"
+msgstr ""
+
+msgid "Fetching local key..."
+msgstr ""
+
+msgid "Generate a new pairing code"
+msgstr ""
+
+msgid "Get a new code"
+msgstr ""
+
+msgid "Getting a new code..."
+msgstr ""
+
+msgid "Getting a new pairing code..."
+msgstr ""
+
+msgid "HLS path not found — the preview encoder may not be running yet. Wait ~2s for MediaMTX to see the first publish and retry."
+msgstr ""
+
+msgid "HLS preview"
+msgstr ""
+
+msgid "HLS preview is only available from the local network"
+msgstr ""
+
+msgid "Hide details"
+msgstr ""
+
+msgid "Hide local API key"
+msgstr ""
+
+msgid "Home"
+msgstr ""
+
+msgid "Image capture failed"
+msgstr ""
+
+msgid "Invalid API Key"
+msgstr ""
+
+msgid "It will disconnect from the backend and re-enter pairing mode. You can re-pair it at any time."
+msgstr ""
+
+msgid "Keep this page open while the code is active."
+msgstr ""
+
+msgid "Key hidden until revealed."
+msgstr ""
+
+msgid "Key hidden."
+msgstr ""
+
+msgid "Key shown. It hides again in 60 seconds."
+msgstr ""
+
+msgid "Latest camera preview thumbnail"
+msgstr ""
+
+msgid "Live"
+msgstr ""
+
+msgid "Load Preview"
+msgstr ""
+
+msgid "Local API key"
+msgstr ""
+
+msgid "Local API key copied."
+msgstr ""
+
+msgid "Local API key has not been generated yet"
+msgstr ""
+
+msgid "Local access"
+msgstr ""
+
+msgid "Local access disabled"
+msgstr ""
+
+msgid "Local key access is only available from the local network"
+msgstr ""
+
+msgid "Local key is empty."
+msgstr ""
+
+msgid "Log out"
+msgstr ""
+
+msgid "MediaMTX HLS is temporarily unavailable"
+msgstr ""
+
+msgid "Native R9lab app latency boost"
+msgstr ""
+
+msgid "Needs attention"
+msgstr ""
+
+msgid "New code"
+msgstr ""
+
+msgid "New code ready. Reloading page..."
+msgstr ""
+
+msgid "No LAN address found"
+msgstr ""
+
+msgid "No preview thumbnail cached yet"
+msgstr ""
+
+msgid "No preview yet. The camera may be offline."
+msgstr ""
+
+msgid "No relay yet. Pairing keeps retrying."
+msgstr ""
+
+msgid "No stream active"
+msgstr ""
+
+msgid "Not connected"
+msgstr ""
+
+msgid "Not paired"
+msgstr ""
+
+msgid "Not reachable"
+msgstr ""
+
+msgid "Open setup"
+msgstr ""
+
+msgid "Pair, refresh, or unpair from this page."
+msgstr ""
+
+msgid "Paired"
+msgstr ""
+
+msgid "Paired and online."
+msgstr ""
+
+msgid "Paired with R9lab"
+msgstr ""
+
+msgid "Paired. Connecting now."
+msgstr ""
+
+msgid "Pairing code"
+msgstr ""
+
+msgid "Pairing code copied."
+msgstr ""
+
+msgid "Pairing code refreshed"
+msgstr ""
+
+msgid "Pairing details"
+msgstr ""
+
+msgid "Pairing ready"
+msgstr ""
+
+msgid "Preset"
+msgstr ""
+
+msgid "Preview"
+msgstr ""
+
+msgid "Preview control is only available from the local network"
+msgstr ""
+
+msgid "Preview encoder failed to start"
+msgstr ""
+
+msgid "Preview stream dropped. Reload to retry."
+msgstr ""
+
+msgid "Preview thumbnail cache is invalid"
+msgstr ""
+
+msgid "Preview thumbnail is only available from the local network"
+msgstr ""
+
+msgid "Primary"
+msgstr ""
+
+msgid "R9lab RPi Camera home"
+msgstr ""
+
+msgid "R9lab logo"
+msgstr ""
+
+msgid "Raspberry Pi Camera"
+msgstr ""
+
+msgid "Reachable"
+msgstr ""
+
+msgid "Refresh after pairing or unpairing to see the latest state."
+msgstr ""
+
+msgid "Refreshed"
+msgstr ""
+
+msgid "Relay backend"
+msgstr ""
+
+msgid "Relay is connected and the camera is ready for remote access."
+msgstr ""
+
+msgid "Relay pairing still uses the 6-character code above."
+msgstr ""
+
+msgid "Remote link connected"
+msgstr ""
+
+msgid "Remote link disconnected"
+msgstr ""
+
+msgid "Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href=\"https://github.com/CMLPlatform/r9lab\" target=\"_blank\" rel=\"noopener\">GitHub page</a>."
+msgstr ""
+
+msgid "Reveal local API key"
+msgstr ""
+
+msgid "Revealing..."
+msgstr ""
+
+msgid "Same-origin browser request required"
+msgstr ""
+
+msgid "Set <code>PAIRING_BACKEND_URL</code> in <code>.env</code> or Compose, then restart."
+msgstr ""
+
+msgid "Setup"
+msgstr ""
+
+msgid "Show details"
+msgstr ""
+
+msgid "Starting"
+msgstr ""
+
+msgid "Starting..."
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "Stop Preview"
+msgstr ""
+
+msgid "Stopping..."
+msgstr ""
+
+msgid "Switches to local access automatically after relay pairing when Ethernet is available."
+msgstr ""
+
+msgid "The R9lab server did not accept the pairing request."
+msgstr ""
+
+msgid "The R9lab server did not recognise the pairing address."
+msgstr ""
+
+msgid "The camera cannot reach the R9lab server."
+msgstr ""
+
+msgid "The player script failed to load. Reload the page to try again."
+msgstr ""
+
+#, python-brace-format
+msgid "The preview could not start (HTTP {status}). Wait a moment and try again."
+msgstr ""
+
+msgid "The preview could not start. Check the network and try again."
+msgstr ""
+
+msgid "The thumbnail below refreshes every 10 seconds. Start a live preview to check framing or focus."
+msgstr ""
+
+msgid "Theme: Auto"
+msgstr ""
+
+msgid "Theme: Dark"
+msgstr ""
+
+msgid "Theme: Light"
+msgstr ""
+
+msgid "This browser cannot play the live preview."
+msgstr ""
+
+msgid "Too many requests. Try again later."
+msgstr ""
+
+msgid "URL"
+msgstr ""
+
+msgid "Unavailable"
+msgstr ""
+
+msgid "Unpair"
+msgstr ""
+
+#, python-brace-format
+msgid "Unpair failed (HTTP {status}). Try again."
+msgstr ""
+
+msgid "Unpair request failed. Check your connection and try again."
+msgstr ""
+
+msgid "Unpair this camera?"
+msgstr ""
+
+msgid "Unpaired. Reloading page..."
+msgstr ""
+
+msgid "Unpairing..."
+msgstr ""
+
+msgid "Use the local API on your LAN for faster direct access."
+msgstr ""
+
+msgid "Use the same key in your browser or send it with <code>X-API-Key</code>."
+msgstr ""
+
+msgid "Valid for <strong class=\"pairing-countdown\" data-pairing-countdown>...</strong>."
+msgstr ""
+
+msgid "Wait a minute. The camera tries again by itself."
+msgstr ""
+
+msgid "Waking the encoder..."
+msgstr ""
+
+msgid "Watch on YouTube"
+msgstr ""
+
+msgid "YouTube Stream"
+msgstr ""
+
+msgid "expired"
+msgstr ""
+
+msgid "not set"
+msgstr ""

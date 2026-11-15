@@ -7,10 +7,10 @@ from fastapi.responses import FileResponse, HTMLResponse
 from r9cam_models.stream import StreamMode
 
 from app.camera.dependencies import CameraManagerDependency
+from app.core.i18n import N_, render
 from app.core.runtime import get_request_runtime
 from app.core.runtime_state import ConnectionMode, connection_mode
 from app.core.settings import settings
-from app.core.templates_config import templates
 from app.utils.file_policy import JPEG_CAPTURE_POLICY, CaptureFileValidationError
 from app.utils.network import is_local_client
 
@@ -24,7 +24,7 @@ async def homepage(request: Request, camera_manager: CameraManagerDependency) ->
     if camera_manager.stream.mode == StreamMode.YOUTUBE and camera_manager.stream.url:
         youtube_url = str(camera_manager.stream.url)
     runtime = get_request_runtime(request)
-    return templates.TemplateResponse(
+    return render(
         request,
         "homepage.html",
         {
@@ -47,15 +47,15 @@ async def favicon() -> FileResponse:
 async def preview_thumbnail(request: Request) -> FileResponse:
     """Serve the cached preview thumbnail written by PreviewThumbnailWorker."""
     if not is_local_client(request.client.host if request.client else None):
-        raise HTTPException(status_code=403, detail="Preview thumbnail is only available from the local network")
+        raise HTTPException(status_code=403, detail=N_("Preview thumbnail is only available from the local network"))
     path = settings.image_path / "preview-thumbnail" / "current.jpg"
     if not path.exists():
-        raise HTTPException(status_code=404, detail="No preview thumbnail cached yet")
+        raise HTTPException(status_code=404, detail=N_("No preview thumbnail cached yet"))
     # Reject oversized files by stat before reading, so a corrupt/huge cache
     # file can't OOM the Pi — validate_persisted_bytes only checks length
     # after the whole file is already in memory.
     if path.stat().st_size > settings.max_capture_file_bytes:
-        raise HTTPException(status_code=503, detail="Preview thumbnail cache is invalid")
+        raise HTTPException(status_code=503, detail=N_("Preview thumbnail cache is invalid"))
     try:
         JPEG_CAPTURE_POLICY.validate_persisted_bytes(
             path.read_bytes(),
@@ -63,5 +63,5 @@ async def preview_thumbnail(request: Request) -> FileResponse:
             max_pixels=settings.max_capture_pixels,
         )
     except CaptureFileValidationError as exc:
-        raise HTTPException(status_code=503, detail="Preview thumbnail cache is invalid") from exc
+        raise HTTPException(status_code=503, detail=N_("Preview thumbnail cache is invalid")) from exc
     return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "no-store"})

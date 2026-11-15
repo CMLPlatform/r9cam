@@ -36,6 +36,7 @@ class CaptureResult:
     camera_properties: dict[str, Any]
     capture_metadata: dict[str, Any]
     tuning_file_sha256: str | None = None
+    raw_dng: bytes | None = None  # DNG of the same request; None unless RAW_CAPTURE is on
 
 
 @dataclass(frozen=True)

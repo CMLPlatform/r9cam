@@ -25,6 +25,7 @@ def test_load_relay_signing_private_key_accepts_valid_p256_pem() -> None:
 
     loaded = load_relay_signing_private_key(_private_key_pem(private_key))
 
+    assert isinstance(loaded, ec.EllipticCurvePrivateKey)
     assert loaded.curve.name == _EXPECTED_RELAY_CURVE_NAME
 
 

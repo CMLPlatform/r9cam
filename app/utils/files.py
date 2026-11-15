@@ -72,6 +72,7 @@ def write_json_atomic(path: Path, data: dict[str, object]) -> None:
 
 
 async def cleanup_images() -> None:
-    """Delete old images and thumbnails from the image path."""
+    """Delete old images, thumbnails and DNG files from the image path."""
     await clear_directory(settings.image_path, time_to_live_s=settings.image_ttl_s)
     await clear_directory(settings.image_path / "preview-thumbnail", time_to_live_s=settings.image_ttl_s)
+    await clear_directory(settings.image_path / "raw", time_to_live_s=settings.image_ttl_s)

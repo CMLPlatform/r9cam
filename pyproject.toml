@@ -39,7 +39,7 @@
     "pydantic-settings>=2.8.0",
     "pyjwt[crypto]>=2.12.1",
     "python-multipart>=0.0.18",                 # NOTE: Form() fields in app/auth/router.py
-    "r9cam-models>=0.6.1,<0.7",                 # NOTE: Keep this aligned with the published contract package
+    "r9cam-models>=0.7.0,<0.8",                 # NOTE: Keep this aligned with the published contract package
     "uvicorn[standard]>=0.12.0",                # NOTE: app/serve.py runs it; [standard] adds uvloop and httptools
     "websockets>=16.0",
   ]
@@ -56,6 +56,7 @@
   dev = [
     { include-group = "test" },
     { include-group = "s3" },
+    "babel>=2.18.0",
     "commitizen>=4.8.3",
     "mutmut==3.8.1",
     "prek>=0.4.11",

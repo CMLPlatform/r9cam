@@ -9,6 +9,7 @@ from r9cam_models.images import (
     CameraProperties,
     CaptureMetadata,
     CaptureProvenance,
+    CaptureRole,
     ImageMetadata,
     ImageProperties,
 )
@@ -22,6 +23,10 @@ def build_image_metadata(
     camera_properties: Mapping[str, Any],
     capture_metadata: Mapping[str, Any],
     tuning_file_sha256: str | None = None,
+    *,
+    capture_role: CaptureRole = CaptureRole.STANDARD,
+    session_id: str | None = None,
+    raw_sha256: str | None = None,
 ) -> ImageMetadata:
     """Build the shared image metadata DTO from runtime capture data."""
     return ImageMetadata(
@@ -31,6 +36,9 @@ def build_image_metadata(
         provenance=CaptureProvenance(
             plugin_version=version, plugin_git_sha=git_sha, tuning_file_sha256=tuning_file_sha256
         ),
+        capture_role=capture_role,
+        session_id=session_id,
+        raw_sha256=raw_sha256,
     )
 
 

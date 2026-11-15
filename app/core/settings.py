@@ -196,6 +196,7 @@ class Settings(BaseSettings):
     # Directory paths
     image_path: Path = BASE_DIR / "data" / "images"  # Used for temporary storing of captured images
     templates_path: Path = BASE_DIR / "app" / "templates"  # Used for storing HTML templates
+    locale_path: Path = BASE_DIR / "app" / "locale"  # Used for the gettext catalogues
     static_path: Path = BASE_DIR / "app" / "static"  # Used for serving static files
     log_path: Path = BASE_DIR / "logs"  # Used for storing log files
 
@@ -271,6 +272,8 @@ class Settings(BaseSettings):
     relay_camera_id: str = ""
     relay_key_id: str = ""
     relay_private_key_pem: str = ""
+    # Algorithm of the key made at pairing. Only pairing reads it: signing follows the stored key.
+    device_key_algorithm: Literal["ES256", "EdDSA"] = "ES256"
     local_relay_api_key: str = ""  # Bootstrap-only relay-local auth key seed; runtime-owned after startup
     relay_max_concurrent_commands: int = Field(default=8, ge=1)
     relay_max_pending_commands: int = Field(default=32, ge=1)
@@ -283,6 +286,9 @@ class Settings(BaseSettings):
     # Captured media file size limits (enforced in-memory before upload to avoid OOM crashes)
     max_capture_pixels: int = Field(default=20_000_000, ge=1)
     max_capture_file_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
+
+    # Also save a DNG from the same request as each still, kept under ``image_path/raw`` for ``image_ttl_s``.
+    raw_capture: bool = False
 
     @property
     def tls_enabled(self) -> bool:

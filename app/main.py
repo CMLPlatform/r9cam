@@ -13,6 +13,7 @@ from starlette.types import Scope
 from app.__version__ import version
 from app.camera.exceptions import CameraInitializationError
 from app.core.headers import client_error_detail
+from app.core.i18n import http_exception_handler
 from app.core.lifespan import lifespan
 from app.core.middleware import register_middleware
 from app.core.runtime import ensure_app_runtime
@@ -113,6 +114,7 @@ async def unhandled_exception_handler(
 
 
 app.add_exception_handler(CameraInitializationError, camera_initialization_exception_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.state.runtime = runtime

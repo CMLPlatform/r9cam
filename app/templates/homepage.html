@@ -1,6 +1,21 @@
 {% extends 'base.html' %}
 
 {% set active_nav = 'home' %}
+{% set page_strings = {
+  "loadPreview": _("Load Preview"),
+  "stopPreview": _("Stop Preview"),
+  "starting": _("Starting..."),
+  "stopping": _("Stopping..."),
+  "wakingEncoder": _("Waking the encoder..."),
+  "chipPreview": _("Preview"),
+  "chipLive": _("Live"),
+  "chipStarting": _("Starting"),
+  "streamDropped": _("Preview stream dropped. Reload to retry."),
+  "startFailed": _("The preview could not start (HTTP {status}). Wait a moment and try again."),
+  "networkError": _("The preview could not start. Check the network and try again."),
+  "hlsUnsupported": _("This browser cannot play the live preview."),
+  "hlsScriptMissing": _("The player script failed to load. Reload the page to try again."),
+} %}
 
 {% block title %}
   r9cam
@@ -19,36 +34,36 @@
   <main class="setup-shell">
     <section class="setup-hero">
       <div class="setup-eyebrow">R9lab</div>
-      <h1>Raspberry Pi Camera</h1>
+      <h1>{{ _('Raspberry Pi Camera') }}</h1>
       <p>
-        Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href="https://github.com/CMLPlatform/r9lab" target="_blank" rel="noopener">GitHub page</a>.
+        {% trans %}Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href="https://github.com/CMLPlatform/r9lab" target="_blank" rel="noopener">GitHub page</a>.{% endtrans %}
       </p>
     </section>
 
     <section class="setup-status">
       <div class="setup-status-grid">
         <p class="device-status">
-          <span class="device-status__item">{% if camera_ready %}Camera ready{% else %}Camera not available{% endif %}</span>
-          <span class="device-status__item">{% if paired %}Paired with R9lab{% else %}Not paired{% endif %}</span>
+          <span class="device-status__item">{% if camera_ready %}{{ _('Camera ready') }}{% else %}{{ _('Camera not available') }}{% endif %}</span>
+          <span class="device-status__item">{% if paired %}{{ _('Paired with R9lab') }}{% else %}{{ _('Not paired') }}{% endif %}</span>
           {% if paired %}
-            <span class="device-status__item">{% if relay_connected %}Remote link connected{% else %}Remote link disconnected{% endif %}</span>
+            <span class="device-status__item">{% if relay_connected %}{{ _('Remote link connected') }}{% else %}{{ _('Remote link disconnected') }}{% endif %}</span>
           {% endif %}
-          <a href="{{ url_for('setup_page') }}">Open setup</a>
+          <a href="{{ url_for('setup_page') }}">{{ _('Open setup') }}</a>
         </p>
       </div>
     </section>
 
     <section class="setup-status">
       <div class="setup-status-grid">
-        <div class="status-chip status-chip--muted" id="preview-chip" role="status">Preview</div>
-        <h2>Camera Preview</h2>
-        <p class="setup-status__lead">The thumbnail below refreshes every 10 seconds. Start a live preview to check framing or focus.</p>
-        <img id="preview-thumbnail" class="preview-video" src="{{ url_for('preview_thumbnail') }}" alt="Latest camera preview thumbnail" />
-        <p id="preview-empty" class="preview-empty" hidden>No preview yet. The camera may be offline.</p>
+        <div class="status-chip status-chip--muted" id="preview-chip" role="status">{{ _('Preview') }}</div>
+        <h2>{{ _('Camera Preview') }}</h2>
+        <p class="setup-status__lead">{{ _('The thumbnail below refreshes every 10 seconds. Start a live preview to check framing or focus.') }}</p>
+        <img id="preview-thumbnail" class="preview-video" src="{{ url_for('preview_thumbnail') }}" alt="{{ _('Latest camera preview thumbnail') }}" />
+        <p id="preview-empty" class="preview-empty" hidden>{{ _('No preview yet. The camera may be offline.') }}</p>
         <video id="preview-video" class="preview-video" controls playsinline muted hidden></video>
         <p id="preview-msg" class="preview-message" role="status"></p>
         <div class="setup-actions">
-          <button class="btn" id="preview-btn" data-preview-toggle type="button">Load Preview</button>
+          <button class="btn" id="preview-btn" data-preview-toggle type="button">{{ _('Load Preview') }}</button>
         </div>
       </div>
     </section>
@@ -56,11 +71,11 @@
     {% if youtube_url %}
       <section class="setup-status">
         <div class="setup-status-grid">
-          <div class="status-chip status-chip--live">Live</div>
-          <h2>YouTube Stream</h2>
-          <p>A YouTube stream is currently active.</p>
+          <div class="status-chip status-chip--live">{{ _('Live') }}</div>
+          <h2>{{ _('YouTube Stream') }}</h2>
+          <p>{{ _('A YouTube stream is currently active.') }}</p>
           <div>
-            <a href="{{ youtube_url }}" target="_blank" rel="noopener" class="btn">Watch on YouTube &rarr;</a>
+            <a href="{{ youtube_url }}" target="_blank" rel="noopener" class="btn">{{ _('Watch on YouTube') }} &rarr;</a>
           </div>
         </div>
       </section>

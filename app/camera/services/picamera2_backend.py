@@ -7,6 +7,7 @@ import contextlib
 import hashlib
 import logging
 import os
+from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -101,6 +102,23 @@ def tuning_file_sha256(model: str | None) -> str | None:
         return None
 
 
+# The DNG is written in the same call, so allow more than the 10 s metadata timeout.
+_RAW_CAPTURE_TIMEOUT_S = 20
+
+
+def _capture_with_raw(camera: Picamera2Like) -> tuple[PilImage, dict | None, bytes]:
+    """Take the still, its metadata and a DNG from one request, so all three describe the same frame."""
+    request = camera.capture_request()
+    try:
+        image = request.make_image("main")
+        metadata = request.get_metadata()
+        dng = BytesIO()
+        request.save_dng(dng)
+    finally:
+        request.release()
+    return image, metadata, dng.getvalue()
+
+
 _ENCODER_START_TIMEOUT_S = 30.0
 
 
@@ -185,7 +203,9 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
                     lores={"size": _LORES_SIZE, "format": "YUV420"},
                     buffer_count=4,
                     display=None,
-                    raw=None,
+                    # {} lets picamera2 pick the sensor format and the main stream's size, so the
+                    # video sensor mode stays as is and the DNG is that mode's raw frame.
+                    raw={} if settings.raw_capture else None,
                 )
                 camera.configure(config)
                 # picamera2 cannot release a camera that is still starting, so a cancel
@@ -209,8 +229,14 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
         """Capture a still from the running main stream."""
         await self.open(CameraMode.PHOTO)
         camera = self._require_camera()
-        image = await asyncio.to_thread(camera.capture_image, "main")
-        capture_metadata = await asyncio.wait_for(asyncio.to_thread(camera.capture_metadata), timeout=10)
+        raw_dng = None
+        if settings.raw_capture:
+            image, capture_metadata, raw_dng = await asyncio.wait_for(
+                asyncio.to_thread(_capture_with_raw, camera), timeout=_RAW_CAPTURE_TIMEOUT_S
+            )
+        else:
+            image = await asyncio.to_thread(camera.capture_image, "main")
+            capture_metadata = await asyncio.wait_for(asyncio.to_thread(camera.capture_metadata), timeout=10)
         if capture_metadata is None:
             msg = "Failed to capture image metadata"
             raise RuntimeError(msg)
@@ -218,6 +244,7 @@ class Picamera2Backend(StreamingCameraBackend, ControllableCameraBackend):
             image=image,
             camera_properties=camera.camera_properties,
             capture_metadata=capture_metadata,
+            raw_dng=raw_dng,
             tuning_file_sha256=await asyncio.to_thread(tuning_file_sha256, camera.camera_properties.get("Model")),
         )
 

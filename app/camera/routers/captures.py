@@ -9,13 +9,14 @@ capture endpoint only; bytes live in exactly one place.
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Body, HTTPException
-from r9cam_models.images import ImageCaptureResponse
+from fastapi import APIRouter, Body, HTTPException, Query
+from r9cam_models.images import CaptureRole, ImageCaptureResponse
 
 from app.camera.dependencies import CameraManagerDependency
 from app.camera.exceptions import ActiveStreamError
 from app.camera.schemas import CaptureUploadMetadata
 from app.core.headers import client_error_detail
+from app.core.i18n import N_
 from app.delivery.queue import UploadQueueFullError
 from app.observability.logging import build_log_extra
 
@@ -36,14 +37,26 @@ async def capture_image(
             )
         ),
     ] = None,
+    role: Annotated[
+        CaptureRole, Query(description="`colour_reference` marks the session's colour-reference shot.")
+    ] = CaptureRole.STANDARD,
+    session_id: Annotated[
+        str | None,
+        Query(
+            pattern=r"^[A-Za-z0-9_.-]{1,64}$",
+            description="Sets the current session for this and later captures. Unset keeps the current session.",
+        ),
+    ] = None,
 ) -> ImageCaptureResponse:
     """Capture a full-resolution image, push it to the backend, and return the result."""
     try:
-        return await camera_manager.capture_jpeg(upload_metadata=upload_metadata.root if upload_metadata else None)
+        return await camera_manager.capture_jpeg(
+            upload_metadata=upload_metadata.root if upload_metadata else None, role=role, session_id=session_id
+        )
     except UploadQueueFullError as e:
         raise HTTPException(status_code=507, detail=str(e)) from e
     except ActiveStreamError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
     except RuntimeError as e:
         logger.exception("Image capture failed", extra=build_log_extra(stream_mode=camera_manager.stream.mode))
-        raise HTTPException(status_code=500, detail=client_error_detail("Image capture failed")) from e
+        raise HTTPException(status_code=500, detail=client_error_detail(N_("Image capture failed"))) from e

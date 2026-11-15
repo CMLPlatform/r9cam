@@ -105,6 +105,31 @@ class TestCaptureEndpoint:
         finally:
             settings.image_path = original
 
+    async def test_capture_role_and_session_id_query_reach_the_metadata(
+        self,
+        client: AsyncClient,
+        stub_success_sink: _StubSink,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A reference shot with an operator session id is marked in the stored metadata."""
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+
+        resp = await client.post("/captures", params={"role": "colour_reference", "session_id": "bench-7"})
+
+        assert resp.status_code == 201
+        meta = resp.json()["metadata"]
+        assert (meta["capture_role"], meta["session_id"]) == ("colour_reference", "bench-7")
+        assert stub_success_sink.put.await_args is not None
+        sent = stub_success_sink.put.await_args.kwargs["capture_metadata"]
+        assert (sent["capture_role"], sent["session_id"]) == ("colour_reference", "bench-7")
+
+    @pytest.mark.parametrize("params", [{"role": "nonsense"}, {"session_id": "../etc"}, {"session_id": "x" * 65}])
+    async def test_capture_rejects_a_bad_role_or_session_id(self, client: AsyncClient, params: dict[str, str]) -> None:
+        """Unknown roles and session ids that are not short path-safe tokens are refused."""
+        resp = await client.post("/captures", params=params)
+        assert resp.status_code == 422
+
     async def test_capture_queues_on_sink_failure(
         self,
         client: AsyncClient,
