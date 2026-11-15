@@ -13,7 +13,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - A capture can also save a DNG next to the JPEG when `RAW_CAPTURE=true`, and
   `POST /captures?role=colour_reference&session_id=...` marks a colour-reference shot for a
   session, so a dataset can correct colour across cameras and sessions. The DNG stays on the
-  device.
+  device. Every capture now records a `session_id`; without the parameter it is the last one
+  set, or one the Pi makes at startup. These fields come from r9cam-models 0.7.0, which also
+  accepts Ed25519 device keys: `DevicePublicKeyJWK.y` is now optional.
 - The setup and home pages, and the API errors they show, are in Dutch when the browser asks
   for it, with English as the fallback. ([#122])
 - Pairing makes an Ed25519 key and signs EdDSA device tokens, which needs a backend with
@@ -49,7 +51,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 - The app no longer reads the 0.6 credentials locations, `RELAB_CREDENTIALS_FILE` and
   `~/.config/relab/relay_credentials.json`, and INSTALL.md drops the 0.6 upgrade guide. A Pi
-  still on 0.6 pairs again after the upgrade.
+  still on 0.6 pairs again after the upgrade; delete its old
+  `~/.config/relab/relay_credentials.json` afterwards, since it still holds the old device key.
 
 ### Fixed
 

@@ -218,7 +218,7 @@ The API serves HTTPS itself when `TLS_CERT_FILE` and `TLS_KEY_FILE` both point a
 
 1. Check it: `curl -k https://192.168.1.42:8018/`.
 
-The certificate is loaded once at startup, so after renewing it run `docker compose restart app`. An `https` `BASE_URL` also marks session cookies `Secure` and turns on HSTS. For a direct Python run, set the same variables with paths on the Pi.
+The certificate is loaded once at startup, so after renewing it run `docker compose restart app`. With the certificate set, session cookies are `Secure` and HSTS is on, whatever `BASE_URL` says. For a direct Python run, set the same variables with paths on the Pi.
 
 ## Optional Settings
 
@@ -247,10 +247,10 @@ Set these in the `.env` next to `compose.yml`. Every setting has a default; chan
 | `PAIRING_REGISTER_TIMEOUT_RETRY_S` | `1`                             | Delay before retrying a pairing registration that timed out.                                                                                |
 | `AUTH_KEY_NAME`                    | `X-API-Key`                     | Header that carries the API key.                                                                                                            |
 | `SESSION_COOKIE_NAME`              | `r9cam_session`                 | Browser session cookie name (`__Host-` is added when cookies are `Secure`).                                                                 |
-| `AUTH_COOKIE_SECURE`               | from `BASE_URL`                 | Force the `Secure` cookie flag on or off. Unset: on when `BASE_URL` is `https`.                                                             |
+| `AUTH_COOKIE_SECURE`               | from `BASE_URL`                 | Force the `Secure` cookie flag on or off. Unset: on when `BASE_URL` is `https` or `TLS_CERT_FILE` is set.                                   |
 | `LOCAL_API_KEY`                    | generated                       | Seed for the local API key. Leave unset: the app generates and stores one.                                                                  |
 | `LOCAL_RELAY_API_KEY`              | generated                       | Seed for the relay-local key. Leave unset.                                                                                                  |
-| `DEVICE_KEY_ALGORITHM`             | `EdDSA`                         | Algorithm of the key made at pairing: `EdDSA` (Ed25519) or `ES256` (P-256). `EdDSA` needs a backend with [r9lab#501](https://github.com/CMLPlatform/r9lab/issues/501). Only pairing reads it: a paired camera keeps the algorithm of its stored key. |
+| `DEVICE_KEY_ALGORITHM`             | `EdDSA`                         | Key made at pairing: `EdDSA` (Ed25519) or `ES256` (P-256). A paired camera keeps the key it has.                                           |
 | `RELAY_BACKEND_URL`                | unset                           | Static relay `wss://` URL. Set it only with `RELAY_CAMERA_ID`, `RELAY_KEY_ID` and `RELAY_PRIVATE_KEY_PEM`; pairing normally fills these in. |
 
 ## Raw Capture And Colour Reference
@@ -258,7 +258,7 @@ Set these in the `.env` next to `compose.yml`. Every setting has a default; chan
 Set `RAW_CAPTURE=true` and restart to save a DNG from the same camera request as each still. It adds a raw stream to the camera pipeline, which uses more memory, so leave it off unless you correct colour from raw data.
 
 - The DNG is the raw frame of the video sensor mode, not the full-sensor frame. Camera Module 3 gives 2304 x 1296 and v2 gives about 1920 x 1080 or 1640 x 1232, depending on the mode libcamera picks.
-- Files go to `data/images/raw/<image_id>.dng` (under `IMAGE_PATH`) and are deleted after `IMAGE_TTL_S` (one hour by default). Raise `IMAGE_TTL_S` if you collect them later, and copy them off the Pi with `rsync`. They are not uploaded. The capture metadata holds `raw_sha256`, which is empty when no DNG was saved.
+- Files go to `data/images/raw/<image_id>.dng` (under `IMAGE_PATH`) and are deleted after `IMAGE_TTL_S` (one hour by default). Raise `IMAGE_TTL_S` if you collect them later, and copy them off the Pi with `rsync`. They are not uploaded. The capture metadata holds the DNG's `raw_sha256`. It is `null` when `RAW_CAPTURE` is off; with it on, `null` means the DNG could not be saved, and the log says why.
 - A DNG is about 2 bytes per pixel, so roughly 6 MB on Camera Module 3 and 3 to 4 MB on v2. These figures come from the sensor modes, not from measured files. Check `ls -l data/images/raw` on your Pi before you pick a TTL.
 
 Photograph a colour target at the start of a session, then give every capture of that session the same `session_id`:
@@ -374,6 +374,7 @@ Check the CSI cable orientation, camera seating, and camera module compatibility
 - Confirm `~/.config/r9cam/relay_credentials.json` exists after pairing.
 - Check logs: `docker compose logs app`
 - `refusing to connect`: pairing returned a relay host that differs from the hostname in `PAIRING_BACKEND_URL`. The device only authenticates to the backend it paired with, so point `PAIRING_BACKEND_URL` at the host the backend actually serves the relay from. A different port on the same host is fine. Pairing stops instead of retrying and shows this message on the setup page; if the mismatch is in already-stored credentials, the relay stays off at boot with `Persisted relay credentials rejected` in the log and the device re-pairs.
+- Logs say the handshake was refused with `alg=EdDSA`: the backend does not accept EdDSA device tokens yet ([r9lab#501](https://github.com/CMLPlatform/r9lab/issues/501)). Set `DEVICE_KEY_ALGORITHM=ES256`, unpair and pair again.
 - If the backend sits behind Cloudflare, add a WAF bypass for `/v1/plugins/r9cam/pairing/*`, `/v1/plugins/r9cam/device/*`, and `/v1/plugins/r9cam/ws/connect`.
 
 ### Pairing Code Not Showing
