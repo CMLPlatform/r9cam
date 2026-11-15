@@ -16,8 +16,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
   device.
 - The setup and home pages, and the API errors they show, are in Dutch when the browser asks
   for it, with English as the fallback. ([#122])
-- `DEVICE_KEY_ALGORITHM=EdDSA` pairs with an Ed25519 key instead of P-256. It needs a backend
-  that accepts EdDSA device tokens; ES256 stays the default. ([#121])
+- Pairing makes an Ed25519 key and signs EdDSA device tokens, which needs a backend with
+  [r9lab#501](https://github.com/CMLPlatform/r9lab/issues/501). `DEVICE_KEY_ALGORITHM=ES256`
+  keeps the P-256 key. ([#121])
 - The home page shows whether the camera is ready, the relay is connected and the device is
   paired, and the preview thumbnail refreshes every 10 seconds.
 - Issue and pull request templates, a cold-install check, and a dependency licence check in CI.
@@ -30,8 +31,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - hls.js is served from the device, so the live preview works on a network without internet.
 - With TLS on, the setup page and `/system/local-access` hand out `https` URLs with the
   configured port.
-- `CAMERA_BACKEND` and `RELAY_AUTH_SCHEME` are gone: each accepted one value only. A paired
-  device's credentials file still loads.
+- `CAMERA_BACKEND` and `RELAY_AUTH_SCHEME` are gone: each accepted one value only.
 - The release workflow publishes a draft release only after all assets are attached. The
   roadmap moved to `docs/roadmap.md` and the assurance case to `docs/assurance-case.md`.
 - The citation title in `CITATION.cff` is now `r9cam`, matching `codemeta.json`; the subtitle
@@ -44,6 +44,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 - `just show-key` reads the key from the credentials file in the container, and
   `just show-key-direct` does the same outside Docker. INSTALL.md lists every optional setting.
 - `just dev` starts without a camera when `APP_ENV=development`.
+
+### Removed
+
+- The app no longer reads the 0.6 credentials locations, `RELAB_CREDENTIALS_FILE` and
+  `~/.config/relab/relay_credentials.json`, and INSTALL.md drops the 0.6 upgrade guide. A Pi
+  still on 0.6 pairs again after the upgrade.
 
 ### Fixed
 

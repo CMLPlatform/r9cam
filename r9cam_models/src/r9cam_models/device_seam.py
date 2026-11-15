@@ -91,7 +91,7 @@ _EC_KTY = "EC"
 class DevicePublicKeyJWK(BaseModel):
     """Public JWK registered by the Pi during pairing: EC P-256 (ES256) or OKP Ed25519 (EdDSA).
 
-    ``alg`` is optional; a JWK without it is ES256, as before it existed.
+    ``alg`` is optional, as in RFC 7517: ``kty`` and ``crv`` already fix the algorithm.
     """
 
     kty: str = Field(pattern="^(EC|OKP)$")

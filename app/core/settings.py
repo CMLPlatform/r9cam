@@ -273,7 +273,7 @@ class Settings(BaseSettings):
     relay_key_id: str = ""
     relay_private_key_pem: str = ""
     # Algorithm of the key made at pairing. Only pairing reads it: signing follows the stored key.
-    device_key_algorithm: Literal["ES256", "EdDSA"] = "ES256"
+    device_key_algorithm: Literal["ES256", "EdDSA"] = "EdDSA"
     local_relay_api_key: str = ""  # Bootstrap-only relay-local auth key seed; runtime-owned after startup
     relay_max_concurrent_commands: int = Field(default=8, ge=1)
     relay_max_pending_commands: int = Field(default=32, ge=1)

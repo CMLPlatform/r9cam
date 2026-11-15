@@ -102,37 +102,6 @@ The relay signing key is stored in `relay_credentials.json` with `0o600` permiss
 
 The HTTPS-served R9lab web frontend cannot auto-probe the Pi's plain-HTTP local API because browsers block mixed content. Use the native app for pairing and direct-mode setup.
 
-## Upgrading From 0.6
-
-Upgrade the R9lab backend first. This release needs a backend that serves the `/v1/plugins/r9cam` routes and accepts the `r9cam-relay` token audience. The hosted `api.r9lab.io` does; a self-hosted R9lab v0.5.0 or older does not. Against an older backend the relay handshake is refused: the relay keeps retrying with backoff and logs the refused status, but never connects. Pis on 0.6 keep working with a current backend until 2027-01-31, so upgrade them before then.
-
-Paired cameras keep their pairing in these cases:
-
-- **Docker Compose, upgraded in place** (`git pull` in the existing checkout): the `relay_credentials` volume keeps its name and is now mounted at `/home/r9cam/.config/r9cam`.
-- **Without Docker:** the app still reads `~/.config/relab/relay_credentials.json` while `~/.config/r9cam/relay_credentials.json` does not exist. The next write moves it to the new path and deletes the old file. `RELAB_CREDENTIALS_FILE` still works when `R9CAM_CREDENTIALS_FILE` is unset, with a warning to rename it.
-- **Standalone installs:** set `R9CAM_IMAGE=r9cam` in `.env`, then run `docker compose build` and `docker compose up -d`. Do not run `docker compose pull`: it fetches the paired image, which has no S3 support, and the S3 sink stops working.
-
-A fresh clone into an `r9cam/` directory is a new Compose project, so it starts with new, empty volumes: no credentials and no upload queue. Bring the old project down first with `docker compose -p relab-rpi-cam-plugin down`, then pair again, or copy the `relay_credentials` and `app_data` volumes from the old project to the new one.
-
-Renamed in this release:
-
-| What                         | 0.6                         | Now                                                                                                            |
-| ---------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Credentials file override    | `RELAB_CREDENTIALS_FILE`    | `R9CAM_CREDENTIALS_FILE`                                                                                       |
-| mDNS service type            | `_relab-rpi-cam._tcp`       | `_r9cam._tcp` (an existing avahi service file keeps working, since clients reach the Pi at `<hostname>.local`) |
-| OpenTelemetry `service.name` | `relab-rpi-cam-plugin`      | `r9cam`                                                                                                        |
-| `service` in `/healthz`      | `relab-rpi-cam`             | `r9cam`                                                                                                        |
-| Session cookie               | `relab_session`             | `r9cam_session` (signed-in browsers sign in once more)                                                         |
-| Compose image name           | `relab-rpi-cam-plugin`      | `ghcr.io/cmlplatform/r9cam`, pulled instead of built                                                           |
-| OpenAPI file                 | `openapi.rpi-cam.json`      | `openapi.r9cam.json`                                                                                           |
-| Prometheus metrics           | `rpi_cam_*`                 | `r9cam_*`, for example `r9cam_cpu_percent`                                                                     |
-| Alloy `job` label            | `rpi-cam-plugin`            | `r9cam`                                                                                                        |
-| Default Alloy `instance`     | `rpi-cam-plugin`            | `r9cam` (when `OBSERVABILITY_INSTANCE` is unset)                                                               |
-| S3 object key prefix         | `rpi-cam/`                  | `r9cam/` (objects already stored stay under `rpi-cam/`)                                                        |
-| Example S3 bucket            | `rpi-cam`                   | `r9cam` (an existing `S3_BUCKET` in `.env` is kept)                                                            |
-| Container user and home      | `rpicam`, `/home/rpicam`    | `r9cam`, `/home/r9cam` (same uid 1000)                                                                         |
-| Default pairing backend      | `https://api.cml-relab.org` | `https://api.r9lab.io`                                                                                         |
-
 ## Standalone Mode
 
 Standalone mode stores captures in an S3-compatible bucket instead of the R9lab backend. The bundled standalone profile starts a local RustFS sidecar. The release image is paired mode only, so standalone builds its own image on the Pi under the local name `r9cam`.
@@ -281,7 +250,7 @@ Set these in the `.env` next to `compose.yml`. Every setting has a default; chan
 | `AUTH_COOKIE_SECURE`               | from `BASE_URL`                 | Force the `Secure` cookie flag on or off. Unset: on when `BASE_URL` is `https`.                                                             |
 | `LOCAL_API_KEY`                    | generated                       | Seed for the local API key. Leave unset: the app generates and stores one.                                                                  |
 | `LOCAL_RELAY_API_KEY`              | generated                       | Seed for the relay-local key. Leave unset.                                                                                                  |
-| `DEVICE_KEY_ALGORITHM`             | `ES256`                         | Algorithm of the key made at pairing: `ES256` (P-256) or `EdDSA` (Ed25519). `EdDSA` needs a backend with [r9lab#501](https://github.com/CMLPlatform/r9lab/issues/501). Only pairing reads it: a paired camera keeps the algorithm of its stored key. |
+| `DEVICE_KEY_ALGORITHM`             | `EdDSA`                         | Algorithm of the key made at pairing: `EdDSA` (Ed25519) or `ES256` (P-256). `EdDSA` needs a backend with [r9lab#501](https://github.com/CMLPlatform/r9lab/issues/501). Only pairing reads it: a paired camera keeps the algorithm of its stored key. |
 | `RELAY_BACKEND_URL`                | unset                           | Static relay `wss://` URL. Set it only with `RELAY_CAMERA_ID`, `RELAY_KEY_ID` and `RELAY_PRIVATE_KEY_PEM`; pairing normally fills these in. |
 
 ## Raw Capture And Colour Reference

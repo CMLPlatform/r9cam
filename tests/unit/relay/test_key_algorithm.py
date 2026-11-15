@@ -32,6 +32,13 @@ def _generate(monkeypatch: pytest.MonkeyPatch, algorithm: str) -> pairing_mod.Re
     return pairing_mod._generate_private_key()
 
 
+def test_pairing_makes_an_ed25519_key_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without DEVICE_KEY_ALGORITHM set, pairing makes an Ed25519 key."""
+    monkeypatch.delenv("DEVICE_KEY_ALGORITHM", raising=False)
+    monkeypatch.setattr(settings, "device_key_algorithm", type(settings)().device_key_algorithm)
+    assert isinstance(pairing_mod._generate_private_key(), ed25519.Ed25519PrivateKey)
+
+
 @pytest.mark.parametrize(("algorithm", "kty", "crv"), _CASES)
 def test_pairing_key_and_jwk_follow_the_setting(
     monkeypatch: pytest.MonkeyPatch, algorithm: str, kty: str, crv: str
