@@ -569,16 +569,18 @@ class TestCameraManagerCapture:
         assert response.status == ImageCaptureStatus.UPLOADED
 
     async def test_hung_sink_falls_back_to_upload_queue(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A sink that never returns hits the inner deadline and the JPEG goes to the queue."""
+        """A sink that never returns hits the capture deadline and the JPEG goes to the queue."""
         backend = FakeBackend()
         backend.capture_image.return_value = CaptureResult(
             image=Image.new("RGB", (64, 64), color="red"),
             camera_properties={"Model": "mock-camera"},
             capture_metadata={"FrameDuration": 33_333},
         )
+        sent: dict[str, object] = {}
 
-        async def _hang(**_kwargs: object) -> StoredImage:
-            await asyncio.sleep(60)
+        async def _hang(**kwargs: object) -> StoredImage:
+            sent.update(kwargs)
+            await asyncio.Event().wait()
             raise AssertionError
 
         class _HangingSink:
@@ -588,7 +590,7 @@ class TestCameraManagerCapture:
         manager = CameraManager(
             backend=cast("StreamingCameraBackend", backend), sink=_HangingSink(), upload_queue=queue
         )
-        monkeypatch.setattr(manager_mod, "_SINK_PUT_TIMEOUT_S", 0.05)
+        monkeypatch.setattr(manager_mod, "_CAPTURE_DEADLINE_S", 0.05)
         monkeypatch.setattr(settings, "image_path", tmp_path / "images")
         settings.image_path.mkdir()
 
@@ -596,6 +598,69 @@ class TestCameraManagerCapture:
 
         assert response.status == ImageCaptureStatus.QUEUED
         queue.enqueue.assert_awaited_once()
+        assert queue.enqueue.await_args.kwargs["image_path"].read_bytes() == sent["image_bytes"]
+
+    async def test_slow_capture_leaves_the_sink_only_the_rest_of_the_deadline(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A slow capture shortens the sink's budget, so the JPEG is queued before the relay gives up."""
+        backend = FakeBackend()
+        result = CaptureResult(image=Image.new("RGB", (64, 64)), camera_properties={}, capture_metadata={})
+
+        async def _slow_capture() -> CaptureResult:
+            await asyncio.sleep(0.9)
+            return result
+
+        backend.capture_image.side_effect = _slow_capture
+
+        async def _hang(**_kwargs: object) -> StoredImage:
+            await asyncio.Event().wait()
+            raise AssertionError
+
+        class _HangingSink:
+            put = staticmethod(_hang)
+
+        queue = AsyncMock()
+        manager = CameraManager(
+            backend=cast("StreamingCameraBackend", backend), sink=_HangingSink(), upload_queue=queue
+        )
+        monkeypatch.setattr(manager_mod, "_CAPTURE_DEADLINE_S", 1.0)
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+
+        # Stands in for the relay timeout: shorter than capture + deadline, so the capture must count.
+        async with asyncio.timeout(1.8):
+            response = await manager.capture_jpeg()
+
+        assert response.status == ImageCaptureStatus.QUEUED
+        queue.enqueue.assert_awaited_once()
+
+    async def test_session_id_is_read_after_waiting_for_the_lock(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A capture queued behind one that sets a session joins that session."""
+        backend = FakeBackend()
+        result = CaptureResult(image=Image.new("RGB", (64, 64)), camera_properties={}, capture_metadata={})
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        async def _capture() -> CaptureResult:
+            entered.set()
+            await release.wait()
+            return result
+
+        backend.capture_image.side_effect = _capture
+        sink = AsyncMock()
+        sink.put.return_value = StoredImage(image_id="a" * 32, image_url=AnyUrl(EXAMPLE_IMAGE_URL))
+        monkeypatch.setattr(settings, "image_path", tmp_path)
+        manager = CameraManager(backend=cast("StreamingCameraBackend", backend), sink=sink)
+
+        first = asyncio.create_task(manager.capture_jpeg(session_id="bench-9"))
+        await entered.wait()
+        second = asyncio.create_task(manager.capture_jpeg())
+        await asyncio.sleep(0)  # let the second capture reach the lock
+        release.set()
+
+        assert (await first).metadata.session_id == "bench-9"
+        assert (await second).metadata.session_id == "bench-9"
 
     async def test_capture_allows_active_youtube_stream(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Normal still capture should remain allowed while a YouTube stream is active."""

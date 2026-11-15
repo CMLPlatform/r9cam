@@ -164,3 +164,17 @@ class TestCameraErrorDisclosure:
                 "request_id": REQUEST_ID,
             }
         }
+
+    async def test_capture_timeout_returns_translated_500(
+        self,
+        client: AsyncClient,
+        camera_manager: CameraManager,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A backend capture that times out should get the same stable 500 as other capture failures."""
+        monkeypatch.setattr(camera_manager, "capture_jpeg", AsyncMock(side_effect=TimeoutError))
+
+        resp = await client.post("/captures", headers={"X-Request-ID": REQUEST_ID})
+
+        assert resp.status_code == 500
+        assert resp.json() == {"detail": {"message": "Image capture failed", "request_id": REQUEST_ID}}
