@@ -7,6 +7,16 @@ are listed only in the GitHub tags (`relab-rpi-cam-models-v*`, and `r9cam-models
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-15
+
+### Added
+
+- `CaptureRole` and three optional `ImageMetadata` fields: `capture_role` (default
+  `standard`, or `colour_reference`), `session_id` and `raw_sha256` for an optional DNG.
+- `DevicePublicKeyJWK` also accepts an Ed25519 key (`kty` `OKP`, `crv` `Ed25519`, `x`) and an
+  optional `alg`. An EC P-256 key validates as before; `y` is now optional in the type, so
+  check it for `None` on EC keys.
+
 ## [0.6.2] - 2026-11-15
 
 ### Fixed
@@ -76,4 +86,6 @@ backend and the plugin together: both sides of the device seam now reject payloa
 [0.5.2]: https://github.com/CMLPlatform/r9cam/compare/relab-rpi-cam-models-v0.5.0...relab-rpi-cam-models-v0.5.2
 [0.6.0]: https://github.com/CMLPlatform/r9cam/compare/relab-rpi-cam-models-v0.5.2...r9cam-models-v0.6.0
 [0.6.1]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.6.0...r9cam-models-v0.6.1
-[unreleased]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.6.1...HEAD
+[0.6.2]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.6.1...r9cam-models-v0.6.2
+[0.7.0]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.6.2...r9cam-models-v0.7.0
+[unreleased]: https://github.com/CMLPlatform/r9cam/compare/r9cam-models-v0.7.0...HEAD

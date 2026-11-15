@@ -39,7 +39,7 @@
     "pydantic-settings>=2.8.0",
     "pyjwt[crypto]>=2.12.1",
     "python-multipart>=0.0.18",                 # NOTE: Form() fields in app/auth/router.py
-    "r9cam-models>=0.6.2,<0.7",                 # NOTE: Keep this aligned with the published contract package
+    "r9cam-models>=0.7.0,<0.8",                 # NOTE: Keep this aligned with the published contract package
     "uvicorn[standard]>=0.12.0",                # NOTE: app/serve.py runs it; [standard] adds uvloop and httptools
     "websockets>=16.0",
   ]
@@ -62,7 +62,7 @@
     "prek>=0.4.11",
     "ruff>=0.9.6",
     "ty>=0.0.29",
-]
+  ]
   # Kept out of dev: atheris ships Linux x86_64 wheels only. ClusterFuzzLite bundles
   # the harness with pyinstaller.
   fuzz = ["atheris>=3.1.0", "pyinstaller>=6.11"]
