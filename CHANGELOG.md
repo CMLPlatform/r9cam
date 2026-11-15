@@ -12,11 +12,32 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 - The citation title in `CITATION.cff` is now `r9cam`, matching `codemeta.json`; the subtitle
   opens the abstract. `codemeta.json` declares CodeMeta 3.0, the version Software Heritage reads.
+- A dead-lettered capture is retried when the relay reconnects after an outage. Before, it
+  came back only after pairing again.
+- Failed request authentication now counts against the client IP's login budget, and the login
+  limit is keyed by IP only. A fresh API-key header or cookie per attempt no longer gets a fresh
+  budget. `PATCH /camera/controls` counts only failed attempts, so a slider no longer hits 429.
+- `just show-key` reads the key from the credentials file in the container, and
+  `just show-key-direct` does the same outside Docker. INSTALL.md lists every optional setting.
+- `just dev` starts without a camera when `APP_ENV=development`.
 
 ### Fixed
 
 - A passphrase-protected `TLS_KEY_FILE` now stops startup with a message that the key must be
   unencrypted. Before, the app could wait at a password prompt on a host with a terminal.
+- A capture taken through the relay is queued for upload when the backend upload hangs, instead
+  of being lost when the relay's 30 s deadline cancels it.
+- Relay replies can no longer land between the header and body of a binary response, which
+  broke HLS preview under concurrent requests.
+- A stream whose stop fails no longer blocks every later start until a restart, and an encoder
+  that starts after its timeout is stopped instead of left running.
+- With `TLS_CERT_FILE` set, the session cookie is `Secure` and HSTS is sent even when `BASE_URL`
+  still says `http`.
+- The S3 sink works with keys that may not create buckets: it checks the bucket first.
+- Captures keep their `image_url` when the backend adds fields to its upload reply
+  (r9cam-models 0.6.2).
+- Dark-mode text and status colours meet WCAG AA contrast, and keyboard focus is visible in
+  both themes.
 
 ## [0.7.2] - 2026-10-27
 
