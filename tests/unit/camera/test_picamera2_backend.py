@@ -1,5 +1,9 @@
 """Tests for the Picamera2 backend implementation."""
 
+import asyncio
+import enum
+import threading
+import types
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
@@ -9,12 +13,33 @@ from r9cam_models.stream import StreamMode
 
 from app.camera.exceptions import YoutubeConfigRequiredError
 from app.camera.schemas import FocusControlRequest, FocusMode
+from app.camera.services import picamera2_backend as backend_mod
 from app.camera.services.picamera2_backend import Picamera2Backend
 
 # ``libcamera`` is only installable on Raspberry Pi OS (ships via apt, not pip).
-# Skip this module entirely on dev hosts so the rest of the suite can run.
-libcamera = pytest.importorskip("libcamera")
-controls = libcamera.controls
+# Off-Pi a stub with the same enum values stands in; the real module is kept when present.
+try:
+    from libcamera import controls  # ty: ignore[unresolved-import]
+except ImportError:
+
+    class _AfModeEnum(enum.Enum):
+        Manual = 0
+        Auto = 1
+        Continuous = 2
+
+    class _AfStateEnum(enum.Enum):
+        Idle = 0
+        Scanning = 1
+        Focused = 2
+        Failed = 3
+
+    controls = types.SimpleNamespace(AfModeEnum=_AfModeEnum, AfStateEnum=_AfStateEnum)
+
+
+@pytest.fixture(autouse=True)
+def _libcamera_controls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point the backend at the (real or stub) libcamera controls, which it binds at import."""
+    monkeypatch.setattr(backend_mod, "controls", controls)
 
 
 class TestPicamera2Backend:
@@ -172,3 +197,68 @@ class TestPicamera2Backend:
         await backend.set_focus(FocusControlRequest(mode=FocusMode.MANUAL, lens_position=2.5))
 
         camera.set_controls.assert_called_once_with({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 2.5})
+
+    async def test_capture_preview_frame_reads_main_stream(self) -> None:
+        """Preview frames come from the main stream, opening VIDEO mode first."""
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        cast("Any", backend)._camera = camera
+
+        await backend.capture_preview_frame()
+
+        camera.capture_image.assert_called_once_with("main")
+        assert backend.current_mode == CameraMode.VIDEO
+
+    async def test_start_lores_encoder_passes_name(self) -> None:
+        """The lores encoder is attached by stream name."""
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        cast("Any", backend)._camera = camera
+
+        await backend.start_lores_encoder("enc", "out")
+
+        camera.start_encoder.assert_called_once_with("enc", "out", name="lores")
+
+    async def test_start_lores_encoder_failure_maps_to_runtime_error(self) -> None:
+        """An encoder start error surfaces as RuntimeError."""
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        camera.start_encoder.side_effect = OSError("boom")
+        cast("Any", backend)._camera = camera
+
+        with pytest.raises(RuntimeError, match="failed to start"):
+            await backend.start_lores_encoder("enc", "out")
+
+    async def test_late_lores_start_is_stopped_after_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A start that finishes after the deadline is stopped, not left untracked."""
+        monkeypatch.setattr(backend_mod, "_ENCODER_START_TIMEOUT_S", 0.05)
+        release = threading.Event()
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        camera.start_encoder.side_effect = lambda *_a, **_k: release.wait(5)
+        cast("Any", backend)._camera = camera
+
+        with pytest.raises(RuntimeError, match="startup timeout"):
+            await backend.start_lores_encoder("enc", "out")
+        camera.stop_encoder.assert_not_called()
+
+        release.set()
+        for _ in range(100):
+            if camera.stop_encoder.called:
+                break
+            await asyncio.sleep(0.02)
+        camera.stop_encoder.assert_called_once_with("enc")
+
+    async def test_stop_stream_clears_encoder_when_stop_raises(self) -> None:
+        """A failing stop_encoder must not leave the main encoder tracked."""
+        backend = Picamera2Backend()
+        camera = MagicMock()
+        camera.stop_encoder.side_effect = RuntimeError("boom")
+        cast("Any", backend._mediamtx).clear_egress = AsyncMock()
+        cast("Any", backend)._camera = camera
+        cast("Any", backend)._main_encoder = MagicMock()
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await backend.stop_stream()
+
+        assert backend._main_encoder is None
