@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,6 +13,18 @@
         R9lab RPi Camera
       {% endblock %}
     </title>
+    <script type="application/json" id="i18n-strings" nonce="{{ request.state.csp_nonce }}">
+      {{- {
+        "site": {
+          "theme": {
+            "auto": _("Theme: Auto"),
+            "light": _("Theme: Light"),
+            "dark": _("Theme: Dark"),
+          },
+        },
+        "page": page_strings | default({}),
+      } | tojson -}}
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}" />
     {% block extra_scripts %}
 
@@ -25,27 +37,27 @@
     <div class="site-wash" aria-hidden="true"></div>
     <div class="site-frame">
       <header class="site-header">
-        <a href="{{ url_for('homepage') }}" class="site-header__brand" aria-label="R9lab RPi Camera home">
-          <img src="{{ url_for('static', path='logo.png') }}" alt="R9lab logo" class="site-header__logo" width="64" height="64" />
+        <a href="{{ url_for('homepage') }}" class="site-header__brand" aria-label="{{ _('R9lab RPi Camera home') }}">
+          <img src="{{ url_for('static', path='logo.png') }}" alt="{{ _('R9lab logo') }}" class="site-header__logo" width="64" height="64" />
           <div class="site-header__brand-copy">
             <span class="site-header__eyebrow">R9lab</span>
             <span class="site-header__title">Raspberry Pi Camera</span>
           </div>
         </a>
         <div class="site-header__controls">
-          <nav class="site-header__nav" aria-label="Primary">
-            <a href="{{ url_for('homepage') }}" class="btn btn--ghost"{% if active_nav == 'home' %} aria-current="page"{% endif %}>Home</a>
-            <a href="{{ url_for('setup_page') }}" class="btn btn--ghost"{% if active_nav == 'setup' %} aria-current="page"{% endif %}>Setup</a>
+          <nav class="site-header__nav" aria-label="{{ _('Primary') }}">
+            <a href="{{ url_for('homepage') }}" class="btn btn--ghost"{% if active_nav == 'home' %} aria-current="page"{% endif %}>{{ _('Home') }}</a>
+            <a href="{{ url_for('setup_page') }}" class="btn btn--ghost"{% if active_nav == 'setup' %} aria-current="page"{% endif %}>{{ _('Setup') }}</a>
             {% if api_docs_enabled %}
-              <a href="{{ url_for('swagger_ui_html') }}" class="btn btn--ghost">API Docs</a>
+              <a href="{{ url_for('swagger_ui_html') }}" class="btn btn--ghost">{{ _('API Docs') }}</a>
             {% endif %}
           </nav>
           {% if operator_authenticated %}
             <form action="{{ url_for('logout') }}" method="post" class="site-header__logout">
-              <button class="btn logout" type="submit">Log out</button>
+              <button class="btn logout" type="submit">{{ _('Log out') }}</button>
             </form>
           {% endif %}
-          <button type="button" class="theme-toggle" data-theme-toggle data-theme-state="auto" aria-label="Theme: Auto" title="Theme: Auto">
+          <button type="button" class="theme-toggle" data-theme-toggle data-theme-state="auto" aria-label="{{ _('Theme: Auto') }}" title="{{ _('Theme: Auto') }}">
             <span class="theme-toggle__icon" aria-hidden="true">
               <svg class="theme-toggle__glyph theme-toggle__glyph--auto" viewBox="0 0 24 24" focusable="false">
                 <rect x="4.5" y="5.25" width="15" height="10.5" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.8"></rect>

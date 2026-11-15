@@ -16,6 +16,7 @@ from app.camera.dependencies import CameraManagerDependency
 from app.camera.exceptions import ActiveStreamError
 from app.camera.schemas import CaptureUploadMetadata
 from app.core.headers import client_error_detail
+from app.core.i18n import N_
 from app.delivery.queue import UploadQueueFullError
 from app.observability.logging import build_log_extra
 
@@ -58,4 +59,4 @@ async def capture_image(
         raise HTTPException(status_code=409, detail=str(e)) from e
     except RuntimeError as e:
         logger.exception("Image capture failed", extra=build_log_extra(stream_mode=camera_manager.stream.mode))
-        raise HTTPException(status_code=500, detail=client_error_detail("Image capture failed")) from e
+        raise HTTPException(status_code=500, detail=client_error_detail(N_("Image capture failed"))) from e

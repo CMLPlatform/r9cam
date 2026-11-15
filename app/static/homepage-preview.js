@@ -1,10 +1,12 @@
+import { loadStrings } from "./i18n.js";
+
 const HLS_SRC = "/preview/hls/cam-preview/index.m3u8";
 const THUMBNAIL_SRC = "/preview-thumbnail.jpg";
 const START_DELAY_MS = 2000;
 const THUMBNAIL_REFRESH_MS = 10000;
 
-// User-facing text, kept together for a later translation pass.
-const STRINGS = {
+// English fallback; the server renders the page language into #i18n-strings.
+const STRINGS = loadStrings("page", {
   loadPreview: "Load Preview",
   stopPreview: "Stop Preview",
   starting: "Starting...",
@@ -18,7 +20,7 @@ const STRINGS = {
   networkError: "The preview could not start. Check the network and try again.",
   hlsUnsupported: "This browser cannot play the live preview.",
   hlsScriptMissing: "The player script failed to load. Reload the page to try again.",
-};
+});
 
 let hls = null;
 let state = "idle";

@@ -196,6 +196,7 @@ class Settings(BaseSettings):
     # Directory paths
     image_path: Path = BASE_DIR / "data" / "images"  # Used for temporary storing of captured images
     templates_path: Path = BASE_DIR / "app" / "templates"  # Used for storing HTML templates
+    locale_path: Path = BASE_DIR / "app" / "locale"  # Used for the gettext catalogues
     static_path: Path = BASE_DIR / "app" / "static"  # Used for serving static files
     log_path: Path = BASE_DIR / "logs"  # Used for storing log files
 

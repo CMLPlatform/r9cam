@@ -134,3 +134,17 @@ release-publish version:
 local-check:
     just openapi-check
     just test
+
+# Collect the translatable strings of app/ (templates and N_() calls) into app/locale/messages.pot.
+i18n-extract:
+    uv run pybabel extract -F babel.cfg -k N_ --no-location --no-wrap --sort-output --project r9cam --copyright-holder "Simon van Lierde" -o app/locale/messages.pot app
+    perl -0pi -e 's/\n+\z/\n/' app/locale/messages.pot
+
+# Re-extract, then merge the new strings into each language's .po. Translate the empty entries, then `just i18n-compile`.
+i18n-update: i18n-extract
+    uv run pybabel update -i app/locale/messages.pot -d app/locale --no-fuzzy-matching --ignore-pot-creation-date --no-location --no-wrap
+    perl -0pi -e 's/\n+\z/\n/' app/locale/*/LC_MESSAGES/messages.po
+
+# Compile each .po to the .mo the app reads. The .mo files are committed.
+i18n-compile:
+    uv run pybabel compile -d app/locale --statistics

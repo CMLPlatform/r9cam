@@ -14,10 +14,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from app.auth.dependencies import has_valid_browser_session
 from app.backend.client import notify_self_unpair
+from app.core.i18n import render
 from app.core.runtime import get_request_runtime
 from app.core.runtime_state import ConnectionMode, connection_mode
 from app.core.settings import DEFAULT_PAIRING_BACKEND_URL, settings
-from app.core.templates_config import templates
 from app.observability.logging import build_log_extra
 from app.pairing.routers.local_access import get_candidate_urls
 from app.pairing.services.credentials import delete_relay_credentials
@@ -103,7 +103,7 @@ async def setup_page(request: Request) -> HTMLResponse:
             mode is ConnectionMode.PAIRING and await _pairing_backend_reachable()
         )
 
-    return templates.TemplateResponse(
+    return render(
         request,
         "setup.html",
         {

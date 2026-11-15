@@ -73,6 +73,24 @@ just check
 
 Use `prek run --all-files` when changing hooks or repository policy files.
 
+## Translations
+
+The setup UI and the operator-facing API errors come from a gettext catalogue in `app/locale/`, in English (the source text) and Dutch (`nl`).
+The server picks the language from `Accept-Language` and answers English when it asks for anything else.
+Log messages and fields a machine reads stay English.
+
+To add or change a string:
+
+1. Write the English text in the code. In a template use `{{ _('Text') }}` or a `{% trans %}` block. For a string the page's JS shows, add it to the `page_strings` dict at the top of the template and read it in the JS through `loadStrings` in `app/static/i18n.js`, with the English as the fallback. For an `HTTPException` detail, wrap it in `N_()` from `app/core/i18n.py`.
+2. Run `just i18n-update`. It rewrites `app/locale/messages.pot` and adds the new entries, empty, to each language's `.po`.
+3. Fill in the empty `msgstr` entries and clear any `fuzzy` flag, then run `just i18n-compile`.
+4. Commit the `.pot`, the `.po` and the compiled `.mo`.
+
+`tests/integration/test_i18n.py` fails when the `.pot` is stale, when a Dutch entry is empty or fuzzy, or when the `.mo` does not match the `.po`.
+
+To add a language, add its code to `SUPPORTED_LANGUAGES` in `app/core/i18n.py`, run `uv run pybabel init -i app/locale/messages.pot -d app/locale -l <code>`, translate, and compile.
+Add the language to the tests in `tests/integration/test_i18n.py`, and render `/` and `/setup` at a 390 px width: translated text is often longer than the English.
+
 ## Security Maintenance
 
 Keep the runtime small and the risky paths easy to spot:

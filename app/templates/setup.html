@@ -1,8 +1,46 @@
 {% extends "base.html" %}
 
 {% set active_nav = 'setup' %}
+{% set page_strings = {
+  "copied": {
+    "code": _("Pairing code copied."),
+    "url": _("Backend URL copied."),
+    "key": _("Local API key copied."),
+  },
+  "copyFailed": {
+    "code": _("Could not copy the pairing code. Select it and copy it by hand."),
+    "url": _("Could not copy the backend URL. Select it and copy it by hand."),
+    "key": _("Could not copy the local API key. Select it and copy it by hand."),
+  },
+  "srCopied": _("Copied"),
+  "srRefreshed": _("Refreshed"),
+  "srCopyFailed": _("Copy failed"),
+  "copyDone": _("Copied"),
+  "copyFailedShort": _("Copy failed"),
+  "refreshingLabel": _("Getting a new pairing code..."),
+  "refreshedLabel": _("Pairing code refreshed"),
+  "refreshFailedLabel": _("Could not get a new pairing code"),
+  "refreshPending": _("Getting a new code..."),
+  "refreshDone": _("New code ready. Reloading page..."),
+  "refreshFailedHttp": _("Could not get a new code (HTTP {status}). Try again."),
+  "refreshFailedNetwork": _("Could not get a new code. Check your connection and try again."),
+  "codeExpired": _("Code expired. Getting a new one..."),
+  "codeExpiredWaiting": _("Code expired."),
+  "unpairing": _("Unpairing..."),
+  "unpair": _("Unpair"),
+  "unpairDone": _("Unpaired. Reloading page..."),
+  "unpairFailedHttp": _("Unpair failed (HTTP {status}). Try again."),
+  "unpairFailedNetwork": _("Unpair request failed. Check your connection and try again."),
+  "keyRevealing": _("Revealing..."),
+  "keyFetching": _("Fetching local key..."),
+  "keyEmpty": _("Local key is empty."),
+  "keyRevealed": _("Key shown. It hides again in 60 seconds."),
+  "keyHidden": _("Key hidden."),
+  "keyFailed": _("Could not show the local key from this client. Sign in as an operator and try again."),
+  "countdownExpired": _("expired"),
+} %}
 
-{% block title %}r9cam — Setup{% endblock %}
+{% block title %}r9cam — {{ _('Setup') }}{% endblock %}
 
 {% block body_class %}setup-page{% endblock %}
 
@@ -21,64 +59,64 @@
   data-initial-pairing-status="{{ pairing.status }}"
 >
   <section class="setup-hero">
-    <div class="setup-eyebrow">Raspberry Pi Camera</div>
-    <h1>Setup</h1>
-    <p>Pair, refresh, or unpair from this page.</p>
+    <div class="setup-eyebrow">{{ _('Raspberry Pi Camera') }}</div>
+    <h1>{{ _('Setup') }}</h1>
+    <p>{{ _('Pair, refresh, or unpair from this page.') }}</p>
   </section>
 
   <section class="setup-status">
     <div class="setup-status-grid">
       {% if mode == 'paired' or pairing.status == status_paired %}
-      <div class="status-chip status-chip--success">Paired</div>
+      <div class="status-chip status-chip--success">{{ _('Paired') }}</div>
       {% elif pairing.status in ('waiting', 'registering') and pairing.code %}
-      <div class="status-chip status-chip--live">Pairing ready</div>
+      <div class="status-chip status-chip--live">{{ _('Pairing ready') }}</div>
       {% elif pairing.status == status_error %}
-      <div class="status-chip status-chip--error">Needs attention</div>
+      <div class="status-chip status-chip--error">{{ _('Needs attention') }}</div>
       {% else %}
-      <div class="status-chip status-chip--muted">Not connected</div>
+      <div class="status-chip status-chip--muted">{{ _('Not connected') }}</div>
       {% endif %}
 
-      <h2>Connection status</h2>
+      <h2>{{ _('Connection status') }}</h2>
 
       {% if mode == 'paired' %}
       <div class="setup-state-banner setup-state-banner--success">
         <div class="setup-state-banner__copy">
-          <p class="online">Paired and online.</p>
-          <span class="setup-debug__text">Relay is connected and the camera is ready for remote access.</span>
+          <p class="online">{{ _('Paired and online.') }}</p>
+          <span class="setup-debug__text">{{ _('Relay is connected and the camera is ready for remote access.') }}</span>
         </div>
         <div class="setup-actions">
           {% if operator_authenticated %}
-          <button class="btn btn--danger" data-unpair-open type="button">Unpair</button>
+          <button class="btn btn--danger" data-unpair-open type="button">{{ _('Unpair') }}</button>
           {% endif %}
         </div>
       </div>
       {% if operator_authenticated %}
       <div class="setup-inline-metrics">
         <div class="setup-inline-metric">
-          <span class="setup-debug__label">Relay backend</span>
-          <code>{{ relay_backend_url or 'not set' }}</code>
+          <span class="setup-debug__label">{{ _('Relay backend') }}</span>
+          <code>{{ relay_backend_url or _('not set') }}</code>
         </div>
         <div class="setup-inline-metric">
-          <span class="setup-debug__label">Camera ID</span>
-          {% if relay_camera_id %}<code>{{ relay_camera_id }}</code>{% else %}<em>not set</em>{% endif %}
+          <span class="setup-debug__label">{{ _('Camera ID') }}</span>
+          {% if relay_camera_id %}<code>{{ relay_camera_id }}</code>{% else %}<em>{{ _('not set') }}</em>{% endif %}
         </div>
       </div>
       {% endif %}
       {% elif pairing.status == status_paired %}
       <div class="setup-state-banner setup-state-banner--success">
         <div class="setup-state-banner__copy">
-          <p class="online">Paired. Connecting now.</p>
+          <p class="online">{{ _('Paired. Connecting now.') }}</p>
         </div>
       </div>
       {% elif pairing.status in ('waiting', 'registering') and pairing.code %}
       <div class="pairing-code-panel">
         <div class="pairing-code-panel__header">
-          <div class="pairing-code-panel__label">Pairing code</div>
-          <p class="pairing-code-panel__lead">Enter this code in R9lab.</p>
+          <div class="pairing-code-panel__label">{{ _('Pairing code') }}</div>
+          <p class="pairing-code-panel__lead">{{ _('Enter this code in R9lab.') }}</p>
         </div>
         <div class="pairing-code-shell">
           <div class="pairing-code" id="pairing-code" role="img" aria-label="{{ pairing.code | list | join(' ') }}">{{ pairing.code }}</div>
-          <button class="setup-copy-code-btn" type="button" aria-label="Copy pairing code" title="Copy pairing code"
+          <button class="setup-copy-code-btn" type="button" aria-label="{{ _('Copy pairing code') }}" title="{{ _('Copy pairing code') }}"
             data-copy-source="pairing-code" data-copy-kind="code">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M9 4.5h8.25A2.25 2.25 0 0 1 19.5 6.75V15" fill="none" stroke="currentColor" stroke-width="1.7"
@@ -86,18 +124,18 @@
               <rect x="4.5" y="7.5" width="12" height="12" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.7"
                 stroke-linejoin="round" />
             </svg>
-            <span class="sr-only">Copy code</span>
+            <span class="sr-only">{{ _('Copy code') }}</span>
           </button>
           {% if operator_authenticated %}
-          <button class="setup-refresh-code-btn" type="button" aria-label="Generate a new pairing code"
-            title="Generate a new pairing code" data-refresh-pairing>
+          <button class="setup-refresh-code-btn" type="button" aria-label="{{ _('Generate a new pairing code') }}"
+            title="{{ _('Generate a new pairing code') }}" data-refresh-pairing>
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M20.25 12a8.25 8.25 0 0 1-13.95 5.95M3.75 12A8.25 8.25 0 0 1 17.7 6.05" fill="none"
                 stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
               <path d="M17.7 6.05h-3.2M17.7 6.05v-3.2M3.75 17.95h3.2M3.75 17.95v3.2" fill="none" stroke="currentColor"
                 stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <span class="sr-only">New code</span>
+            <span class="sr-only">{{ _('New code') }}</span>
           </button>
           {% endif %}
         </div>
@@ -105,38 +143,38 @@
       <div class="pairing-meta">
         <span class="pairing-validity" data-pairing-expiry data-expires-at="{{ pairing_expires_at_iso }}"
           data-ttl-ms="{{ pairing_code_ttl_seconds * 1000 }}">
-          Valid for <strong class="pairing-countdown" data-pairing-countdown>...</strong>.
+          {% trans %}Valid for <strong class="pairing-countdown" data-pairing-countdown>...</strong>.{% endtrans %}
         </span>
         <div class="pairing-progress" aria-hidden="true">
           <span class="pairing-progress__fill" data-pairing-progress></span>
         </div>
-        <span>Keep this page open while the code is active.</span>
-        <span class="setup-debug__hint">Refresh after pairing or unpairing to see the latest state.</span>
+        <span>{{ _('Keep this page open while the code is active.') }}</span>
+        <span class="setup-debug__hint">{{ _('Refresh after pairing or unpairing to see the latest state.') }}</span>
       </div>
       {% if operator_authenticated %}
-      <button class="btn" type="button" data-expired-refresh hidden>Get a new code</button>
+      <button class="btn" type="button" data-expired-refresh hidden>{{ _('Get a new code') }}</button>
       {% else %}
-      <p class="setup-debug__hint" data-expired-hint hidden>Ask an operator to refresh the code.</p>
+      <p class="setup-debug__hint" data-expired-hint hidden>{{ _('Ask an operator to refresh the code.') }}</p>
       {% endif %}
       {% elif pairing.status == status_error %}
       <div class="setup-state-banner setup-state-banner--warning">
         <div class="setup-state-banner__copy">
           {% if pairing_error_kind == 'unreachable' %}
-          <p class="offline">The camera cannot reach the R9lab server.</p>
-          <span class="setup-debug__text">Check the network cable or Wi-Fi. The camera tries again by itself.</span>
+          <p class="offline">{{ _('The camera cannot reach the R9lab server.') }}</p>
+          <span class="setup-debug__text">{{ _('Check the network cable or Wi-Fi. The camera tries again by itself.') }}</span>
           {% elif pairing_error_kind == 'wrong_url' %}
-          <p class="offline">The R9lab server did not recognise the pairing address.</p>
-          <span class="setup-debug__text">{% if operator_authenticated %}Check the backend URL under Pairing details.{% else %}Ask an operator to check the backend URL.{% endif %}</span>
+          <p class="offline">{{ _('The R9lab server did not recognise the pairing address.') }}</p>
+          <span class="setup-debug__text">{% if operator_authenticated %}{{ _('Check the backend URL under Pairing details.') }}{% else %}{{ _('Ask an operator to check the backend URL.') }}{% endif %}</span>
           {% else %}
-          <p class="offline">The R9lab server did not accept the pairing request.</p>
-          <span class="setup-debug__text">Wait a minute. The camera tries again by itself.</span>
+          <p class="offline">{{ _('The R9lab server did not accept the pairing request.') }}</p>
+          <span class="setup-debug__text">{{ _('Wait a minute. The camera tries again by itself.') }}</span>
           {% endif %}
         </div>
       </div>
       {% else %}
       <div class="setup-state-banner setup-state-banner--muted">
         <div class="setup-state-banner__copy">
-          <p class="offline">No relay yet. Pairing keeps retrying.</p>
+          <p class="offline">{{ _('No relay yet. Pairing keeps retrying.') }}</p>
         </div>
       </div>
       {% endif %}
@@ -147,47 +185,47 @@
       {% if operator_authenticated %}
       <details class="setup-debug">
         <summary>
-          <span>Pairing details</span>
-          <span class="setup-debug__summary-hint"><span class="hint-closed">Show details</span><span class="hint-open">Hide details</span></span>
+          <span>{{ _('Pairing details') }}</span>
+          <span class="setup-debug__summary-hint"><span class="hint-closed">{{ _('Show details') }}</span><span class="hint-open">{{ _('Hide details') }}</span></span>
         </summary>
         <div class="setup-debug__body">
           <div class="setup-debug__row">
-            <span class="setup-debug__label">URL</span>
+            <span class="setup-debug__label">{{ _('URL') }}</span>
             <div class="setup-debug__value">
               <code id="pairing-backend-url">{{ pairing_backend_url }}</code>
-              <button class="btn setup-copy-btn" type="button" data-copy-source="pairing-backend-url" data-copy-kind="url" aria-label="Copy backend URL">
-                Copy
+              <button class="btn setup-copy-btn" type="button" data-copy-source="pairing-backend-url" data-copy-kind="url" aria-label="{{ _('Copy backend URL') }}">
+                {{ _('Copy') }}
               </button>
             </div>
           </div>
           <div class="setup-debug__row">
-            <span class="setup-debug__label">Change</span>
+            <span class="setup-debug__label">{{ _('Change') }}</span>
             <span class="setup-debug__text">
-              Set <code>PAIRING_BACKEND_URL</code> in <code>.env</code> or Compose, then restart.
+              {% trans %}Set <code>PAIRING_BACKEND_URL</code> in <code>.env</code> or Compose, then restart.{% endtrans %}
             </span>
           </div>
           <div class="setup-debug__row">
-            <span class="setup-debug__label">Status</span>
+            <span class="setup-debug__label">{{ _('Status') }}</span>
             <span class="setup-debug__text">
               {% if pairing_backend_reachable %}
-              <span class="online">Reachable</span>
+              <span class="online">{{ _('Reachable') }}</span>
               {% else %}
-              <span class="offline">Not reachable</span>
+              <span class="offline">{{ _('Not reachable') }}</span>
               {% endif %}
               {% if pairing.status == status_error %}
-              <span class="setup-debug__hint">{{ pairing.error or 'Backend reachable, but pairing is failing.' }}</span>
+              <span class="setup-debug__hint">{{ pairing.error or _('Backend reachable, but pairing is failing.') }}</span>
               {% elif mode != 'paired' and pairing_backend_reachable %}
-              <span class="setup-debug__hint">Backend responds, so pairing should start automatically.</span>
+              <span class="setup-debug__hint">{{ _('Backend responds, so pairing should start automatically.') }}</span>
               {% endif %}
             </span>
           </div>
           <div class="setup-debug__row">
-            <span class="setup-debug__label">Preset</span>
+            <span class="setup-debug__label">{{ _('Preset') }}</span>
             <span class="setup-debug__text">
               {% if pairing_backend_url == default_pairing_backend_url %}
-              <span class="online">Default R9lab backend</span>
+              <span class="online">{{ _('Default R9lab backend') }}</span>
               {% else %}
-              <span class="offline">Custom backend</span>
+              <span class="offline">{{ _('Custom backend') }}</span>
               {% endif %}
             </span>
           </div>
@@ -205,79 +243,79 @@
           <div class="setup-advanced__summary-main">
             <span>
               {% if local_auth_enabled %}
-              <span class="status-chip status-chip--live">Local access</span>
+              <span class="status-chip status-chip--live">{{ _('Local access') }}</span>
               {% else %}
-              <span class="status-chip status-chip--muted">Local access disabled</span>
+              <span class="status-chip status-chip--muted">{{ _('Local access disabled') }}</span>
               {% endif %}
             </span>
-            <span class="setup-advanced__summary-copy">Direct LAN access for browser, app, and scripts.</span>
+            <span class="setup-advanced__summary-copy">{{ _('Direct LAN access for browser, app, and scripts.') }}</span>
           </div>
           <span class="setup-advanced__summary">
             {% if local_auth_enabled %}
-            Available
+            {{ _('Available') }}
             {% else %}
-            Unavailable
+            {{ _('Unavailable') }}
             {% endif %}
           </span>
         </summary>
 
         <div class="setup-advanced__body">
           <div class="setup-advanced__topline">
-            <p class="setup-advanced__lede">Use the local API on your LAN for faster direct access.</p>
+            <p class="setup-advanced__lede">{{ _('Use the local API on your LAN for faster direct access.') }}</p>
             <div class="setup-advanced__callout">
-              Relay pairing still uses the 6-character code above.
+              {{ _('Relay pairing still uses the 6-character code above.') }}
             </div>
           </div>
           <div class="setup-inline-metrics setup-inline-metrics--soft">
             <div class="setup-inline-metric">
-              <span class="setup-debug__label">Native R9lab app latency boost</span>
-              <span class="setup-debug__text">Switches to local access automatically after relay pairing when Ethernet is available.</span>
+              <span class="setup-debug__label">{{ _('Native R9lab app latency boost') }}</span>
+              <span class="setup-debug__text">{{ _('Switches to local access automatically after relay pairing when Ethernet is available.') }}</span>
             </div>
             <div class="setup-inline-metric">
-              <span class="setup-debug__label">Browser and script access</span>
-              <span class="setup-debug__text">Use the same key in your browser or send it with <code>X-API-Key</code>.</span>
+              <span class="setup-debug__label">{{ _('Browser and script access') }}</span>
+              <span class="setup-debug__text">{% trans %}Use the same key in your browser or send it with <code>X-API-Key</code>.{% endtrans %}</span>
             </div>
           </div>
           {% if has_local_api_key %}
           <div class="setup-value-list">
             <div class="setup-value-card setup-value-card--key">
               <div class="setup-value-card__header">
-                <span class="setup-debug__label">Local API key</span>
+                <span class="setup-debug__label">{{ _('Local API key') }}</span>
                 <button class="btn setup-copy-btn" type="button" data-local-key-reveal>
-                  Reveal local API key
+                  {{ _('Reveal local API key') }}
                 </button>
                 <button class="btn setup-copy-btn" type="button" data-local-key-hide hidden>
-                  Hide local API key
+                  {{ _('Hide local API key') }}
                 </button>
-                <button class="btn setup-copy-btn" type="button" data-copy-source="local-api-key" data-copy-kind="key" data-local-key-copy aria-label="Copy local API key" disabled>
-                  Copy
+                <button class="btn setup-copy-btn" type="button" data-copy-source="local-api-key" data-copy-kind="key" data-local-key-copy aria-label="{{ _('Copy local API key') }}" disabled>
+                  {{ _('Copy') }}
                 </button>
               </div>
-              <code id="local-api-key" class="setup-value-card__content setup-value-card__content--secret">Key hidden until revealed.</code>
+              <code id="local-api-key" class="setup-value-card__content setup-value-card__content--secret">{{ _('Key hidden until revealed.') }}</code>
               <p class="setup-debug__hint" id="local-key-status" role="status"></p>
               <p class="setup-debug__hint" id="local-key-error" role="alert" data-state="failed"></p>
             </div>
             <div class="setup-debug__row">
-              <span class="setup-debug__label">HLS preview</span>
+              <span class="setup-debug__label">{{ _('HLS preview') }}</span>
               <span class="setup-debug__text">
-                {% for url in hls_urls %}<code>{{ url }}</code>{% if not loop.last %}<br>{% endif %}{% else %}No LAN address found{% endfor %}
+                {% for url in hls_urls %}<code>{{ url }}</code>{% if not loop.last %}<br>{% endif %}{% else %}{{ _('No LAN address found') }}{% endfor %}
               </span>
             </div>
             <div class="setup-value-card">
               <div class="setup-value-card__header">
-                <span class="setup-debug__label">API</span>
+                <span class="setup-debug__label">{{ _('API') }}</span>
               </div>
               <div class="setup-value-stack">
                 {% for url in api_urls %}
                 <code class="setup-value-card__content">{{ url }}</code>
                 {% else %}
-                <span class="setup-debug__text">No LAN address found</span>
+                <span class="setup-debug__text">{{ _('No LAN address found') }}</span>
                 {% endfor %}
               </div>
             </div>
           </div>
           <p class="setup-advanced__footnote">
-            Copy this key for browser testing, custom scripts, or standalone clients.
+            {{ _('Copy this key for browser testing, custom scripts, or standalone clients.') }}
           </p>
           {% endif %}
         </div>
@@ -287,11 +325,11 @@
   {% endif %}
   {% if operator_authenticated %}
   <dialog id="unpair-dialog" class="setup-dialog">
-    <h3>Unpair this camera?</h3>
-    <p>It will disconnect from the backend and re-enter pairing mode. You can re-pair it at any time.</p>
+    <h3>{{ _('Unpair this camera?') }}</h3>
+    <p>{{ _('It will disconnect from the backend and re-enter pairing mode. You can re-pair it at any time.') }}</p>
     <div class="setup-dialog__actions">
-      <button class="btn setup-dialog__cancel" data-dialog-close type="button">Cancel</button>
-      <button class="btn btn--danger" id="unpair-confirm-btn" data-unpair-confirm type="button">Unpair</button>
+      <button class="btn setup-dialog__cancel" data-dialog-close type="button">{{ _('Cancel') }}</button>
+      <button class="btn btn--danger" id="unpair-confirm-btn" data-unpair-confirm type="button">{{ _('Unpair') }}</button>
     </div>
   </dialog>
   {% endif %}

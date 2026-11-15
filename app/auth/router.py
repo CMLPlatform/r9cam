@@ -16,6 +16,7 @@ from app.auth.dependencies import (
     reload_authorized_keys,
     verify_cookie_write_csrf,
 )
+from app.core.i18n import N_
 from app.core.runtime import get_request_runtime
 from app.core.settings import settings
 from app.observability.logging import build_security_log_extra
@@ -58,7 +59,7 @@ async def login(
                 status_code=403,
             ),
         )
-        raise HTTPException(status_code=403, detail="Invalid API Key")
+        raise HTTPException(status_code=403, detail=N_("Invalid API Key"))
     delete_session(request.cookies.get(settings.browser_session_cookie_name))
     session_token = create_session()
     safe_redirect_url = _safe_local_redirect_target(redirect_url)

@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 
+from app.core.i18n import N_
 from app.core.middleware import auth_failures_blocked, record_auth_failure
 from app.core.runtime import get_active_runtime_state, get_request_runtime
 from app.core.runtime_state import RuntimeState
@@ -151,7 +152,7 @@ def verify_cookie_write_csrf(request: Request) -> None:
             status_code=403,
         ),
     )
-    raise HTTPException(status_code=403, detail="Same-origin browser request required")
+    raise HTTPException(status_code=403, detail=N_("Same-origin browser request required"))
 
 
 async def verify_request(
@@ -160,7 +161,7 @@ async def verify_request(
 ) -> str:
     """Verify API access using a valid API key header or browser session."""
     if auth_failures_blocked(request):
-        raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
+        raise HTTPException(status_code=429, detail=N_("Too many requests. Try again later."))
     authorized_api_keys = reload_authorized_keys(get_request_runtime(request).runtime_state)
     if x_api_key_header:
         if not _is_authorized(x_api_key_header, authorized_api_keys):
@@ -175,7 +176,7 @@ async def verify_request(
                     status_code=403,
                 ),
             )
-            raise HTTPException(status_code=403, detail="Invalid API Key")
+            raise HTTPException(status_code=403, detail=N_("Invalid API Key"))
         return x_api_key_header
 
     if has_valid_browser_session(request):
@@ -193,4 +194,4 @@ async def verify_request(
             status_code=401,
         ),
     )
-    raise HTTPException(status_code=401, detail="API Key header or browser session is missing")
+    raise HTTPException(status_code=401, detail=N_("API Key header or browser session is missing"))
