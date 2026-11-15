@@ -102,6 +102,15 @@ See [INSTALL.md#observability](INSTALL.md#observability) for operator configurat
 
 Use [INSTALL.md#troubleshooting](INSTALL.md#troubleshooting) for operator issues. Use [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and test workflow.
 
+## Development
+
+You need [uv](https://docs.astral.sh/uv/) and [just](https://just.systems). Off a Pi the camera is unavailable, so the app starts without a preview and the camera routes return errors. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest.
+
+```sh
+just install
+just check
+```
+
 ## Licensing
 
 | What                                                   | Licence                            |

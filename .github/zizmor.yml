@@ -1,0 +1,5 @@
+rules:
+  # The reusable models workflow is called as ./.github/workflows/..., which a tag push
+  # and a pull request both resolve to the same checkout.
+  self-repository:
+    disable: true

@@ -230,7 +230,7 @@ class TestAuthMiddleware:
         [
             pytest.param("not-a-url", id="no-scheme"),
             pytest.param("http://", id="no-host"),
-            pytest.param("http://test:not-a-port", id="unparseable-port"),
+            pytest.param("http://test:not-a-port", id="unparsable-port"),
             pytest.param("https://test", id="scheme-mismatch"),
             pytest.param("http://test:8080", id="port-mismatch"),
         ],
@@ -678,7 +678,7 @@ class TestAuthFailureRateLimit:
         try:
             cookie_name = settings.browser_session_cookie_name
             for _ in range(_LOGIN_MAX_FAILED_ATTEMPTS + 1):
-                resp = await unauthed_client.get("/camera", cookies={cookie_name: "expired-session"})
+                resp = await unauthed_client.get("/camera", headers={"Cookie": f"{cookie_name}=expired-session"})
                 assert resp.status_code == 401
             resp = await unauthed_client.get("/camera", headers={"X-API-Key": VALID_API_KEY})
             assert resp.status_code == 200

@@ -1,0 +1,89 @@
+name: checks
+
+# Runs the git hooks in CI. `prek install` is opt-in per clone, so a commit made
+# without hooks would reach main unchecked.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The action installs the newest prek unless told otherwise.
+
+  # renovate: datasource=github-releases depName=j178/prek
+  PREK_VERSION: 0.5.7
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hooks:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    name: git hooks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The hook environments are cached by hand: prek-action's cache saves on any run
+      # that changes .pre-commit-config.yaml, pull requests included, and has no switch
+      # for that alone. A cache a pull request saves is readable by that pull request
+      # alone, so pull requests only restore. ~/.cache/prek is prek's cache directory.
+      - id: prek-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/prek
+          key: prek-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: prek-${{ runner.os }}-
+
+      # prek is the action author's own binary, so the digest pin is the trust anchor.
+      # Hook revs are pinned in .pre-commit-config.yaml.
+      - uses: j178/prek-action@44924fe9ef4a6f88253c4b6b1bf11c689d3ce53d # v3.1.0
+        with:
+          prek-version: ${{ env.PREK_VERSION }}
+          cache: false
+        env:
+          # The stack workflows run these from the project's own environment.
+          # betterleaks scans staged changes only and CI stages nothing. GitHub secret
+          # scanning covers the server side (free on public repos; a private repo needs
+          # GitHub Advanced Security).
+          # zizmor runs in the next step, the only one given a token.
+          SKIP: ruff-check,ruff-format,ty,openapi-schema-check,betterleaks,zizmor
+
+      # zizmor's online audits (impostor commits, known-vulnerable actions) need a token.
+      # It is read-only, and only this hook sees it, not every third-party hook above.
+      - uses: j178/prek-action@44924fe9ef4a6f88253c4b6b1bf11c689d3ce53d # v3.1.0
+        with:
+          prek-version: ${{ env.PREK_VERSION }}
+          extra-args: zizmor --all-files
+          cache: false
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - if: github.event_name != 'pull_request' && steps.prek-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/prek
+          key: ${{ steps.prek-cache.outputs.cache-primary-key }}
+
+  dependency-review:
+    name: dependency review
+    # Fails a PR that adds a dependency with a known advisory. It needs the dependency
+    # graph, which a private repo has only with GitHub Advanced Security, so it is
+    # skipped there instead of failing every PR. The stack workflows' audits still run.
+    if: >-
+      github.event_name == 'pull_request' && !github.event.pull_request.draft
+      && !github.event.repository.private
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0

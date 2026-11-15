@@ -1,0 +1,63 @@
+name: python
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # The event is in the group because a queued run replaces a pending one in its group
+  # whatever cancel-in-progress says, so a push to main must not wait beside the weekly run.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  # Only a newer push to the same pull request cancels a run. A push to main must not cancel
+  # the weekly scheduled run, or that week's revision report is lost.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # uv checks every package against OSV's malware advisories before its code
+  # runs, and fails if OSV is unreachable. The preview flag only silences the
+  # "experimental" warning.
+  UV_MALWARE_CHECK: "1"
+  UV_PREVIEW_FEATURES: malware-check
+
+jobs:
+  check:
+    name: "python: lint, types, tests"
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Saved off pull requests only: a cache a pull request saves is readable by that
+      # pull request alone, and it pushes main's entries out of the 10 GB per-repo limit.
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          save-cache: ${{ github.event_name != 'pull_request' }}
+          version: "0.13.6"
+
+      - run: uv sync --locked
+      # Checks every locked dependency, dev group included, against the OSV database
+      # for known vulnerabilities and deprecated or quarantined projects. Still
+      # experimental in uv, hence the preview flag.
+      - run: uv audit --locked --preview-features audit-command
+      # Lists the license of each locked package that ships (no dependency groups), read
+      # from the installed metadata, and fails on one licensecheck's compatibility table
+      # says the license in pyproject.toml cannot take. With no runtime dependencies there
+      # is nothing to check, and licensecheck --zero would fail on the empty list.
+      # licensecheck reads AGPL-3.0-or-later as the GPL: --license names it.
+      - run: uv export --locked --no-default-groups --no-hashes --no-annotate --no-header --no-emit-project --no-emit-workspace -q -o "$RUNNER_TEMP/requirements.txt"
+      - run: test ! -s "$RUNNER_TEMP/requirements.txt" || uv run --locked --with licensecheck==2026.0.8 licensecheck --license AGPL -r "$RUNNER_TEMP/requirements.txt" --zero
+
+      - run: uv run ruff check --output-format=github
+      - run: uv run ruff format --check
+      - run: uv run ty check
+      - run: uv run pytest

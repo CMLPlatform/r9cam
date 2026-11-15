@@ -1,0 +1,5 @@
+# The SSH keys a release tag may be signed with, one per line. The release workflow
+# reads this file from the default branch and publishes nothing for a tag signed with
+# any other key. Add yours before the first release, then commit it to main:
+#   echo "$(git config user.email) namespaces=\"git\" $(cat "$(git config --type=path user.signingkey | sed 's/\.pub$//').pub")" >>.github/allowed_signers
+# Format: "ALLOWED SIGNERS" in ssh-keygen(1).

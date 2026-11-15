@@ -7,7 +7,7 @@ name: ClusterFuzzLite
 # app/ is in scope. The build lives in .clusterfuzzlite/.
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'app/**'
       - 'r9cam_models/**'
