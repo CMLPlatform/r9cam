@@ -602,7 +602,6 @@ class TestPairingCycle:
             on_paired.assert_awaited_once()
             assert app_runtime.runtime_state.relay_backend_url == EXAMPLE_RELAY_BACKEND_URL
             assert app_runtime.runtime_state.relay_camera_id == RELAY_CAMERA_ID
-            assert app_runtime.runtime_state.relay_auth_scheme == RELAY_AUTH_SCHEME
             assert app_runtime.runtime_state.relay_key_id == RELAY_KEY_ID
             assert app_runtime.runtime_state.relay_private_key_pem
             assert app_runtime.runtime_state.local_relay_api_key.startswith("LOCAL_")
@@ -825,14 +824,12 @@ class TestPairingCycle:
         pairing_credentials.save_relay_credentials(
             EXAMPLE_RELAY_BACKEND_URL,
             RELAY_CAMERA_ID,
-            RELAY_AUTH_SCHEME,
             RELAY_KEY_ID,
             private_key,
         )
         assert json.loads(creds_file.read_text()) == {
             "relay_backend_url": EXAMPLE_RELAY_BACKEND_URL,
             "relay_camera_id": RELAY_CAMERA_ID,
-            "relay_auth_scheme": RELAY_AUTH_SCHEME,
             "relay_key_id": RELAY_KEY_ID,
             "relay_private_key_pem": private_key,
         }
@@ -840,7 +837,6 @@ class TestPairingCycle:
         assert pairing_credentials.load_relay_credentials() == {
             "relay_backend_url": EXAMPLE_RELAY_BACKEND_URL,
             "relay_camera_id": RELAY_CAMERA_ID,
-            "relay_auth_scheme": RELAY_AUTH_SCHEME,
             "relay_key_id": RELAY_KEY_ID,
             "relay_private_key_pem": private_key,
         }
@@ -891,7 +887,7 @@ class TestPairingCycle:
             status=pairing_mod.STATUS_WAITING,
         )
         private_key = pairing_mod._generate_private_key()
-        saved: list[tuple[str, str, str, str, str]] = []
+        saved: list[tuple[str, str, str, str]] = []
         on_paired = AsyncMock()
         monkeypatch.setattr(
             pairing_mod,
@@ -900,7 +896,6 @@ class TestPairingCycle:
                 (
                     str(kwargs["relay_backend_url"]),
                     str(kwargs["camera_id"]),
-                    str(kwargs["relay_auth_scheme"]),
                     str(kwargs["key_id"]),
                     str(kwargs["private_key_pem"]),
                 )
@@ -927,10 +922,9 @@ class TestPairingCycle:
         assert state.code is None
         assert app_runtime.runtime_state.relay_backend_url == EXAMPLE_RELAY_BACKEND_URL
         assert saved
-        assert saved[0][:4] == (
+        assert saved[0][:3] == (
             EXAMPLE_RELAY_BACKEND_URL,
             RELAY_CAMERA_ID,
-            RELAY_AUTH_SCHEME,
             RELAY_KEY_ID,
         )
         on_paired.assert_awaited_once()
@@ -957,7 +951,6 @@ class TestPairingCycle:
             pairing_credentials.save_relay_credentials(
                 EXAMPLE_RELAY_BACKEND_URL,
                 RELAY_CAMERA_ID,
-                RELAY_AUTH_SCHEME,
                 RELAY_KEY_ID,
                 "pem",
             )

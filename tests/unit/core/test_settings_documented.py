@@ -16,8 +16,6 @@ ROOT = Path(__file__).resolve().parents[3]
 
 # Settings left out of the docs on purpose, with the reason.
 INTERNAL = {
-    "camera_backend": "only picamera2 exists; the field is removed in a later release",
-    "relay_auth_scheme": "only device_assertion exists; the field is removed in a later release",
     "templates_path": "packaged app assets, not an operator choice",
     "static_path": "packaged app assets, not an operator choice",
 }

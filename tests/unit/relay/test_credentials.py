@@ -56,23 +56,9 @@ def test_validate_relay_credentials_accepts_valid_device_assertion_credentials()
 
     validate_relay_credentials(
         relay_camera_id="cam-1",
-        relay_auth_scheme="device_assertion",
         relay_key_id="key-1",
         relay_private_key_pem=_private_key_pem(private_key),
     )
-
-
-def test_validate_relay_credentials_rejects_non_device_assertion_scheme() -> None:
-    """Relay credentials are currently only valid for device assertion auth."""
-    private_key = ec.generate_private_key(ec.SECP256R1())
-
-    with pytest.raises(ValueError, match="device_assertion"):
-        validate_relay_credentials(
-            relay_camera_id="cam-1",
-            relay_auth_scheme="bearer",
-            relay_key_id="key-1",
-            relay_private_key_pem=_private_key_pem(private_key),
-        )
 
 
 @pytest.mark.parametrize(
@@ -93,7 +79,6 @@ def test_validate_relay_credentials_rejects_malformed_identifiers(
     with pytest.raises(ValueError, match=field_name):
         validate_relay_credentials(
             relay_camera_id=relay_camera_id,
-            relay_auth_scheme="device_assertion",
             relay_key_id=relay_key_id,
             relay_private_key_pem=_private_key_pem(private_key),
         )

@@ -32,7 +32,6 @@ from tests.constants import EXAMPLE_RELAY_BACKEND_URL, EXAMPLE_RELAY_BACKEND_URL
 if TYPE_CHECKING:
     from websockets.asyncio.client import ClientConnection  # used in cast("ClientConnection", ...) below
 
-RELAY_AUTH_SCHEME = "device_assertion"
 RELAY_KEY_ID = "key-1"
 RELAY_PRIVATE_KEY_PEM = "private-key"
 BEARER_JWT = "Bearer jwt"
@@ -93,7 +92,6 @@ class TestRelayServiceConfig:
         runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="cam-1",
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
@@ -165,7 +163,6 @@ class TestWebsocketConnect:
         runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="cam-1",
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
@@ -852,7 +849,6 @@ class TestRelayServiceRunForever:
         runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="cam-1",
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
@@ -875,7 +871,6 @@ class TestRelayServiceRunForever:
         runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="cam-1",
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
@@ -897,7 +892,6 @@ class TestRelayServiceRunForever:
         runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="cam-1",
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
@@ -929,7 +923,6 @@ class TestRelayServiceRunForever:
         runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="cam-1",
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
@@ -955,7 +948,6 @@ class TestRelayServiceRunForever:
         runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="cam-1",
-            relay_auth_scheme=RELAY_AUTH_SCHEME,
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )

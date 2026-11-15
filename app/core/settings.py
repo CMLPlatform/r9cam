@@ -24,8 +24,6 @@ HTTP_SCHEME = "http"
 RELAY_WSS_SCHEME = "wss"
 RELAY_WS_SCHEME = "ws"
 LOCALHOST_HOSTNAME = "localhost"
-RELAY_AUTH_SCHEME_DEVICE_ASSERTION = "device_assertion"
-CAMERA_BACKEND_PICAMERA2 = "picamera2"  # used in app/camera/services/manager.py
 IMAGE_SINK_AUTO = "auto"
 IMAGE_SINK_BACKEND = "backend"
 IMAGE_SINK_S3 = "s3"
@@ -208,9 +206,6 @@ class Settings(BaseSettings):
     check_stream_interval_s: PositiveInt = 60  # Stream duration check interval in seconds
     check_stream_health_interval_s: PositiveInt = 30  # Stream health check interval in seconds
 
-    # Camera settings
-    camera_backend: Literal["picamera2"] = "picamera2"
-
     # Preview pipeline settings
     # ``preview_hibernate_after_s = 0`` disables hibernation entirely (always-on).
     # Any positive value is a relay idle window in seconds — after no relay
@@ -274,7 +269,6 @@ class Settings(BaseSettings):
     # come from the persisted credentials file instead.
     relay_backend_url: str = ""  # wss://your-backend/v1/plugins/r9cam/ws/connect
     relay_camera_id: str = ""
-    relay_auth_scheme: str = "device_assertion"
     relay_key_id: str = ""
     relay_private_key_pem: str = ""
     local_relay_api_key: str = ""  # Bootstrap-only relay-local auth key seed; runtime-owned after startup
@@ -358,9 +352,6 @@ class Settings(BaseSettings):
                 "Relay bootstrap config must set RELAY_BACKEND_URL, RELAY_CAMERA_ID, "
                 "RELAY_KEY_ID, and RELAY_PRIVATE_KEY_PEM together or leave them all unset."
             )
-            raise ValueError(msg)
-        if self.relay_backend_url and self.relay_auth_scheme != RELAY_AUTH_SCHEME_DEVICE_ASSERTION:
-            msg = "RELAY_AUTH_SCHEME must be device_assertion when relay bootstrap credentials are configured."
             raise ValueError(msg)
         if self.relay_private_key_pem:
             load_relay_signing_private_key(self.relay_private_key_pem)

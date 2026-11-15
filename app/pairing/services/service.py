@@ -440,7 +440,6 @@ async def _complete_pairing_state(
 ) -> None:
     camera_id = payload.camera_id
     relay_backend_url = str(payload.ws_url)
-    relay_auth_scheme = payload.auth_scheme.value
     key_id = payload.key_id
     private_key_pem = _private_key_pem(private_key)
     validate_relay_backend_url(
@@ -462,7 +461,6 @@ async def _complete_pairing_state(
     save_relay_credentials(
         relay_backend_url=relay_backend_url,
         camera_id=camera_id,
-        relay_auth_scheme=relay_auth_scheme,
         key_id=key_id,
         private_key_pem=private_key_pem,
     )
@@ -470,7 +468,6 @@ async def _complete_pairing_state(
         runtime_state,
         relay_backend_url=relay_backend_url,
         relay_camera_id=camera_id,
-        relay_auth_scheme=relay_auth_scheme,
         relay_key_id=key_id,
         relay_private_key_pem=private_key_pem,
     )

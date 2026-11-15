@@ -38,7 +38,6 @@ def apply_relay_credentials(runtime_state: RuntimeState) -> None:
     if runtime_state.relay_enabled:
         validate_relay_credentials(
             relay_camera_id=runtime_state.relay_camera_id,
-            relay_auth_scheme=runtime_state.relay_auth_scheme,
             relay_key_id=runtime_state.relay_key_id,
             relay_private_key_pem=runtime_state.relay_private_key_pem,
         )
@@ -54,7 +53,6 @@ def apply_relay_credentials(runtime_state: RuntimeState) -> None:
                 runtime_state=runtime_state,
                 relay_backend_url=str(creds.get("relay_backend_url", "")),
                 relay_camera_id=str(creds.get("relay_camera_id", "")),
-                relay_auth_scheme=str(creds.get("relay_auth_scheme", "device_assertion")),
                 relay_key_id=str(creds.get("relay_key_id", "")),
                 relay_private_key_pem=str(creds.get("relay_private_key_pem", "")),
             )
@@ -106,7 +104,6 @@ def set_runtime_relay_credentials(
     *,
     relay_backend_url: str,
     relay_camera_id: str,
-    relay_auth_scheme: str,
     relay_key_id: str,
     relay_private_key_pem: str,
     app_settings: Settings = settings,
@@ -120,14 +117,12 @@ def set_runtime_relay_credentials(
     )
     validate_relay_credentials(
         relay_camera_id=relay_camera_id,
-        relay_auth_scheme=relay_auth_scheme,
         relay_key_id=relay_key_id,
         relay_private_key_pem=relay_private_key_pem,
     )
     runtime_state.set_relay_credentials(
         relay_backend_url=relay_backend_url,
         relay_camera_id=relay_camera_id,
-        relay_auth_scheme=relay_auth_scheme,
         relay_key_id=relay_key_id,
         relay_private_key_pem=relay_private_key_pem,
     )

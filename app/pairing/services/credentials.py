@@ -82,7 +82,6 @@ def merge_into_credentials_file(fields: dict[str, object]) -> None:
 def save_relay_credentials(
     relay_backend_url: str,
     camera_id: str,
-    relay_auth_scheme: str,
     key_id: str,
     private_key_pem: str,
 ) -> None:
@@ -94,7 +93,6 @@ def save_relay_credentials(
         {
             "relay_backend_url": relay_backend_url,
             "relay_camera_id": camera_id,
-            "relay_auth_scheme": relay_auth_scheme,
             "relay_key_id": key_id,
             "relay_private_key_pem": private_key_pem,
         }

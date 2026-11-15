@@ -338,7 +338,6 @@ class TestSetupPage:
         self._runtime.runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id=EXAMPLE_RELAY_CAMERA_ID,
-            relay_auth_scheme="device_assertion",
             relay_key_id="key-1",
             relay_private_key_pem="pem",
         )
@@ -358,7 +357,6 @@ class TestSetupPage:
         self._runtime.runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id=EXAMPLE_RELAY_CAMERA_ID,
-            relay_auth_scheme="device_assertion",
             relay_key_id="key-1",
             relay_private_key_pem="pem",
         )
@@ -445,7 +443,6 @@ class TestPairingState:
         self._runtime.runtime_state.set_relay_credentials(
             relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
             relay_camera_id="00000000-0000-0000-0000-000000000001",
-            relay_auth_scheme="device_assertion",
             relay_key_id="kid-1",
             relay_private_key_pem="pem",
         )
