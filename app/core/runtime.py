@@ -59,7 +59,11 @@ class AppRuntime:
 
     def __post_init__(self) -> None:
         self.pairing_service = PairingService(runtime_state=self.runtime_state)
-        self.relay_service = RelayService(state=self.relay_state, runtime_state=self.runtime_state)
+        self.relay_service = RelayService(
+            state=self.relay_state,
+            runtime_state=self.runtime_state,
+            requeue_dead=lambda: self.camera_manager.upload_queue.requeue_dead(),  # noqa: PLW0108 - resolve the queue lazily
+        )
         self.preview_sleeper = PreviewSleeper(
             pipeline=self.preview_pipeline,
             relay_state=self.relay_state,

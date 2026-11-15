@@ -628,6 +628,47 @@ class TestHandleCommand:
                 tag = json.loads(frame)["id"] * 3  # id "a" -> b"aaa"
                 assert sent[i + 1] == tag.encode()
 
+    async def test_text_frames_cannot_split_a_binary_pair(self) -> None:
+        """A PONG or an error reply sent mid-pair must wait for the shared send_lock."""
+
+        def _handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=b"seg", headers={"content-type": HLS_SEGMENT_CONTENT_TYPE})
+
+        sent: list[object] = []
+
+        class _YieldingConn:
+            async def send(self, frame: object) -> None:
+                sent.append(frame)
+                await asyncio.sleep(0)
+
+        lock = asyncio.Lock()
+        ping = json.dumps({"type": "ping"})
+        async with httpx.AsyncClient(transport=httpx.MockTransport(_handler), base_url="http://test") as http:
+            ws = cast("ClientConnection", _YieldingConn())
+            command = {"id": "a", "method": "GET", "path": PREVIEW_HLS_SEGMENT_PATH}
+            binary = asyncio.create_task(_handle_command(ws, http, command, lock))
+            await asyncio.sleep(0)  # let the header go out; the body is still pending
+            await asyncio.gather(
+                _handle_relay_message(
+                    ws,
+                    http,
+                    ping,
+                    set(),
+                    lambda _t: None,
+                    asyncio.Semaphore(1),
+                    lock,
+                    relay_state=RelayRuntimeState(),
+                    max_pending_commands=1,
+                ),
+                _send_error(ws, MESSAGE_ID, 503, DETAIL, lock),
+                binary,
+            )
+
+        assert sent[0] != b"seg"
+        assert json.loads(cast("str", sent[0]))["has_binary"] is True
+        assert sent[1] == b"seg"
+        assert len(sent) == 4
+
     async def test_handles_text_response(self) -> None:
         """Should send text responses as JSON frames."""
 
@@ -787,6 +828,52 @@ class TestRelayServiceRunForever:
 
         iter_connections.assert_called_once()
         assert RELAY_RECONNECT_LOG in caplog.text
+
+    async def test_requeues_dead_letters_only_after_a_reconnect(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The first connection leaves the dead-letter queue alone; each later one retries it."""
+        runtime_state = RuntimeState()
+        runtime_state.set_relay_credentials(
+            relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
+            relay_camera_id="cam-1",
+            relay_auth_scheme=RELAY_AUTH_SCHEME,
+            relay_key_id=RELAY_KEY_ID,
+            relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
+        )
+        requeue = AsyncMock()
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=requeue)
+        service.configure(_noop_asgi_app)
+        connections = _ConnectionIterator([_Conn(), _Conn(), _Conn([asyncio.CancelledError()])])
+        monkeypatch.setattr(relay_mod, "_iter_websocket_connections", MagicMock(return_value=connections))
+
+        with pytest.raises(asyncio.CancelledError):
+            await service.run_forever()
+        await asyncio.gather(*service._requeue_tasks)
+
+        assert requeue.await_count == 2
+
+    async def test_requeue_failure_does_not_drop_the_relay(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A failing requeue is logged and the relay keeps serving the connection."""
+        runtime_state = RuntimeState()
+        runtime_state.set_relay_credentials(
+            relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
+            relay_camera_id="cam-1",
+            relay_auth_scheme=RELAY_AUTH_SCHEME,
+            relay_key_id=RELAY_KEY_ID,
+            relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
+        )
+        requeue = AsyncMock(side_effect=OSError("disk gone"))
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=requeue)
+        service.configure(_noop_asgi_app)
+        connections = _ConnectionIterator([_Conn(), _Conn([asyncio.CancelledError()])])
+        monkeypatch.setattr(relay_mod, "_iter_websocket_connections", MagicMock(return_value=connections))
+
+        with caplog.at_level("WARNING"), pytest.raises(asyncio.CancelledError):
+            await service.run_forever()
+        await asyncio.gather(*service._requeue_tasks, return_exceptions=True)
+
+        assert "Requeueing dead-lettered captures failed." in caplog.text
 
     async def test_run_forever_delegates_reconnect_iteration_to_connection_iterator(
         self,
