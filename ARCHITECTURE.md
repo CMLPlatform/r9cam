@@ -1,29 +1,42 @@
 # Architecture
 
+Last reviewed: 2026-11-15
+
 This document is for maintainers and agents changing the plugin internals. Operator setup lives in [INSTALL.md](INSTALL.md); contributor workflow lives in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The plugin is a FastAPI app running on a Raspberry Pi. It captures images and video, serves local setup and preview surfaces, opens an outbound relay to R9lab, and uploads captures either to the R9lab backend or to S3-compatible storage.
 
 ## Request Flow
 
-```text
-R9lab backend / local browser
-        |
-        | outbound WebSocket relay or local HTTP
-        v
-FastAPI app (app/main.py, app/router.py)
-        |
-        v
-Feature routers: camera / pairing / auth / observability / frontend
-        |
-        v
-Feature services and shared infrastructure
-        |
-        v
-AppRuntime-owned services, workers, and runtime state
+```mermaid
+flowchart TD
+    Browser["Local browser / API client"] -->|HTTP or HTTPS| App
+    Backend["R9lab backend"] <-->|outbound WebSocket| Relay
+    Relay["Relay (app/relay)"] -->|allowlisted, in-process ASGI| App
+    Pairing["Pairing (app/pairing)"] -->|credentials| Relay
+    App["FastAPI app (app/main.py, app/router.py)"] --> Auth["verify_request (app/auth)"]
+    Auth --> Routers["Routers: camera, pairing, observability"]
+    App --> Public["Public routes: auth, setup, frontend, healthz, HLS"]
+    Routers --> Runtime["AppRuntime (app/core/runtime.py)"]
+    Public --> Runtime
+    Runtime --> Camera["CameraManager and backend (app/camera)"]
+    Runtime --> Workers["Workers (app/workers)"]
+    Camera --> Delivery["ImageSink and UploadQueue (app/delivery)"]
+    Delivery --> BackendSink["Backend sink: R9lab upload"]
+    Delivery --> S3Sink["S3 sink: S3-compatible bucket"]
+    Camera -->|RTSP| MediaMTX["MediaMTX sidecar"]
+    MediaMTX -->|LL-HLS| Browser
 ```
 
-Feature packages own their routers, schemas, dependencies, exceptions, and services. The camera package also owns the preview/stream pipeline under `app/camera/streaming/`. Cross-cutting packages at `app/` root own infrastructure: backend client, relay, delivery (image sinks and upload queue), observability, and workers.
+Feature packages own their routers, schemas, dependencies, exceptions, and services. The camera package also owns the preview/stream pipeline under `app/camera/streaming/`. Cross-cutting packages own infrastructure:
+
+- `app/core`: settings, runtime container, lifespan, bootstrap, middleware, and the frontend router (`frontend_router.py`: `/`, `/favicon.ico`, `/preview-thumbnail.jpg`).
+- `app/backend`: the R9lab backend HTTP client (`client.py`), the plugin API path prefix (`plugin_api.py`), and adapters between plugin types and `r9cam_models` DTOs (`contract_adapters.py`).
+- `app/relay`: the outbound WebSocket relay, device JWTs, and relay credential checks.
+- `app/delivery`: image sinks and the upload queue.
+- `app/observability` and `app/workers`: telemetry, logging, tracing, and the long-lived worker loops.
+- `app/utils`: file helpers and policy, background task helpers, and local-network checks.
+- `app/serve.py`: the process entry point. It starts uvicorn, over HTTPS when `TLS_CERT_FILE` and `TLS_KEY_FILE` are set.
 
 ## Runtime Container
 
@@ -47,13 +60,17 @@ Architecture rewrites should keep this boundary explicit: `Settings` is static b
 Startup is coordinated through `app/core/lifespan.py`, `app/core/bootstrap.py`, and `app/core/settings.py`:
 
 1. Load env-backed `Settings`.
-1. Build `AppRuntime` with a `RuntimeState` seeded from settings.
-1. Apply persisted relay credentials from `~/.config/r9cam/relay_credentials.json` if static relay credentials are absent.
-1. Ensure local and relay-local API keys exist where needed.
-1. Register `AppRuntime` as the active runtime.
-1. Start managed background workers, pairing, and relay tasks according to config.
+1. At import, `app/main.py` builds the app and calls `ensure_app_runtime`, which creates `AppRuntime` with a `RuntimeState` seeded from settings.
+1. In the lifespan, `ensure_app_runtime` runs again. It wires the relay to the app and registers the active runtime first (`set_active_runtime`), so code outside requests can find it.
+1. Set up logging (`setup_logging`), not at import, so importing the app has no filesystem side effects.
+1. `bootstrap_runtime_state` checks transport policy, applies persisted relay credentials from `~/.config/r9cam/relay_credentials.json` if static relay credentials are absent, and ensures local and relay-local API keys exist where needed.
+1. Log the startup banner and create the image directories (`setup_directory`).
+1. Start the relay task when paired, or the pairing task when pairing is configured.
+1. Start three recurring tasks: `cleanup_images`, `check_stream_duration`, and `check_stream_health`.
+1. Prime the camera (`setup_camera`) and the first preview thumbnail. A missing camera is tolerated, and in development a missing thumbnail is too.
+1. Start the workers in this order: thermal governor, preview sleeper, thumbnail worker, upload queue worker.
 
-Shutdown cancels managed tasks and closes camera, relay, and observability resources.
+Shutdown cancels the four runtime workers together (`stop_runtime_workers`) and waits for them. The lifespan comment says the sleeper stops first, but the code cancels the set at once. It then cancels the other managed tasks and closes the camera, the backend HTTP client, and the HLS proxy client. Observability shuts down last.
 
 ## Configuration And Runtime State
 
@@ -85,7 +102,9 @@ Any path used at request time is either encoded or checked against an allowlist 
 
 Relay device assertions are short-lived ES256 JWTs signed with the Pi's P-256 key. We validate that key when settings load, credentials are saved, and runtime state is applied, so bad key types fail early.
 
-Relay private keys, relay key IDs, camera IDs, and local API keys live in `~/.config/r9cam/relay_credentials.json`. The file is written atomically with `0600` permissions. Pairing creates a fresh key pair; unpairing deletes the file.
+Relay private keys, relay key IDs, camera IDs, and local API keys live in `~/.config/r9cam/relay_credentials.json` (or the path in `R9CAM_CREDENTIALS_FILE`). The file is written atomically with `0600` permissions. Pairing creates a fresh key pair; unpairing deletes the file.
+
+`app/pairing/services/credentials.py` also reads the v0.6 locations for installs that predate the rename: the `RELAB_CREDENTIALS_FILE` variable and `~/.config/relab/relay_credentials.json`. The old file is read only until the new one exists, and is deleted after the first write. Remove this fallback after 2027-01-31, when the backend stops accepting the v0.6 relay token audience.
 
 Session tokens, API keys, pairing fingerprints, JWT IDs, and capture IDs come from Python's `secrets` CSPRNG. API-key comparisons use `hmac.compare_digest`.
 
@@ -93,7 +112,7 @@ Session tokens, API keys, pairing fingerprints, JWT IDs, and capture IDs come fr
 
 Credentials such as relay keys, API keys, session tokens, pairing fingerprints, and S3 secrets stay out of URLs and query strings. API keys and assertions stay in headers or protected response bodies. Logout clears the browser session and drops cached state.
 
-Responses use `Cache-Control: no-store`, static assets come from an explicit extension allowlist, and `/local-key` is only exposed explicitly.
+Responses use `Cache-Control: no-store`, static assets come from an explicit extension allowlist, and `/local-key` needs normal auth plus a local-network client.
 
 Logs redact known secret fields, bearer tokens, and private keys before emission. Local pairing banners stay out of JSON logs. Captured images, queue entries, and preview thumbnails are bounded and validated before upload, retry, or serving.
 
@@ -116,11 +135,12 @@ The setup page is intentionally public during pairing so headless operators can 
 
 Authorization is route based and local to the device. The R9lab backend handles per-user and tenant authorization before sending relay commands; the plugin just keeps the device side narrow:
 
-- public setup/status routes are `/`, `/setup`, `/pairing/state`, and local-network preview media
-- protected routes include camera controls, captures, preview, streaming, telemetry, metrics, `local-key`, `local-access`, unpair, and pairing-code rotation
+- unauthenticated routes are `/`, `/setup`, `/pairing/state`, `/favicon.ico`, `/auth/*` (login and logout), `/healthz`, `/preview-thumbnail.jpg`, and `/preview/hls/*`
+- `/healthz`, `/preview-thumbnail.jpg`, and `/preview/hls/*` also require a local-network client, and `/setup` hides the pairing code from clients that are neither local nor signed in
+- protected routes include camera controls, captures, preview start and stop, streaming, telemetry, metrics, `local-key`, `local-access`, unpair, and pairing-code rotation
 - relay-dispatched routes must match the allowlist in `r9cam_models`
 
-Sensitive details stay behind those boundaries. Public setup visitors see bootstrap state only, while authenticated operators can see topology and direct-access details. `/system/local-access` and `/local-key` expose the local API key after normal auth, and `/local-key` also requires a local-network client.
+Sensitive details stay behind those boundaries. Public setup visitors see bootstrap state only, while authenticated operators can see topology and direct-access details. `/system/local-access` and `/local-key` expose the local API key after `verify_request`, and `/local-key` also requires a local-network client (`is_local_client`).
 
 ## Pairing
 
@@ -153,9 +173,9 @@ The relay allowlist is part of the private backend-to-plugin protocol. It belong
 
 ## Camera, Preview, And Capture
 
-`app/camera/services/manager.py` coordinates camera operations behind a lock. All hardware access goes through `CameraBackend` in `app/camera/services/backend.py`; production uses `Picamera2Backend` and tests use fakes. No code outside `picamera2_backend.py` touches the raw hardware handle.
+`app/camera/services/manager.py` coordinates camera operations behind a lock. Hardware access goes through the protocols in `app/camera/services/backend.py`; production uses `Picamera2Backend` (`picamera2_backend.py`), which `manager.py` imports, and tests use fakes. Only `picamera2_backend.py` touches the raw `Picamera2` handle. The preview pipeline (`preview_pipeline.py`) and `stream.py` also import picamera2 encoder and output classes (`H264Encoder`, `FfmpegOutput`) to build the encoder and its RTSP output. They fall back to the stubs in `hardware_stubs.py` where picamera2 is absent.
 
-`CameraBackend` covers the core every camera needs: `is_open` reports hardware readiness and `capture_preview_frame` taps the lores buffer without acquiring the capture lock. `StreamingCameraBackend` adds `start_lores_encoder` / `stop_lores_encoder`, which attach and detach the H264 encoder. The preview pipeline narrows to `StreamingCameraBackend` and raises `StreamingNotSupportedError` for a backend without those hooks. Workers and routers call only these protocol methods.
+`CameraBackend` covers the core every camera needs: `is_open` reports hardware readiness and `capture_preview_frame` taps the lores buffer without acquiring the capture lock. `StreamingCameraBackend` adds `start_lores_encoder` / `stop_lores_encoder`, which attach and detach the H264 encoder. `ControllableCameraBackend` adds `get_controls`, `set_controls`, and `set_focus` for runtime camera controls. The preview pipeline narrows to `StreamingCameraBackend` and raises `StreamingNotSupportedError` for a backend without those hooks. Workers and routers call only these protocol methods.
 
 Preview publishes to a local MediaMTX sidecar over RTSP; browsers consume the stream via LL-HLS. Worker-owned hibernation (`PreviewSleeper`) stops the encoder after relay idleness and restarts it on the next HLS request. The `ThermalGovernor` drops the encoder bitrate when the SoC runs hot. The thumbnail worker keeps the setup UI preview current while preview is active.
 
@@ -170,7 +190,9 @@ Capture requests produce image bytes and bounded metadata, then pass them to the
 - backend sink uploads to the paired R9lab backend
 - S3 sink uploads to an S3-compatible bucket
 
-`IMAGE_SINK=auto` infers the sink from config. Explicit sink configuration fails loudly when required fields are missing. The upload queue is sink-agnostic: failed synchronous uploads are persisted to disk, retried with exponential backoff, and dead-lettered after exhaustion. Queue capacity and dead-letter retention settings are the single retention policy for failed local captures.
+`IMAGE_SINK=auto` infers the sink from config. Explicit sink configuration fails loudly when required fields are missing. The upload queue is sink-agnostic: failed synchronous uploads are persisted to disk, retried with exponential backoff, and dead-lettered after exhaustion. Queue capacity and dead-letter retention settings are the single retention policy for failed local captures: `UPLOAD_QUEUE_MAX_PENDING_ENTRIES`, `UPLOAD_QUEUE_MAX_PENDING_BYTES`, and `UPLOAD_QUEUE_DEAD_MAX_ENTRIES`.
+
+Most dead letters come from missing or invalid credentials, so `requeue_dead` moves them back into the live queue with a fresh retry budget. It runs in its own task, so a failure is logged and never breaks pairing or the relay. It runs after pairing completes (first pairing and re-pairing) and after each relay reconnect, but not on the first relay connection at startup. Dead letters left from before a restart wait for the next pairing or reconnect.
 
 Capture IDs and filenames are generated internally. Current captures are `.jpg` / `image/jpeg`, bounded by `MAX_CAPTURE_PIXELS` and `MAX_CAPTURE_FILE_BYTES` before upload or queueing. Persisted queue and thumbnail files are validated before retry or serving. See [Sensitive Data](#sensitive-data) for retention and privacy boundaries.
 
