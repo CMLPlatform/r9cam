@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-15
+
+### Fixed
+
+- The release workflow attests the SBOM, so the release publishes. 0.8.0 was tagged but
+  never published: 0.8.1 is the first release with the 0.8.0 changes.
+
 ## [0.8.0] - 2026-11-15
 
 **Upgrading:**
@@ -389,7 +396,8 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [0.7.0]: https://github.com/CMLPlatform/r9cam/compare/v0.6.2...v0.7.0
 [0.7.1]: https://github.com/CMLPlatform/r9cam/compare/v0.7.0...v0.7.1
 [0.7.2]: https://github.com/CMLPlatform/r9cam/compare/v0.7.1...v0.7.2
-[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/CMLPlatform/r9cam/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/CMLPlatform/r9cam/compare/v0.7.2...v0.8.0
 [#121]: https://github.com/CMLPlatform/r9cam/issues/121
 [#122]: https://github.com/CMLPlatform/r9cam/issues/122
