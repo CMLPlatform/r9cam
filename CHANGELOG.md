@@ -47,6 +47,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ### Fixed
 
+- The image takes Debian security updates at build time, so it ships zlib1g with the fixes
+  for CVE-2026-85091 and CVE-2026-76844 before a new `debian:trixie-slim` image has them.
 - A passphrase-protected `TLS_KEY_FILE` now stops startup with a message that the key must be
   unencrypted. Before, the app could wait at a password prompt on a host with a terminal.
 - A capture taken through the relay is queued for upload when the backend upload hangs, instead

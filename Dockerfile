@@ -62,7 +62,8 @@ WORKDIR /app
 # apt cache mounts keep package lists in the build cache (not in the image
 # layer), so there is no need for a separate ``rm -rf /var/lib/apt/lists/*``.
 # ca-certificates comes first: debian-slim lacks it, and both the Pi archive
-# and the app's own HTTPS calls need it.
+# and the app's own HTTPS calls need it. The upgrade runs before the Pi archive
+# is added, so base packages get Debian security fixes the slim image lacks yet.
 #
 # python3-av -> libavdevice -> libsdl2 -> libgbm1 drags in Mesa's GPU drivers:
 # mesa-libgallium, LLVM and Z3, about 190 MiB. Only GL, GBM and VA-API driver
@@ -74,6 +75,7 @@ COPY --from=rpi-keyring /usr/share/keyrings/raspberrypi-archive-keyring.gpg /usr
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends ca-certificates && \
     printf "Types: deb\nURIs: https://archive.raspberrypi.com/debian/\nSuites: trixie\nComponents: main\nSigned-By: /usr/share/keyrings/raspberrypi-archive-keyring.gpg\n" \
     > /etc/apt/sources.list.d/raspi.sources && \
