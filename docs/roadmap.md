@@ -1,6 +1,6 @@
 # Roadmap
 
-This is a short view of what is planned for r9cam over the next year, to October 2027. It is a plan, not a promise, and it changes as needs change. Released work is in [CHANGELOG.md](CHANGELOG.md). Ideas and bugs are tracked as GitHub issues. [GOVERNANCE.md](GOVERNANCE.md) says who decides what goes here.
+This is a short view of what is planned for r9cam over the next year, to October 2027. It is a plan, not a promise, and it changes as needs change. Released work is in [CHANGELOG.md](../CHANGELOG.md). Ideas and bugs are tracked as GitHub issues. [GOVERNANCE.md](../GOVERNANCE.md) says who decides what goes here.
 
 ## Planned
 
@@ -13,5 +13,5 @@ This is a short view of what is planned for r9cam over the next year, to October
 ## Not planned
 
 - Local user accounts, roles or login federation. Identity stays with the R9lab platform; the plugin only checks local API keys.
-- WebRTC preview, until the conditions in [ADR 0001](docs/adr/0001-preview-streaming-hls-over-relay.md) hold.
+- WebRTC preview, until the conditions in [ADR 0001](adr/0001-preview-streaming-hls-over-relay.md) hold.
 - Boards other than Raspberry Pi 5 and 4, and cameras other than Camera Module 3 and v2.

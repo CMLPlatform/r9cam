@@ -8,7 +8,7 @@ The project has one maintainer, named in [CONTRIBUTING.md](CONTRIBUTING.md#who-m
 
 ## Decisions
 
-The maintainer makes the final call on features, design, releases and what goes on the [roadmap](ROADMAP.md). Larger design choices are written down as architecture decision records in [docs/adr/](docs/adr/), so the reasoning stays visible.
+The maintainer makes the final call on features, design, releases and what goes on the [roadmap](docs/roadmap.md). Larger design choices are written down as architecture decision records in [docs/adr/](docs/adr/), so the reasoning stays visible.
 
 Anyone can propose a change by opening an issue or a pull request. Proposals are discussed in the open on that issue or pull request. Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](.github/CODE_OF_CONDUCT.md).
 
