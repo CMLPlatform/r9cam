@@ -247,8 +247,7 @@
             <div class="setup-debug__row">
               <span class="setup-debug__label">HLS preview</span>
               <span class="setup-debug__text">
-                {% for ip in lan_ips %}<code>http://{{ ip }}:8018/preview/hls/cam-preview/index.m3u8</code>{% if not loop.last
-                %}<br>{% endif %}{% endfor %}
+                {% for url in hls_urls %}<code>{{ url }}</code>{% if not loop.last %}<br>{% endif %}{% else %}No LAN address found{% endfor %}
               </span>
             </div>
             <div class="setup-value-card">
@@ -256,8 +255,10 @@
                 <span class="setup-debug__label">API</span>
               </div>
               <div class="setup-value-stack">
-                {% for ip in lan_ips %}
-                <code class="setup-value-card__content">http://{{ ip }}:8018</code>
+                {% for url in api_urls %}
+                <code class="setup-value-card__content">{{ url }}</code>
+                {% else %}
+                <span class="setup-debug__text">No LAN address found</span>
                 {% endfor %}
               </div>
             </div>

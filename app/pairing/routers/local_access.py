@@ -16,6 +16,7 @@ from fastapi import APIRouter, Request, Response
 
 from app.core.headers import NO_STORE_HEADERS
 from app.core.runtime import get_request_runtime
+from app.core.settings import settings
 from app.utils.network import find_lan_ips
 from r9cam_models import LocalAccessInfo
 
@@ -27,8 +28,15 @@ API_PORT = 8018
 
 
 def get_candidate_urls() -> list[str]:
-    """Return all non-loopback IPv4 base URLs for this host."""
-    return [f"http://{ip}:{API_PORT}" for ip in find_lan_ips()]
+    """Return all non-loopback IPv4 base URLs for this host.
+
+    The scheme follows the local TLS setting. The port comes from ``base_url`` only when its
+    scheme matches; an https ``base_url`` in front of a plain-HTTP device names the proxy's
+    port, not the device's.
+    """
+    scheme = "https" if settings.tls_enabled else "http"
+    port = settings.base_url.port if settings.base_url.scheme == scheme and settings.base_url.port else API_PORT
+    return [f"{scheme}://{ip}:{port}" for ip in find_lan_ips()]
 
 
 def _get_mdns_name() -> str | None:

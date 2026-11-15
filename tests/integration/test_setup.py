@@ -44,6 +44,7 @@ EXAMPLE_RELAY_CAMERA_ID = "cam-1"
 PAIRED_TEXT = "Paired"
 PAIRING_FAILED_TEXT = "Pairing failed"
 PAIRED_SUCCESS_TEXT = "Connecting now."
+NO_LAN_ADDRESS_TEXT = "No LAN address found"
 THIS_IP_PLACEHOLDER = "&lt;this-ip&gt;"
 COPY_PAIRING_CODE_LABEL = "Copy pairing code"
 NEW_PAIRING_CODE_LABEL = "Generate a new pairing code"
@@ -58,7 +59,7 @@ REVEAL_LOCAL_KEY_TEXT = "Reveal local API key"
 LOCAL_API_KEY_PLACEHOLDER = "Key hidden until revealed."
 SETUP_LOCAL_API_KEY_VALUE = "test-local-api-key"
 HLS_PREVIEW_TEXT = "HLS preview"
-PREVIEW_HLS_URL = f"http://{THIS_IP_PLACEHOLDER}:8018/preview/hls/cam-preview/index.m3u8"
+HLS_PATH = "/preview/hls/cam-preview/index.m3u8"
 API_TEXT = "API"
 PAIRING_EXPIRY_ATTR = "data-pairing-expiry"
 PAIRING_TTL_ATTR = 'data-ttl-ms="600000"'
@@ -407,10 +408,33 @@ class TestSetupPage:
         assert LOCAL_API_KEY_PLACEHOLDER in resp.text
         assert SETUP_LOCAL_API_KEY_VALUE not in resp.text
         assert HLS_PREVIEW_TEXT in resp.text
-        assert PREVIEW_HLS_URL in resp.text
         assert API_TEXT in resp.text
 
-    async def test_setup_page_falls_back_to_this_ip_placeholder_when_no_mdns_name(
+    @pytest.mark.parametrize(
+        ("candidate_url", "tls"),
+        [("http://192.168.1.50:8018", False), ("https://192.168.1.50:8443", True)],
+    )
+    async def test_setup_page_builds_api_and_hls_urls_from_candidate_urls(
+        self,
+        client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        candidate_url: str,
+        tls: bool,  # noqa: FBT001
+    ) -> None:
+        """Both URL lists carry the scheme and port that the local API really serves on."""
+        if tls:
+            monkeypatch.setattr(settings, "tls_cert_file", "/certs/cert.pem")
+            monkeypatch.setattr(settings, "tls_key_file", "/certs/key.pem")
+        self._get_candidate_urls.side_effect = None
+        self._get_candidate_urls.return_value = [candidate_url]
+        self._runtime.runtime_state.set_local_api_key(SETUP_LOCAL_API_KEY_VALUE)
+        client.cookies.set(settings.browser_session_cookie_name, create_session())
+        resp = await client.get("/setup")
+        assert f'<code class="setup-value-card__content">{candidate_url}</code>' in resp.text
+        assert f"<code>{candidate_url}{HLS_PATH}</code>" in resp.text
+        assert NO_LAN_ADDRESS_TEXT not in resp.text
+
+    async def test_setup_page_says_no_lan_address_found_when_there_is_none(
         self,
         client: AsyncClient,
     ) -> None:
@@ -419,7 +443,8 @@ class TestSetupPage:
         client.cookies.set(settings.browser_session_cookie_name, create_session())
         resp = await client.get("/setup")
         assert resp.status_code == 200
-        assert THIS_IP_PLACEHOLDER in resp.text
+        assert NO_LAN_ADDRESS_TEXT in resp.text
+        assert THIS_IP_PLACEHOLDER not in resp.text
         assert SETUP_LOCAL_DNS_SUFFIX not in resp.text
 
 
