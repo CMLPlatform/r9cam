@@ -32,6 +32,8 @@ if TYPE_CHECKING:
     from app.core.runtime import AppRuntime
 
 _STATUS_ERROR = "error"
+_ERROR_NOT_FOUND = "not found"
+_ERROR_UNREACHABLE = "unreachable"
 HLS_PLAYLIST_PATH = "/preview/hls/cam-preview/index.m3u8"
 _PAIRING_BACKEND_REACHABILITY_TIMEOUT = httpx.Timeout(connect=1.5, read=1.5, write=1.5, pool=1.5)
 
@@ -65,6 +67,17 @@ async def _pairing_backend_reachable() -> bool:
     return True
 
 
+def _pairing_error_kind(error: str | None) -> str:
+    """Sort the pairing service's error text into the few states the page explains."""
+    text = (error or "").lower()
+    kind = "rejected"
+    if _ERROR_NOT_FOUND in text:
+        kind = "wrong_url"
+    elif _ERROR_UNREACHABLE in text:
+        kind = "unreachable"
+    return kind
+
+
 @public_router.get("/setup")
 async def setup_page(request: Request) -> HTMLResponse:
     """HTML page showing camera config status and pairing code."""
@@ -95,6 +108,7 @@ async def setup_page(request: Request) -> HTMLResponse:
         "setup.html",
         {
             "pairing": pairing,
+            "pairing_error_kind": _pairing_error_kind(pairing.error),
             "pairing_expires_at_iso": pairing_expires_at_iso,
             "mode": mode.value,
             "relay_backend_url": runtime.runtime_state.relay_backend_url if operator_authenticated else "",

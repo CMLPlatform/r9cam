@@ -641,6 +641,10 @@ body.setup-page a {
     flex: none;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 .sr-only {
     position: absolute;
     width: 1px;
@@ -666,11 +670,15 @@ body.setup-page a {
 }
 
 .pairing-action-status {
-    min-height: 1.1em;
-    margin-top: 8px;
+    min-height: 0;
+    margin: 8px 0 0;
     color: var(--setup-subtle);
     font-size: 0.88rem;
     font-weight: 600;
+}
+
+.pairing-action-status:empty {
+    margin: 0;
 }
 
 .pairing-action-status[data-state="success"] {
