@@ -6,6 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, cast
+from unittest.mock import AsyncMock
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -146,7 +147,7 @@ class FakeRelayService(RelayService):
     run_calls: int = 0
 
     def __init__(self, runtime: AppRuntime) -> None:
-        super().__init__(state=runtime.relay_state, runtime_state=runtime.runtime_state)
+        super().__init__(state=runtime.relay_state, runtime_state=runtime.runtime_state, requeue_dead=AsyncMock())
         self.run_calls = 0
 
     async def run_forever(self) -> None:

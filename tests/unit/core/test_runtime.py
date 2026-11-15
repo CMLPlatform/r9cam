@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
@@ -15,6 +16,16 @@ FAILING_TASK_LOG = f"Managed task '{FAILING_TASK_NAME}' failed"
 
 class TestAppRuntime:
     """Tests for runtime-managed tasks and state attachment."""
+
+    async def test_relay_service_requeue_reaches_the_upload_queue(self) -> None:
+        """Reconnecting the relay retries dead-lettered captures through the camera manager's queue."""
+        runtime = AppRuntime()
+        requeue = AsyncMock()
+        runtime.camera_manager.upload_queue.requeue_dead = requeue
+
+        await runtime.relay_service._requeue_dead()
+
+        requeue.assert_awaited_once_with()
 
     async def test_create_task_tracks_and_discards_completed_background_task(self) -> None:
         """Tracked background tasks should disappear after completion."""

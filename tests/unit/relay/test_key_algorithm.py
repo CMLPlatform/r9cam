@@ -12,8 +12,8 @@ from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 from jwt.algorithms import ECAlgorithm, OKPAlgorithm
 from pydantic import ValidationError
 
-from app.core.runtime import AppRuntime, set_active_runtime
-from app.core.settings import settings
+from app.core.runtime import AppRuntime
+from app.core.settings import Settings, settings
 from app.pairing.services import credentials as pairing_credentials
 from app.pairing.services import service as pairing_mod
 from app.relay.credentials import load_relay_signing_private_key, relay_signing_algorithm
@@ -35,7 +35,7 @@ def _generate(monkeypatch: pytest.MonkeyPatch, algorithm: str) -> pairing_mod.Re
 def test_pairing_makes_an_ed25519_key_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """Without DEVICE_KEY_ALGORITHM set, pairing makes an Ed25519 key."""
     monkeypatch.delenv("DEVICE_KEY_ALGORITHM", raising=False)
-    monkeypatch.setattr(settings, "device_key_algorithm", type(settings)().device_key_algorithm)
+    monkeypatch.setattr(settings, "device_key_algorithm", Settings(_env_file=None).device_key_algorithm)
     assert isinstance(pairing_mod._generate_private_key(), ed25519.Ed25519PrivateKey)
 
 
@@ -72,11 +72,7 @@ def test_token_round_trip_verifies_against_the_registered_jwk(monkeypatch: pytes
         relay_key_id=_KEY_ID,
         relay_private_key_pem=pairing_mod._private_key_pem(key),
     )
-    set_active_runtime(runtime)
-    try:
-        token = build_device_assertion()
-    finally:
-        set_active_runtime(None)
+    token = build_device_assertion(runtime.runtime_state)
     assert jwt.get_unverified_header(token)["alg"] == algorithm
     public = (OKPAlgorithm if algorithm == "EdDSA" else ECAlgorithm).from_jwk(json.dumps(jwk))
     claims = jwt.decode(token, cast("Any", public), algorithms=[algorithm], audience=DEVICE_ASSERTION_AUDIENCE)

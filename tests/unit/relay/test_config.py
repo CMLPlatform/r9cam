@@ -18,7 +18,6 @@ from tests.constants import EXAMPLE_BACKEND_URL, EXAMPLE_RELAY_BACKEND_URL
 from tests.fakes import fresh_p256_pem
 
 RELAY_CAMERA_ID = "cam-1"
-RELAY_AUTH_SCHEME = "device_assertion"
 RELAY_KEY_ID = "key-1"
 ENV_RELAY_BACKEND_URL = "wss://env-backend/ws/connect"
 ENV_RELAY_CAMERA_ID = "env-cam"
@@ -56,7 +55,6 @@ class TestApplyRelayCredentials:
         creds = {
             "relay_backend_url": EXAMPLE_RELAY_BACKEND_URL,
             "relay_camera_id": RELAY_CAMERA_ID,
-            "relay_auth_scheme": RELAY_AUTH_SCHEME,
             "relay_key_id": RELAY_KEY_ID,
             "relay_private_key_pem": RELAY_PRIVATE_KEY_PEM,
         }

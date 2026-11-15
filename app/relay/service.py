@@ -25,6 +25,7 @@ from websockets.exceptions import ConnectionClosed, InvalidStatus
 from app.core.runtime_state import RuntimeState
 from app.core.settings import Settings, settings
 from app.observability.logging import build_log_extra, build_security_log_extra
+from app.relay.credentials import load_relay_signing_private_key, relay_signing_algorithm
 from app.relay.device_jwt import build_device_assertion
 from app.relay.state import RelayRuntimeState
 from r9cam_models import (
@@ -63,7 +64,7 @@ class RelayService:
         state: RelayRuntimeState,
         runtime_state: RuntimeState,
         app_settings: Settings = settings,
-        requeue_dead: Callable[[], Coroutine[Any, Any, None]] | None = None,
+        requeue_dead: Callable[[], Coroutine[Any, Any, None]],
     ) -> None:
         self._requeue_dead = requeue_dead
         self._requeue_tasks: set[asyncio.Task[None]] = set()
@@ -126,8 +127,6 @@ class RelayService:
 
     def _requeue_dead_letters(self) -> None:
         """Retry dead-lettered captures after an outage; its own task, so a failure never drops the relay."""
-        if self._requeue_dead is None:
-            return
         task = asyncio.create_task(self._requeue_dead())
         self._requeue_tasks.add(task)
 
@@ -214,7 +213,7 @@ async def _iter_websocket_connections(url: str, runtime_state: RuntimeState) -> 
                     "Relay handshake refused with %s; retrying in %.1fs.%s",
                     _format_relay_connection_error(refused),
                     delay,
-                    _refusal_hint(refused),
+                    _refusal_hint(refused, runtime_state),
                     extra=build_log_extra(),
                 )
             else:
@@ -228,10 +227,11 @@ async def _iter_websocket_connections(url: str, runtime_state: RuntimeState) -> 
             continue
 
 
-def _refusal_hint(exc: InvalidStatus) -> str:
+def _refusal_hint(exc: InvalidStatus, runtime_state: RuntimeState) -> str:
     """Return a log suffix that points at re-pairing when the backend rejects the camera's credentials."""
     if exc.response.status_code in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN}:
-        return " The camera may need re-pairing with the backend."
+        algorithm = relay_signing_algorithm(load_relay_signing_private_key(runtime_state.relay_private_key_pem))
+        return f" The camera may need re-pairing with the backend (device key algorithm: {algorithm})."
     return ""
 
 
@@ -277,7 +277,12 @@ async def _receive_loop(
     # ASGITransport ignores httpx timeouts, so _handle_command enforces the
     # command deadline with asyncio.timeout instead.
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=asgi_app, raise_app_exceptions=False),
+        transport=httpx.ASGITransport(
+            app=asgi_app,
+            raise_app_exceptions=False,
+            # Own rate-limit client: the default 127.0.0.1 would share the failed-auth bucket with local processes.
+            client=("relay", 0),
+        ),
         base_url=str(app_settings.base_url).rstrip("/"),
         headers=auth_headers,
     ) as http:

@@ -28,6 +28,7 @@ from app.relay.service import (
 from app.relay.state import RelayRuntimeState
 from r9cam_models import RELAY_COMMAND_FORBIDDEN_DETAIL, RELAY_WS_TEXT_FRAME_LIMIT_BYTES
 from tests.constants import EXAMPLE_RELAY_BACKEND_URL, EXAMPLE_RELAY_BACKEND_URL_WITH_CAMERA_ID
+from tests.fakes import fresh_p256_pem
 
 if TYPE_CHECKING:
     from websockets.asyncio.client import ClientConnection  # used in cast("ClientConnection", ...) below
@@ -83,7 +84,7 @@ class TestRelayServiceConfig:
 
     def test_returns_false_when_no_credentials(self) -> None:
         """Should return False if any required credential is missing."""
-        service = RelayService(state=RelayRuntimeState(), runtime_state=RuntimeState())
+        service = RelayService(state=RelayRuntimeState(), runtime_state=RuntimeState(), requeue_dead=AsyncMock())
         assert service.is_configured() is False
 
     def test_returns_true_when_all_set(self) -> None:
@@ -95,13 +96,13 @@ class TestRelayServiceConfig:
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
-        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state)
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=AsyncMock())
         assert service.is_configured() is True
 
     def test_returns_false_when_partial(self) -> None:
         """Should return False if only some credentials are set."""
         runtime_state = RuntimeState(relay_backend_url=EXAMPLE_RELAY_BACKEND_URL, relay_camera_id="cam-1")
-        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state)
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=AsyncMock())
         assert service.is_configured() is False
 
 
@@ -111,7 +112,7 @@ class TestRelayServiceUrl:
     def test_builds_url_with_camera_id(self) -> None:
         """Should build the relay URL with the camera_id query parameter."""
         runtime_state = RuntimeState(relay_backend_url=f"{EXAMPLE_RELAY_BACKEND_URL}/", relay_camera_id="cam-42")
-        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state)
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=AsyncMock())
         assert service.build_url() == EXAMPLE_RELAY_BACKEND_URL_WITH_CAMERA_ID
 
     def test_encodes_camera_id_query_value(self) -> None:
@@ -120,7 +121,7 @@ class TestRelayServiceUrl:
             relay_backend_url=f"{EXAMPLE_RELAY_BACKEND_URL}/",
             relay_camera_id="cam-42&role=admin",
         )
-        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state)
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=AsyncMock())
 
         assert service.build_url() == f"{EXAMPLE_RELAY_BACKEND_URL}?camera_id=cam-42%26role%3Dadmin"
 
@@ -166,7 +167,7 @@ class TestWebsocketConnect:
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
-        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state)
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=AsyncMock())
         service.configure(_noop_asgi_app)
         iter_connections = MagicMock(return_value=_ConnectionIterator([_Conn()]))
         monkeypatch.setattr(relay_mod, "_iter_websocket_connections", iter_connections)
@@ -248,9 +249,16 @@ class TestWebsocketConnect:
         monkeypatch.setattr(relay_mod, "_relay_reconnect_delays", lambda: iter([1.0, 2.0]))
         sleep = AsyncMock()
         monkeypatch.setattr(relay_mod.asyncio, "sleep", sleep)
+        runtime_state = RuntimeState()
+        runtime_state.set_relay_credentials(
+            relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
+            relay_camera_id="cam-1",
+            relay_key_id=RELAY_KEY_ID,
+            relay_private_key_pem=fresh_p256_pem(),
+        )
 
         with caplog.at_level(logging.WARNING, logger=relay_mod.__name__):
-            assert await anext(_iter_websocket_connections(EXAMPLE_RELAY_BACKEND_URL, RuntimeState())) is not None
+            assert await anext(_iter_websocket_connections(EXAMPLE_RELAY_BACKEND_URL, runtime_state)) is not None
 
         assert connect.call_count == 3
         assert [call.args for call in sleep.await_args_list] == [(1.0,), (2.0,)]
@@ -258,6 +266,7 @@ class TestWebsocketConnect:
         assert len(warnings) == 2
         assert all(f"HTTP {status}" in message for message in warnings)
         assert all(("re-pairing" in message) is hint for message in warnings)
+        assert all(("device key algorithm: ES256" in message) is hint for message in warnings)
 
     async def test_connection_iterator_retries_server_error_without_refusal_warning(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
@@ -753,6 +762,25 @@ class TestHandleCommand:
         assert payload["status"] == 200
         assert payload["data"] == {"ok": True}
 
+    async def test_relayed_commands_use_their_own_rate_limit_client(self) -> None:
+        """Relayed commands must not share the loopback failed-auth bucket with local processes."""
+        seen: list[Any] = []
+
+        async def _recording_app(scope: Any, receive: Any, send: Any) -> None:
+            seen.append(scope["client"])
+            await _json_ok_asgi_app(scope, receive, send)
+
+        ws = _Conn([json.dumps({"type": "request", "id": "msg-client", "method": "GET", "path": CAMERA_PATH})])
+
+        await _receive_loop(
+            cast("ClientConnection", ws),
+            asgi_app=_recording_app,
+            relay_state=RelayRuntimeState(),
+            runtime_state=RuntimeState(),
+        )
+
+        assert seen == [("relay", 0)]
+
     async def test_http_error_sends_503(self) -> None:
         """Transport errors should be translated into a 503 response."""
         http = AsyncMock()
@@ -836,7 +864,7 @@ class TestRelayServiceRunForever:
 
     async def test_returns_when_not_configured(self) -> None:
         """Should return immediately if the relay is not configured."""
-        service = RelayService(state=RelayRuntimeState(), runtime_state=RuntimeState())
+        service = RelayService(state=RelayRuntimeState(), runtime_state=RuntimeState(), requeue_dead=AsyncMock())
         await service.run_forever()
 
     async def test_reconnects_after_connection_closed(
@@ -852,7 +880,7 @@ class TestRelayServiceRunForever:
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
-        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state)
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=AsyncMock())
         service.configure(_noop_asgi_app)
         first = _Conn([ConnectionClosedOK(None, None)])
         second = _Conn([asyncio.CancelledError()])
@@ -951,7 +979,7 @@ class TestRelayServiceRunForever:
             relay_key_id=RELAY_KEY_ID,
             relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
         )
-        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state)
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=AsyncMock())
         service.configure(_noop_asgi_app)
         iter_connections = MagicMock(return_value=_ConnectionIterator([_Conn([asyncio.CancelledError()])]))
         monkeypatch.setattr(relay_mod, "_iter_websocket_connections", iter_connections)

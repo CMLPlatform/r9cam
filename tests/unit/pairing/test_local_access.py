@@ -51,6 +51,15 @@ class TestGetCandidateUrls:
 
         assert get_candidate_urls() == [f"http://{LAN_IP}:8018"]
 
+    def test_tls_without_an_explicit_base_url_port_uses_the_api_port(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Pydantic fills 443 for a port-less https base_url; the device still listens on API_PORT."""
+        monkeypatch.setattr("app.pairing.routers.local_access.find_lan_ips", lambda: [LAN_IP])
+        monkeypatch.setattr(settings, "tls_cert_file", "/certs/cert.pem")
+        monkeypatch.setattr(settings, "tls_key_file", "/certs/key.pem")
+        monkeypatch.setattr(settings, "base_url", HttpUrl("https://camera.example/"))
+
+        assert get_candidate_urls() == [f"https://{LAN_IP}:8018"]
+
     def test_uses_the_base_url_port_without_tls(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A custom plain-HTTP port in base_url shows up in the candidate URLs."""
         monkeypatch.setattr("app.pairing.routers.local_access.find_lan_ips", lambda: [LAN_IP])
