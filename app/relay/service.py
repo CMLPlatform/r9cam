@@ -14,7 +14,7 @@ import json
 import logging
 import time
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from pydantic import ValidationError
@@ -40,7 +40,7 @@ from r9cam_models import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable, Iterator
+    from collections.abc import AsyncIterator, Callable, Coroutine, Iterator
 
     from starlette.types import ASGIApp
     from websockets.asyncio.client import ClientConnection
@@ -63,7 +63,10 @@ class RelayService:
         state: RelayRuntimeState,
         runtime_state: RuntimeState,
         app_settings: Settings = settings,
+        requeue_dead: Callable[[], Coroutine[Any, Any, None]] | None = None,
     ) -> None:
+        self._requeue_dead = requeue_dead
+        self._requeue_tasks: set[asyncio.Task[None]] = set()
         self._state = state
         self._runtime_state = runtime_state
         self._settings = app_settings
@@ -84,34 +87,56 @@ class RelayService:
 
         url = self.build_url()
 
-        async for ws in _iter_websocket_connections(url, self._runtime_state):
-            self._state.mark_connected()
-            try:
-                logger.info("Relay connected to %s. Waiting for commands.", url, extra=build_log_extra())
-                await _receive_loop(
-                    ws,
-                    asgi_app=self._asgi_app,
-                    relay_state=self._state,
-                    runtime_state=self._runtime_state,
-                    app_settings=self._settings,
-                )
-            except ConnectionClosed as exc:
-                logger.warning(
-                    "Relay connection closed (%s); reconnecting.",
-                    _format_relay_connection_error(exc),
-                    extra=build_log_extra(),
-                )
-                continue
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                logger.exception(
-                    "Relay loop failed unexpectedly; reconnecting.",
-                    extra=build_log_extra(),
-                )
-                continue
-            finally:
-                self._state.mark_disconnected()
+        reconnecting = False
+        try:
+            async for ws in _iter_websocket_connections(url, self._runtime_state):
+                self._state.mark_connected()
+                if reconnecting:
+                    self._requeue_dead_letters()
+                reconnecting = True
+                try:
+                    logger.info("Relay connected to %s. Waiting for commands.", url, extra=build_log_extra())
+                    await _receive_loop(
+                        ws,
+                        asgi_app=self._asgi_app,
+                        relay_state=self._state,
+                        runtime_state=self._runtime_state,
+                        app_settings=self._settings,
+                    )
+                except ConnectionClosed as exc:
+                    logger.warning(
+                        "Relay connection closed (%s); reconnecting.",
+                        _format_relay_connection_error(exc),
+                        extra=build_log_extra(),
+                    )
+                    continue
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception(
+                        "Relay loop failed unexpectedly; reconnecting.",
+                        extra=build_log_extra(),
+                    )
+                    continue
+                finally:
+                    self._state.mark_disconnected()
+        finally:
+            # A requeue still running at shutdown must not outlive the relay.
+            await _drain_pending_tasks(self._requeue_tasks, cancel=True)
+
+    def _requeue_dead_letters(self) -> None:
+        """Retry dead-lettered captures after an outage; its own task, so a failure never drops the relay."""
+        if self._requeue_dead is None:
+            return
+        task = asyncio.create_task(self._requeue_dead())
+        self._requeue_tasks.add(task)
+
+        def _done(done: asyncio.Task[None]) -> None:
+            self._requeue_tasks.discard(done)
+            if not done.cancelled() and (exc := done.exception()) is not None:
+                logger.warning("Requeueing dead-lettered captures failed.", exc_info=exc, extra=build_log_extra())
+
+        task.add_done_callback(_done)
 
     def is_configured(self) -> bool:
         """Whether relay credentials are present."""
@@ -283,7 +308,7 @@ async def _handle_relay_message(
     pending_tasks: set[asyncio.Task[None]],
     on_task_done: Callable[[asyncio.Task[None]], None],
     command_semaphore: asyncio.Semaphore,
-    send_lock: asyncio.Lock | None = None,
+    send_lock: asyncio.Lock,
     *,
     relay_state: RelayRuntimeState,
     max_pending_commands: int,
@@ -307,7 +332,7 @@ async def _handle_relay_message(
     msg_type = msg.get("type")
 
     if msg_type == RelayMessageType.PING:
-        await ws.send(json.dumps({"type": RelayMessageType.PONG}))
+        await _send(ws, send_lock, json.dumps({"type": RelayMessageType.PONG}))
         return
 
     if msg_type != RelayMessageType.REQUEST:
@@ -327,7 +352,7 @@ async def _handle_relay_message(
         )
         msg_id = msg.get("id")
         if isinstance(msg_id, str) and msg_id:
-            await _send_error(ws, msg_id, 429, "Too many pending relay commands.")
+            await _send_error(ws, msg_id, 429, "Too many pending relay commands.", send_lock)
         return
     task = asyncio.create_task(_run_command(ws, http, msg, command_semaphore, send_lock))
     pending_tasks.add(task)
@@ -339,7 +364,7 @@ async def _run_command(
     http: httpx.AsyncClient,
     msg: dict,
     command_semaphore: asyncio.Semaphore,
-    send_lock: asyncio.Lock | None = None,
+    send_lock: asyncio.Lock,
 ) -> None:
     """Run a relayed command with bounded concurrency."""
     async with command_semaphore:
@@ -356,13 +381,8 @@ async def _drain_pending_tasks(pending_tasks: set[asyncio.Task[None]], *, cancel
     await asyncio.gather(*pending_tasks, return_exceptions=True)
 
 
-async def _handle_command(
-    ws: ClientConnection, http: httpx.AsyncClient, msg: dict, send_lock: asyncio.Lock | None = None
-) -> None:
+async def _handle_command(ws: ClientConnection, http: httpx.AsyncClient, msg: dict, send_lock: asyncio.Lock) -> None:
     """Dispatch a single command to the local API and send the response."""
-    # A shared per-connection lock is passed in production; a lone direct call
-    # gets its own (a single send never contends).
-    send_lock = send_lock or asyncio.Lock()
     try:
         envelope = RelayCommandEnvelope.model_validate(msg)
     except ValidationError:
@@ -376,7 +396,7 @@ async def _handle_command(
         )
         msg_id = msg.get("id")
         if isinstance(msg_id, str) and msg_id:
-            await _send_error(ws, msg_id, 400, "Malformed relay command.")
+            await _send_error(ws, msg_id, 400, "Malformed relay command.", send_lock)
         return
 
     msg_id = envelope.id
@@ -399,7 +419,7 @@ async def _handle_command(
                 status_code=403,
             ),
         )
-        await _send_error(ws, msg_id, 403, RELAY_COMMAND_FORBIDDEN_DETAIL)
+        await _send_error(ws, msg_id, 403, RELAY_COMMAND_FORBIDDEN_DETAIL, send_lock)
         return
 
     try:
@@ -416,13 +436,13 @@ async def _handle_command(
                 headers=request_headers or None,
             )
     except TimeoutError:
-        await _send_error(ws, msg_id, 504, "Local dispatch timed out.")
+        await _send_error(ws, msg_id, 504, "Local dispatch timed out.", send_lock)
         return
     except (httpx.HTTPError, httpx.InvalidURL) as exc:
         # httpx.InvalidURL is a plain Exception subclass, not an HTTPError, so it
         # would otherwise escape this handler and kill the command task silently
         # (the backend then burns its full command timeout waiting for a reply).
-        await _send_error(ws, msg_id, 503, str(exc))
+        await _send_error(ws, msg_id, 503, str(exc), send_lock)
         return
 
     if response.status_code == 403:
@@ -438,25 +458,23 @@ async def _handle_command(
                 content_type=content_type,
                 has_binary=True,
             )
-            # The header + binary body must reach the backend as an adjacent pair;
-            # concurrent command tasks share this ws, so serialize the two frames.
-            async with send_lock:
-                await ws.send(header.model_dump_json())
-                await ws.send(response.content)
+            await _send(ws, send_lock, header.model_dump_json(), response.content)
         else:
             try:
                 data = response.json()
             except ValueError:
                 data = response.text
 
-            await ws.send(
+            await _send(
+                ws,
+                send_lock,
                 RelayResponseEnvelope(
                     id=msg_id,
                     status=response.status_code,
                     content_type=content_type,
                     has_binary=False,
                     data=data,
-                ).model_dump_json()
+                ).model_dump_json(),
             )
     except ValidationError:
         # The reply broke an envelope limit (for example an oversized content-type).
@@ -464,10 +482,21 @@ async def _handle_command(
         logger.warning(
             "Relay response for command %s failed validation; sending a 500.", msg_id, extra=build_log_extra()
         )
-        await _send_error(ws, msg_id, 500, "Invalid relay response.")
+        await _send_error(ws, msg_id, 500, "Invalid relay response.", send_lock)
 
 
-async def _send_error(ws: ClientConnection, msg_id: str, status: int, detail: str) -> None:
+async def _send(ws: ClientConnection, send_lock: asyncio.Lock, *frames: str | bytes) -> None:
+    """Send frames back to back under the connection lock.
+
+    A binary response's header must stay adjacent to its body, and concurrent command
+    tasks share this ws, so no other frame may land between them.
+    """
+    async with send_lock:
+        for frame in frames:
+            await ws.send(frame)
+
+
+async def _send_error(ws: ClientConnection, msg_id: str, status: int, detail: str, send_lock: asyncio.Lock) -> None:
     # A malformed command can carry an id the response envelope rejects. The
     # backend could not match a reply to that id anyway, so drop the reply
     # instead of letting the command task die on the error.
@@ -478,4 +507,4 @@ async def _send_error(ws: ClientConnection, msg_id: str, status: int, detail: st
             "Relay command id is not a valid response id; dropping the error reply.", extra=build_log_extra()
         )
         return
-    await ws.send(response.model_dump_json())
+    await _send(ws, send_lock, response.model_dump_json())

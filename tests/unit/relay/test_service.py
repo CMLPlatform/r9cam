@@ -148,7 +148,7 @@ class TestSendError:
     async def test_sends_json_error(self) -> None:
         """Should send a JSON error message with the correct structure."""
         ws = AsyncMock()
-        await _send_error(ws, MESSAGE_ID, 503, DETAIL)
+        await _send_error(ws, MESSAGE_ID, 503, DETAIL, asyncio.Lock())
         ws.send.assert_called_once()
         payload = json.loads(ws.send.call_args[0][0])
         assert payload["id"] == MESSAGE_ID
@@ -441,6 +441,7 @@ class TestReceiveLoop:
                     pending_tasks,
                     pending_tasks.discard,
                     asyncio.Semaphore(1),
+                    asyncio.Lock(),
                     relay_state=RelayRuntimeState(),
                     max_pending_commands=1,
                 )
@@ -467,6 +468,7 @@ class TestReceiveLoop:
             set(),
             lambda _task: None,
             asyncio.Semaphore(1),
+            asyncio.Lock(),
             relay_state=RelayRuntimeState(),
             max_pending_commands=0,
         )
@@ -486,7 +488,7 @@ class TestHandleCommand:
         http = AsyncMock()
 
         with caplog.at_level(logging.WARNING):
-            await _handle_command(ws, http, {"type": "request", "id": MALFORMED_MESSAGE_ID})
+            await _handle_command(ws, http, {"type": "request", "id": MALFORMED_MESSAGE_ID}, asyncio.Lock())
 
         http.request.assert_not_called()
         payload = json.loads(ws.send.call_args.args[0])
@@ -501,7 +503,7 @@ class TestHandleCommand:
         ws = AsyncMock()
         http = AsyncMock()
 
-        await _handle_command(ws, http, {"type": "request"})
+        await _handle_command(ws, http, {"type": "request"}, asyncio.Lock())
 
         http.request.assert_not_called()
         ws.send.assert_not_called()
@@ -511,7 +513,7 @@ class TestHandleCommand:
         ws = AsyncMock()
         http = AsyncMock()
 
-        await _handle_command(ws, http, {"type": "request", "id": "not a safe id"})
+        await _handle_command(ws, http, {"type": "request", "id": "not a safe id"}, asyncio.Lock())
 
         http.request.assert_not_called()
         ws.send.assert_not_called()
@@ -541,6 +543,7 @@ class TestHandleCommand:
                         "Baggage": BAGGAGE,
                     },
                 },
+                asyncio.Lock(),
             )
 
         payload = json.loads(ws.send.call_args.args[0])
@@ -555,7 +558,9 @@ class TestHandleCommand:
         transport = httpx.MockTransport(_handler)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
             ws = AsyncMock()
-            await _handle_command(ws, http, {"id": "msg-big", "method": "GET", "path": LOCAL_ACCESS_PATH})
+            await _handle_command(
+                ws, http, {"id": "msg-big", "method": "GET", "path": LOCAL_ACCESS_PATH}, asyncio.Lock()
+            )
 
         payload = json.loads(ws.send.call_args.args[0])
         assert payload["id"] == "msg-big"
@@ -571,7 +576,7 @@ class TestHandleCommand:
         transport = httpx.MockTransport(_binary_handler)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
             ws = AsyncMock()
-            await _handle_command(ws, http, {"id": "msg-1", "method": "GET", "path": CAMERA_PATH})
+            await _handle_command(ws, http, {"id": "msg-1", "method": "GET", "path": CAMERA_PATH}, asyncio.Lock())
             assert ws.send.await_count == 2
             ws.send.assert_any_await(b"abc")
 
@@ -588,6 +593,7 @@ class TestHandleCommand:
                 ws,
                 http,
                 {"id": "msg-hls", "method": "GET", "path": PREVIEW_HLS_SEGMENT_PATH},
+                asyncio.Lock(),
             )
 
         header = json.loads(ws.send.await_args_list[0].args[0])
@@ -628,6 +634,79 @@ class TestHandleCommand:
                 tag = json.loads(frame)["id"] * 3  # id "a" -> b"aaa"
                 assert sent[i + 1] == tag.encode()
 
+    async def test_text_frames_cannot_split_a_binary_pair(self) -> None:
+        """A PONG or an error reply sent mid-pair must wait for the shared send_lock."""
+
+        def _handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=b"seg", headers={"content-type": HLS_SEGMENT_CONTENT_TYPE})
+
+        sent: list[object] = []
+
+        class _YieldingConn:
+            async def send(self, frame: object) -> None:
+                sent.append(frame)
+                await asyncio.sleep(0)
+
+        lock = asyncio.Lock()
+        ping = json.dumps({"type": "ping"})
+        async with httpx.AsyncClient(transport=httpx.MockTransport(_handler), base_url="http://test") as http:
+            ws = cast("ClientConnection", _YieldingConn())
+            command = {"id": "a", "method": "GET", "path": PREVIEW_HLS_SEGMENT_PATH}
+            binary = asyncio.create_task(_handle_command(ws, http, command, lock))
+            await asyncio.sleep(0)  # let the header go out; the body is still pending
+            await asyncio.gather(
+                _handle_relay_message(
+                    ws,
+                    http,
+                    ping,
+                    set(),
+                    lambda _t: None,
+                    asyncio.Semaphore(1),
+                    lock,
+                    relay_state=RelayRuntimeState(),
+                    max_pending_commands=1,
+                ),
+                _send_error(ws, MESSAGE_ID, 503, DETAIL, lock),
+                binary,
+            )
+
+        assert sent[0] != b"seg"
+        assert json.loads(cast("str", sent[0]))["has_binary"] is True
+        assert sent[1] == b"seg"
+        assert len(sent) == 4
+
+    @pytest.mark.parametrize("kind", ["pong", "error", "json"])
+    async def test_text_frame_waits_while_the_send_lock_is_held(self, kind: str) -> None:
+        """Every text frame goes through the lock: none may be sent while a binary pair holds it."""
+        ws = AsyncMock()
+        lock = asyncio.Lock()
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda _r: httpx.Response(200, json={"ok": True})), base_url="http://test"
+        ) as http:
+            sends = {
+                "pong": lambda: _handle_relay_message(
+                    ws,
+                    http,
+                    json.dumps({"type": "ping"}),
+                    set(),
+                    lambda _t: None,
+                    asyncio.Semaphore(1),
+                    lock,
+                    relay_state=RelayRuntimeState(),
+                    max_pending_commands=1,
+                ),
+                "error": lambda: _send_error(ws, MESSAGE_ID, 503, DETAIL, lock),
+                "json": lambda: _handle_command(ws, http, {"id": "a", "method": "GET", "path": CAMERA_PATH}, lock),
+            }
+            async with lock:
+                task = asyncio.create_task(sends[kind]())
+                for _ in range(5):
+                    await asyncio.sleep(0)
+                ws.send.assert_not_called()
+            await task
+
+        ws.send.assert_awaited_once()
+
     async def test_handles_text_response(self) -> None:
         """Should send text responses as JSON frames."""
 
@@ -637,7 +716,7 @@ class TestHandleCommand:
         transport = httpx.MockTransport(_text_handler)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
             ws = AsyncMock()
-            await _handle_command(ws, http, {"id": "msg-2", "method": "GET", "path": LOCAL_ACCESS_PATH})
+            await _handle_command(ws, http, {"id": "msg-2", "method": "GET", "path": LOCAL_ACCESS_PATH}, asyncio.Lock())
             ws.send.assert_awaited_once()
             payload = json.loads(ws.send.call_args.args[0])
             assert payload["data"] == {"ok": True}
@@ -655,7 +734,7 @@ class TestHandleCommand:
         http.request = _hang
         ws = AsyncMock()
 
-        await _handle_command(ws, http, {"id": "msg-slow", "method": "GET", "path": CAMERA_PATH})
+        await _handle_command(ws, http, {"id": "msg-slow", "method": "GET", "path": CAMERA_PATH}, asyncio.Lock())
 
         payload = json.loads(ws.send.call_args.args[0])
         assert payload["status"] == 504
@@ -683,7 +762,7 @@ class TestHandleCommand:
         http.request = AsyncMock(side_effect=httpx.ConnectError(RELAY_COMMAND_ERROR))
         ws = AsyncMock()
 
-        await _handle_command(ws, http, {"id": "msg-3", "method": "GET", "path": CAMERA_PATH})
+        await _handle_command(ws, http, {"id": "msg-3", "method": "GET", "path": CAMERA_PATH}, asyncio.Lock())
 
         payload = json.loads(ws.send.call_args.args[0])
         assert payload["status"] == 503
@@ -695,7 +774,7 @@ class TestHandleCommand:
         http.request = AsyncMock(side_effect=httpx.InvalidURL(RELAY_COMMAND_ERROR))
         ws = AsyncMock()
 
-        await _handle_command(ws, http, {"id": "msg-invalid-url", "method": "GET", "path": CAMERA_PATH})
+        await _handle_command(ws, http, {"id": "msg-invalid-url", "method": "GET", "path": CAMERA_PATH}, asyncio.Lock())
 
         payload = json.loads(ws.send.call_args.args[0])
         assert payload["status"] == 503
@@ -711,7 +790,7 @@ class TestHandleCommand:
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
             ws = AsyncMock()
             with caplog.at_level("WARNING"):
-                await _handle_command(ws, http, {"id": "msg-4", "method": "GET", "path": CAMERA_PATH})
+                await _handle_command(ws, http, {"id": "msg-4", "method": "GET", "path": CAMERA_PATH}, asyncio.Lock())
         assert RELAY_403_FRAGMENT in caplog.text
 
     async def test_blocks_unexpected_relay_command_path(self, caplog: pytest.LogCaptureFixture) -> None:
@@ -724,6 +803,7 @@ class TestHandleCommand:
                 ws,
                 http,
                 {"id": "msg-blocked", "method": BLOCKED_RELAY_METHOD, "path": BLOCKED_RELAY_PATH},
+                asyncio.Lock(),
             )
 
         http.request.assert_not_called()
@@ -745,6 +825,7 @@ class TestHandleCommand:
             ws,
             http,
             {"id": "msg-relative", "method": BLOCKED_RELAY_METHOD, "path": BLOCKED_RELATIVE_RELAY_PATH},
+            asyncio.Lock(),
         )
 
         http.request.assert_not_called()
@@ -788,6 +869,83 @@ class TestRelayServiceRunForever:
         iter_connections.assert_called_once()
         assert RELAY_RECONNECT_LOG in caplog.text
 
+    async def test_requeues_dead_letters_only_after_a_reconnect(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The first connection leaves the dead-letter queue alone; each later one retries it."""
+        runtime_state = RuntimeState()
+        runtime_state.set_relay_credentials(
+            relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
+            relay_camera_id="cam-1",
+            relay_auth_scheme=RELAY_AUTH_SCHEME,
+            relay_key_id=RELAY_KEY_ID,
+            relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
+        )
+        requeue = AsyncMock()
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=requeue)
+        service.configure(_noop_asgi_app)
+        connections = _ConnectionIterator([_Conn(), _Conn(), _Conn([asyncio.CancelledError()])])
+        monkeypatch.setattr(relay_mod, "_iter_websocket_connections", MagicMock(return_value=connections))
+
+        with pytest.raises(asyncio.CancelledError):
+            await service.run_forever()
+        await asyncio.gather(*service._requeue_tasks)
+
+        assert requeue.await_count == 2
+
+    async def test_shutdown_cancels_a_running_requeue(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A requeue still running when run_forever is cancelled is cancelled and awaited, not left dangling."""
+        runtime_state = RuntimeState()
+        runtime_state.set_relay_credentials(
+            relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
+            relay_camera_id="cam-1",
+            relay_auth_scheme=RELAY_AUTH_SCHEME,
+            relay_key_id=RELAY_KEY_ID,
+            relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
+        )
+        cancelled = asyncio.Event()
+
+        async def _hang() -> None:
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=_hang)
+        service.configure(_noop_asgi_app)
+        connections = _ConnectionIterator([_Conn(), _Conn([asyncio.CancelledError()])])
+        monkeypatch.setattr(relay_mod, "_iter_websocket_connections", MagicMock(return_value=connections))
+
+        with pytest.raises(asyncio.CancelledError):
+            await service.run_forever()
+
+        assert cancelled.is_set()
+        assert not service._requeue_tasks
+
+    async def test_requeue_failure_does_not_drop_the_relay(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A failing requeue is logged and the relay keeps serving the connection."""
+        runtime_state = RuntimeState()
+        runtime_state.set_relay_credentials(
+            relay_backend_url=EXAMPLE_RELAY_BACKEND_URL,
+            relay_camera_id="cam-1",
+            relay_auth_scheme=RELAY_AUTH_SCHEME,
+            relay_key_id=RELAY_KEY_ID,
+            relay_private_key_pem=RELAY_PRIVATE_KEY_PEM,
+        )
+        requeue = AsyncMock(side_effect=OSError("disk gone"))
+        service = RelayService(state=RelayRuntimeState(), runtime_state=runtime_state, requeue_dead=requeue)
+        service.configure(_noop_asgi_app)
+        connections = _ConnectionIterator([_Conn(), _Conn([asyncio.CancelledError()])])
+        monkeypatch.setattr(relay_mod, "_iter_websocket_connections", MagicMock(return_value=connections))
+
+        with caplog.at_level("WARNING"):
+            with pytest.raises(asyncio.CancelledError):
+                await service.run_forever()
+            await asyncio.sleep(0)  # the failure is logged from the task's done callback
+
+        assert "Requeueing dead-lettered captures failed." in caplog.text
+
     async def test_run_forever_delegates_reconnect_iteration_to_connection_iterator(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -823,6 +981,7 @@ class _Conn:
         return self
 
     async def __anext__(self) -> str | bytes:
+        await asyncio.sleep(0)  # a real socket yields; lets tasks the loop spawned start
         if not self._messages:
             raise StopAsyncIteration
         message = self._messages.pop(0)
