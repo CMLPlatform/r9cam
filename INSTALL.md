@@ -280,6 +280,7 @@ Set these in the `.env` next to `compose.yml`. Every setting has a default; chan
 | `AUTH_COOKIE_SECURE`               | from `BASE_URL`                 | Force the `Secure` cookie flag on or off. Unset: on when `BASE_URL` is `https`.                                                             |
 | `LOCAL_API_KEY`                    | generated                       | Seed for the local API key. Leave unset: the app generates and stores one.                                                                  |
 | `LOCAL_RELAY_API_KEY`              | generated                       | Seed for the relay-local key. Leave unset.                                                                                                  |
+| `DEVICE_KEY_ALGORITHM`             | `ES256`                         | Algorithm of the key made at pairing: `ES256` (P-256) or `EdDSA` (Ed25519). `EdDSA` needs a backend with [r9lab#501](https://github.com/CMLPlatform/r9lab/issues/501). Only pairing reads it: a paired camera keeps the algorithm of its stored key. |
 | `RELAY_BACKEND_URL`                | unset                           | Static relay `wss://` URL. Set it only with `RELAY_CAMERA_ID`, `RELAY_KEY_ID` and `RELAY_PRIVATE_KEY_PEM`; pairing normally fills these in. |
 
 ## Direct Python Run

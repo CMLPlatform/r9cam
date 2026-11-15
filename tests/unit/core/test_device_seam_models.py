@@ -478,6 +478,7 @@ def test_device_public_key_jwk_accepts_real_p256_coordinate_length() -> None:
     """32-byte P-256 coordinates, base64url-encoded without padding, are exactly 43 chars."""
     jwk = DevicePublicKeyJWK(kty="EC", crv="P-256", x=VALID_JWK_X, y=VALID_JWK_Y)
     assert len(jwk.x) == 43
+    assert jwk.y is not None
     assert len(jwk.y) == 43
 
 

@@ -21,7 +21,7 @@ from urllib.parse import urlparse, urlunparse
 
 import httpx
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 
 from app.core.bootstrap import set_runtime_relay_credentials
 from app.core.runtime_context import get_active_runtime_state
@@ -36,6 +36,7 @@ from app.core.settings import settings as app_settings
 from app.observability.logging import build_log_extra
 from app.pairing.services.client import PairingClient
 from app.pairing.services.credentials import save_relay_credentials
+from app.relay.credentials import RelaySigningKey
 from app.utils.files import is_running_in_container
 from app.utils.network import find_lan_ips
 from r9cam_models import (
@@ -185,13 +186,16 @@ class PairingService:
         )
 
 
+_EDDSA = "EdDSA"
+
+
 @dataclass(frozen=True)
 class PairingRegistration:
     """Material needed for one pairing registration attempt."""
 
     code: str
     fingerprint: str
-    private_key: ec.EllipticCurvePrivateKey
+    private_key: RelaySigningKey
     key_id: str
     public_key_jwk: dict[str, str]
 
@@ -434,7 +438,7 @@ async def _poll_pairing_status(
 async def _complete_pairing_state(
     state: PairingState,
     payload: PairingClaimedBootstrap,
-    private_key: ec.EllipticCurvePrivateKey,
+    private_key: RelaySigningKey,
     on_paired: Callable[[], Coroutine[Any, Any, None]],
     runtime_state: RuntimeState,
 ) -> None:
@@ -480,7 +484,9 @@ def _generate_code_and_fingerprint() -> tuple[str, str]:
     return code, fingerprint
 
 
-def _generate_private_key() -> ec.EllipticCurvePrivateKey:
+def _generate_private_key() -> RelaySigningKey:
+    if app_settings.device_key_algorithm == _EDDSA:
+        return ed25519.Ed25519PrivateKey.generate()
     return ec.generate_private_key(ec.SECP256R1())
 
 
@@ -489,7 +495,11 @@ def _b64url_uint(value: int) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
 
-def _public_jwk(private_key: ec.EllipticCurvePrivateKey, key_id: str) -> dict[str, str]:
+def _public_jwk(private_key: RelaySigningKey, key_id: str) -> dict[str, str]:
+    if isinstance(private_key, ed25519.Ed25519PrivateKey):
+        raw = private_key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+        x = base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+        return {"kty": "OKP", "crv": "Ed25519", "x": x, "alg": _EDDSA, "kid": key_id}
     public_numbers = private_key.public_key().public_numbers()
     return {
         "kty": "EC",
@@ -500,7 +510,7 @@ def _public_jwk(private_key: ec.EllipticCurvePrivateKey, key_id: str) -> dict[st
     }
 
 
-def _private_key_pem(private_key: ec.EllipticCurvePrivateKey) -> str:
+def _private_key_pem(private_key: RelaySigningKey) -> str:
     return private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,

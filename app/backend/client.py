@@ -1,7 +1,7 @@
 """HTTPS client used by the Pi to push captured images back to the backend.
 
 The Pi authenticates every upload with a fresh short-lived device assertion
-(ES256 JWT signed by the relay private key, verified by the backend against
+(ES256 or EdDSA JWT signed by the relay private key, verified by the backend against
 the public key it stored during pairing). The backend accepts the bytes via
 ``POST /v1/plugins/r9cam/device/cameras/{camera_id}/image-upload`` and returns a
 small JSON envelope with the stored image's id and URL.

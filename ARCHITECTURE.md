@@ -100,7 +100,7 @@ Any path used at request time is either encoded or checked against an allowlist 
 
 ## Cryptography
 
-Relay device assertions are short-lived ES256 JWTs signed with the Pi's P-256 key. We validate that key when settings load, credentials are saved, and runtime state is applied, so bad key types fail early.
+Relay device assertions are short-lived JWTs signed with the Pi's key: ES256 for a P-256 key (the default) or EdDSA for an Ed25519 key. `DEVICE_KEY_ALGORITHM` picks the type at pairing; after that the stored key's type sets the token's `alg`, so credentials saved before the setting existed keep signing ES256. We validate that key when settings load, credentials are saved, and runtime state is applied, so bad key types fail early.
 
 Relay private keys, relay key IDs, camera IDs, and local API keys live in `~/.config/r9cam/relay_credentials.json` (or the path in `R9CAM_CREDENTIALS_FILE`). The file is written atomically with `0600` permissions. Pairing creates a fresh key pair; unpairing deletes the file.
 
