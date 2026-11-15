@@ -36,6 +36,7 @@
   "keyEmpty": _("Local key is empty."),
   "keyRevealed": _("Key shown. It hides again in 60 seconds."),
   "keyHidden": _("Key hidden."),
+  "keyFailedGeneric": _("Could not show the local key. Try again."),
   "keyFailed": _("Could not show the local key from this client. Sign in as an operator and try again."),
   "countdownExpired": _("expired"),
 } %}
@@ -240,7 +241,7 @@
     <div class="setup-status-grid">
       <details class="setup-advanced">
         <summary>
-          <div class="setup-advanced__summary-main">
+          <span class="setup-advanced__summary-main">
             <span>
               {% if local_auth_enabled %}
               <span class="status-chip status-chip--live">{{ _('Local access') }}</span>
@@ -249,7 +250,7 @@
               {% endif %}
             </span>
             <span class="setup-advanced__summary-copy">{{ _('Direct LAN access for browser, app, and scripts.') }}</span>
-          </div>
+          </span>
           <span class="setup-advanced__summary">
             {% if local_auth_enabled %}
             {{ _('Available') }}

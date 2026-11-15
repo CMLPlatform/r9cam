@@ -132,7 +132,8 @@ function setPairingButtonFeedback(button, state, label, title) {
 }
 
 function restorePairingButton(button, label, title, delay = 1200) {
-  window.setTimeout(() => {
+  window.clearTimeout(button.restoreTimer);
+  button.restoreTimer = window.setTimeout(() => {
     if (button.dataset.defaultHtml) {
       button.innerHTML = button.dataset.defaultHtml;
     }
@@ -170,17 +171,21 @@ async function copyText(text, button) {
   }
 
   if (button.classList.contains("setup-copy-code-btn")) {
-    const previousLabel = button.getAttribute("aria-label");
-    const previousTitle = button.getAttribute("title") || previousLabel;
+    // Keep the original label on the button: a second click lands while it shows "Copied".
+    button.dataset.defaultLabel ??= button.getAttribute("aria-label");
+    button.dataset.defaultTitle ??= button.getAttribute("title") || button.dataset.defaultLabel;
+    const previousLabel = button.dataset.defaultLabel;
+    const previousTitle = button.dataset.defaultTitle;
     const nextLabel = copied ? STRINGS.copied[kind] : STRINGS.copyFailed[kind];
     setPairingButtonFeedback(button, copied ? "copied" : "failed", nextLabel, nextLabel);
     restorePairingButton(button, previousLabel, previousTitle);
   } else {
     // Text buttons keep their aria-label; the status line above carries the news.
-    const previousText = button.textContent;
+    window.clearTimeout(button.restoreTimer);
+    button.dataset.copyText0 ??= button.textContent;
     button.textContent = copied ? STRINGS.copyDone : STRINGS.copyFailedShort;
-    window.setTimeout(() => {
-      button.textContent = previousText;
+    button.restoreTimer = window.setTimeout(() => {
+      button.textContent = button.dataset.copyText0;
     }, 1200);
   }
 }
@@ -294,7 +299,9 @@ async function revealLocalKey(button) {
       cache: "no-store",
     });
     if (!resp.ok) {
-      throw new Error(`HTTP ${resp.status}`);
+      const err = new Error(`HTTP ${resp.status}`);
+      err.status = resp.status;
+      throw err;
     }
     const key = (await resp.text()).trim();
     target.textContent = key || STRINGS.keyEmpty;
@@ -307,10 +314,10 @@ async function revealLocalKey(button) {
     keyMessages.status(STRINGS.keyRevealed, "success");
     window.clearTimeout(localKeyTimer);
     localKeyTimer = window.setTimeout(hideLocalKey, LOCAL_KEY_VISIBLE_MS);
-  } catch (_err) {
+  } catch (err) {
     button.disabled = false;
     button.textContent = button.dataset.defaultText;
-    keyMessages.error(STRINGS.keyFailed);
+    keyMessages.error(err.status === 401 || err.status === 403 ? STRINGS.keyFailed : STRINGS.keyFailedGeneric);
   }
 }
 
@@ -339,6 +346,9 @@ async function handleCodeExpired() {
   pairingMessages.status(STRINGS.codeExpiredWaiting, "");
   for (const el of document.querySelectorAll("[data-expired-refresh], [data-expired-hint]")) {
     el.hidden = false;
+  }
+  for (const el of document.querySelectorAll("[data-copy-source='pairing-code']")) {
+    el.disabled = true;
   }
 }
 

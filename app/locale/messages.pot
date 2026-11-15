@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: r9cam VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-15 06:25+0100\n"
+"POT-Creation-Date: 2026-11-15 18:31+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,9 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+msgid "(opens in a new tab)"
+msgstr ""
 
 msgid "A YouTube stream is currently active."
 msgstr ""
@@ -132,6 +135,9 @@ msgstr ""
 msgid "Could not show the local key from this client. Sign in as an operator and try again."
 msgstr ""
 
+msgid "Could not show the local key. Try again."
+msgstr ""
+
 msgid "Custom backend"
 msgstr ""
 
@@ -205,6 +211,9 @@ msgid "Latest camera preview thumbnail"
 msgstr ""
 
 msgid "Live"
+msgstr ""
+
+msgid "Live camera preview"
 msgstr ""
 
 msgid "Load Preview"
@@ -330,7 +339,7 @@ msgstr ""
 msgid "Primary"
 msgstr ""
 
-msgid "R9lab RPi Camera home"
+msgid "R9lab Raspberry Pi Camera, home"
 msgstr ""
 
 msgid "R9lab logo"
@@ -363,7 +372,7 @@ msgstr ""
 msgid "Remote link disconnected"
 msgstr ""
 
-msgid "Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href=\"https://github.com/CMLPlatform/r9lab\" target=\"_blank\" rel=\"noopener\">GitHub page</a>."
+msgid "Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href=\"https://github.com/CMLPlatform/r9lab\" target=\"_blank\" rel=\"noopener\">GitHub page<span class=\"sr-only\"> (opens in a new tab)</span></a>."
 msgstr ""
 
 msgid "Reveal local API key"

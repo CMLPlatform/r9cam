@@ -36,7 +36,7 @@
       <div class="setup-eyebrow">R9lab</div>
       <h1>{{ _('Raspberry Pi Camera') }}</h1>
       <p>
-        {% trans %}Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href="https://github.com/CMLPlatform/r9lab" target="_blank" rel="noopener">GitHub page</a>.{% endtrans %}
+        {% trans %}Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href="https://github.com/CMLPlatform/r9lab" target="_blank" rel="noopener">GitHub page<span class="sr-only"> (opens in a new tab)</span></a>.{% endtrans %}
       </p>
     </section>
 
@@ -60,8 +60,9 @@
         <p class="setup-status__lead">{{ _('The thumbnail below refreshes every 10 seconds. Start a live preview to check framing or focus.') }}</p>
         <img id="preview-thumbnail" class="preview-video" src="{{ url_for('preview_thumbnail') }}" alt="{{ _('Latest camera preview thumbnail') }}" />
         <p id="preview-empty" class="preview-empty" hidden>{{ _('No preview yet. The camera may be offline.') }}</p>
-        <video id="preview-video" class="preview-video" controls playsinline muted hidden></video>
+        <video id="preview-video" class="preview-video" aria-label="{{ _('Live camera preview') }}" controls playsinline muted hidden></video>
         <p id="preview-msg" class="preview-message" role="status"></p>
+        <p id="preview-error" class="preview-message" role="alert"></p>
         <div class="setup-actions">
           <button class="btn" id="preview-btn" data-preview-toggle type="button">{{ _('Load Preview') }}</button>
         </div>
@@ -75,7 +76,7 @@
           <h2>{{ _('YouTube Stream') }}</h2>
           <p>{{ _('A YouTube stream is currently active.') }}</p>
           <div>
-            <a href="{{ youtube_url }}" target="_blank" rel="noopener" class="btn">{{ _('Watch on YouTube') }} &rarr;</a>
+            <a href="{{ youtube_url }}" target="_blank" rel="noopener" class="btn">{{ _('Watch on YouTube') }}<span class="sr-only"> {{ _('(opens in a new tab)') }}</span> &rarr;</a>
           </div>
         </div>
       </section>

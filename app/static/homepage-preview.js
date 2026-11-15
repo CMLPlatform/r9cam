@@ -76,9 +76,6 @@ function showVideo() {
 
 function attachPlayer() {
   const video = document.getElementById("preview-video");
-  if (!window.Hls && !video.canPlayType("application/vnd.apple.mpegurl")) {
-    throw new Error(STRINGS.hlsScriptMissing);
-  }
   if (window.Hls && window.Hls.isSupported()) {
     hls = new window.Hls({
       liveSyncDurationCount: 2,
@@ -111,14 +108,21 @@ async function startPreview() {
   const msg = document.getElementById("preview-msg");
   btn.disabled = true;
   btn.textContent = STRINGS.starting;
+  document.getElementById("preview-error").textContent = "";
   msg.textContent = STRINGS.wakingEncoder;
   setChip("muted", STRINGS.chipStarting);
+  let started = false;
   try {
     const resp = await fetch("/preview/start", { method: "POST" });
     if (!resp.ok) {
       throw new Error(STRINGS.startFailed(resp.status));
     }
+    started = true;
     await new Promise((resolve) => window.setTimeout(resolve, START_DELAY_MS));
+    // Check before showVideo(): a throw afterwards would leave a blank video.
+    if (!window.Hls && !document.getElementById("preview-video").canPlayType("application/vnd.apple.mpegurl")) {
+      throw new Error(STRINGS.hlsScriptMissing);
+    }
     showVideo();
     attachPlayer();
     state = "live";
@@ -130,8 +134,13 @@ async function startPreview() {
     state = "idle";
     btn.disabled = false;
     btn.textContent = STRINGS.loadPreview;
-    msg.textContent = err instanceof TypeError ? STRINGS.networkError : err.message;
+    msg.textContent = "";
+    document.getElementById("preview-error").textContent = err instanceof TypeError ? STRINGS.networkError : err.message;
     setChip("muted", STRINGS.chipPreview);
+    if (started) {
+      showThumbnail();
+      fetch("/preview/stop", { method: "POST" }).catch(() => {});
+    }
   }
 }
 
@@ -160,7 +169,8 @@ async function stopPreview(message = "") {
   state = "idle";
   btn.disabled = false;
   btn.textContent = STRINGS.loadPreview;
-  msg.textContent = message;
+  msg.textContent = "";
+  document.getElementById("preview-error").textContent = message;
   setChip("muted", STRINGS.chipPreview);
 }
 

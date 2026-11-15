@@ -17,6 +17,9 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
+msgid "(opens in a new tab)"
+msgstr "(opent in een nieuw tabblad)"
+
 msgid "A YouTube stream is currently active."
 msgstr "Er is nu een YouTube-stream actief."
 
@@ -132,6 +135,9 @@ msgstr "Geen nieuwe koppelcode opgehaald"
 msgid "Could not show the local key from this client. Sign in as an operator and try again."
 msgstr "De lokale sleutel kan vanaf deze client niet worden getoond. Log in als beheerder en probeer het opnieuw."
 
+msgid "Could not show the local key. Try again."
+msgstr "De lokale sleutel kon niet worden getoond. Probeer het opnieuw."
+
 msgid "Custom backend"
 msgstr "Eigen backend"
 
@@ -206,6 +212,9 @@ msgstr "Laatste miniatuur van het cameravoorbeeld"
 
 msgid "Live"
 msgstr "Live"
+
+msgid "Live camera preview"
+msgstr "Livebeeld van de camera"
 
 msgid "Load Preview"
 msgstr "Voorbeeld laden"
@@ -330,8 +339,8 @@ msgstr "De miniatuur van het voorbeeld is alleen beschikbaar vanuit het lokale n
 msgid "Primary"
 msgstr "Hoofdmenu"
 
-msgid "R9lab RPi Camera home"
-msgstr "R9lab RPi Camera, startpagina"
+msgid "R9lab Raspberry Pi Camera, home"
+msgstr "R9lab Raspberry Pi Camera, startpagina"
 
 msgid "R9lab logo"
 msgstr "R9lab-logo"
@@ -363,8 +372,8 @@ msgstr "Verbinding op afstand actief"
 msgid "Remote link disconnected"
 msgstr "Verbinding op afstand verbroken"
 
-msgid "Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href=\"https://github.com/CMLPlatform/r9lab\" target=\"_blank\" rel=\"noopener\">GitHub page</a>."
-msgstr "Maak op afstand opnames en stream video met een Raspberry Pi-camera. Meer over R9lab vind je op de <a href=\"https://github.com/CMLPlatform/r9lab\" target=\"_blank\" rel=\"noopener\">GitHub-pagina</a>."
+msgid "Remotely capture images and stream video from a Raspberry Pi camera. Learn more about R9lab on the <a href=\"https://github.com/CMLPlatform/r9lab\" target=\"_blank\" rel=\"noopener\">GitHub page<span class=\"sr-only\"> (opens in a new tab)</span></a>."
+msgstr "Maak op afstand opnames en stream video met een Raspberry Pi-camera. Meer over R9lab vind je op de <a href=\"https://github.com/CMLPlatform/r9lab\" target=\"_blank\" rel=\"noopener\">GitHub-pagina<span class=\"sr-only\"> (opent in een nieuw tabblad)</span></a>."
 
 msgid "Reveal local API key"
 msgstr "Lokale API-sleutel tonen"

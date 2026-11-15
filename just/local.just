@@ -142,8 +142,9 @@ i18n-extract:
 
 # Re-extract, then merge the new strings into each language's .po. Translate the empty entries, then `just i18n-compile`.
 i18n-update: i18n-extract
-    uv run pybabel update -i app/locale/messages.pot -d app/locale --no-fuzzy-matching --ignore-pot-creation-date --no-location --no-wrap
-    perl -0pi -e 's/\n+\z/\n/' app/locale/*/LC_MESSAGES/messages.po
+    uv run pybabel update -i app/locale/messages.pot -d app/locale --no-fuzzy-matching --ignore-pot-creation-date --ignore-obsolete --no-wrap
+    # pybabel update puts back the header lines extract leaves out, and a trailing blank line.
+    perl -0pi -e 's/\n+\z/\n/; s/^"Report-Msgid-Bugs-To: .*\n//m; s/Project-Id-Version:  /Project-Id-Version: /' app/locale/*/LC_MESSAGES/messages.po
 
 # Compile each .po to the .mo the app reads. The .mo files are committed.
 i18n-compile:

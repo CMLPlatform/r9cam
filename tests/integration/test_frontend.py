@@ -1,5 +1,6 @@
 """Tests for frontend routes (landing page)."""
 
+import re
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,6 +10,7 @@ from pydantic import AnyUrl
 from r9cam_models.camera import CameraMode
 from r9cam_models.stream import StreamMode
 
+from app.auth.dependencies import create_session
 from app.camera.routers import hls as hls_mod
 from app.camera.services.manager import CameraManager
 from app.core.runtime import AppRuntime
@@ -287,3 +289,23 @@ class TestHomepage:
         """Production-style runs should not expose unauthenticated local OpenAPI JSON."""
         resp = await unauthed_client.get("/openapi.json")
         assert resp.status_code == 404
+
+
+class TestFrontendAccessibilityMarkup:
+    """Server-rendered accessibility markup of the homepage and setup page."""
+
+    async def test_homepage_a11y_markup(self, unauthed_client: AsyncClient) -> None:
+        """Brand name, video name, error alert and new-tab hints are present."""
+        html = (await unauthed_client.get("/")).text
+        assert 'aria-label="R9lab Raspberry Pi Camera, home"' in html
+        assert re.search(r'<video id="preview-video"[^>]*aria-label="Live camera preview"', html)
+        assert re.search(r'<p id="preview-error"[^>]*role="alert"', html)
+        assert "(opens in a new tab)</span></a>" in html
+
+    async def test_setup_summaries_hold_no_block_elements(self, client: AsyncClient) -> None:
+        """A <summary> may only hold phrasing content."""
+        client.cookies.set(settings.browser_session_cookie_name, create_session())
+        html = (await client.get("/setup")).text
+        bodies = re.findall(r"<summary>(.*?)</summary>", html, re.DOTALL)
+        assert bodies
+        assert not any("<div" in body for body in bodies)
