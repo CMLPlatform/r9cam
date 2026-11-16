@@ -42,7 +42,7 @@ jobs:
         with:
           enable-cache: true
           save-cache: ${{ github.event_name != 'pull_request' }}
-          version: "0.13.6"
+          version: "0.13.7"
 
       - run: uv sync --locked
       # Checks every locked dependency, dev group included, against the OSV database
