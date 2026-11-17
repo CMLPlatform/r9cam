@@ -28,7 +28,7 @@ repos:
 
   # Commit messages follow committed.toml: Conventional Commits, imperative, no period.
   - repo: https://github.com/crate-ci/committed
-    rev: faeed42f2e10c244533a01525f13c4d8b6ce383f # frozen: v1.1.11
+    rev: 02af07ed1d11ad69a96ab75f08c9831a4e2c00da # frozen: v1.1.12
     hooks:
       - id: committed
         # git writes a merge commit's message itself, so skip the check during a merge.
