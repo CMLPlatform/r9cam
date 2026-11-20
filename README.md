@@ -19,7 +19,7 @@ Device-side software for automated image capture on Raspberry Pi, integrated wit
 - **[Architecture](ARCHITECTURE.md)** - runtime design, relay flow, auth boundaries, and configuration model
 - **[Contributing](CONTRIBUTING.md)** - local development, tests, quality checks, and release workflow
 - **[Roadmap](docs/roadmap.md)**, **[Governance](GOVERNANCE.md)** and **[Code of Conduct](.github/CODE_OF_CONDUCT.md)** - what is planned, who decides, and how we work together
-- **[Platform Docs](https://docs.r9lab.io/user-guides/rpi-cam/)** - camera management in R9lab
+- **[Platform Docs](https://docs.r9lab.io/user-guides/r9cam/)** - camera management in R9lab
 
 ## What It Does
 
@@ -55,7 +55,7 @@ The Pi always opens the connection, so the relay needs no open port on the Pi's 
 
 When the app and the Pi share a network, the app can skip the relay. The backend asks the Pi over the relay for its local API key and LAN addresses, and passes them to the app. The app then talks to the Pi directly over HTTP, for faster preview and capture, without anyone copying a key by hand.
 
-The [platform docs](https://docs.r9lab.io/architecture/rpi-cam/) have the full diagram, with LAN direct mode, preview streaming and the pairing sequence. [ARCHITECTURE.md](ARCHITECTURE.md) covers the plugin's internals.
+The [platform docs](https://docs.r9lab.io/architecture/r9cam/) have the full diagram, with LAN direct mode, preview streaming and the pairing sequence. [ARCHITECTURE.md](ARCHITECTURE.md) covers the plugin's internals.
 
 ## Supported Modes
 
@@ -74,7 +74,7 @@ The [platform docs](https://docs.r9lab.io/architecture/rpi-cam/) have the full d
 1. Enter the pairing code in the native R9lab app.
 1. Visit `http://your-pi-ip:8018/setup` to check pairing, status, and diagnostics.
 
-Use the generated [RPi camera API reference](https://docs.r9lab.io/api/rpi-cam/) for endpoint-level documentation. The Pi-hosted Swagger/OpenAPI routes are development-only.
+Use the generated [RPi camera API reference](https://docs.r9lab.io/api/r9cam/) for endpoint-level documentation. The Pi-hosted Swagger/OpenAPI routes are development-only.
 
 The HTTPS-served R9lab web frontend cannot auto-probe the Pi's plain-HTTP local API because browsers block mixed content. Use the native app for pairing and direct-mode setup.
 
