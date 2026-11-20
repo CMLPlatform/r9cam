@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+### Fixed
+
+- A camera paired before the R9lab rename saved its relay URL under `/v1/plugins/rpi-cam/`.
+  It now moves that URL to `/v1/plugins/r9cam/` on startup, so it stays online once the backend
+  drops the old path.
+
 ## [0.8.1] - 2026-11-15
 
 ### Fixed
