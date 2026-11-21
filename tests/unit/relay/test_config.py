@@ -70,6 +70,25 @@ class TestApplyRelayCredentials:
         assert runtime_state.local_relay_api_key.startswith("LOCAL_")
         assert runtime_state.local_relay_api_key in runtime_state.authorized_api_keys
 
+    def test_moves_a_pre_rename_relay_url_to_the_current_path(self) -> None:
+        """A camera paired before the rename saved the old plugin path; it must dial the new one."""
+        creds = {
+            "relay_backend_url": "wss://example.com/v1/plugins/rpi-cam/ws/connect",
+            "relay_camera_id": RELAY_CAMERA_ID,
+            "relay_key_id": RELAY_KEY_ID,
+            "relay_private_key_pem": RELAY_PRIVATE_KEY_PEM,
+        }
+        runtime_state = RuntimeState()
+
+        with (
+            patch("app.core.bootstrap.load_relay_credentials", return_value=creds),
+            patch("app.core.bootstrap.merge_into_credentials_file") as saved,
+        ):
+            apply_relay_credentials(runtime_state)
+
+        assert runtime_state.relay_backend_url == EXAMPLE_RELAY_BACKEND_URL
+        saved.assert_called_once_with({"relay_backend_url": EXAMPLE_RELAY_BACKEND_URL})
+
     def test_noop_when_no_file(self) -> None:
         """Should do nothing if the credentials file doesn't exist."""
         runtime_state = RuntimeState()

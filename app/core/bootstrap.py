@@ -27,6 +27,10 @@ from app.utils.files import is_running_in_container
 logger = logging.getLogger(__name__)
 
 _LOCAL_API_KEY_BYTES = 32
+# Cameras paired before the R9lab rename saved a relay URL under the old plugin path,
+# which the backend no longer serves.
+_PRE_RENAME_RELAY_PATH = "/v1/plugins/rpi-cam/"
+_RELAY_PATH = "/v1/plugins/r9cam/"
 
 
 def apply_relay_credentials(runtime_state: RuntimeState) -> None:
@@ -48,10 +52,15 @@ def apply_relay_credentials(runtime_state: RuntimeState) -> None:
         return
     creds = load_relay_credentials()
     if creds and creds.get("relay_backend_url"):
+        relay_backend_url = str(creds["relay_backend_url"])
+        if _PRE_RENAME_RELAY_PATH in relay_backend_url:
+            relay_backend_url = relay_backend_url.replace(_PRE_RENAME_RELAY_PATH, _RELAY_PATH, 1)
+            merge_into_credentials_file({"relay_backend_url": relay_backend_url})
+            logger.info("Moved the saved relay URL to the current plugin path")
         try:
             set_runtime_relay_credentials(
                 runtime_state=runtime_state,
-                relay_backend_url=str(creds.get("relay_backend_url", "")),
+                relay_backend_url=relay_backend_url,
                 relay_camera_id=str(creds.get("relay_camera_id", "")),
                 relay_key_id=str(creds.get("relay_key_id", "")),
                 relay_private_key_pem=str(creds.get("relay_private_key_pem", "")),

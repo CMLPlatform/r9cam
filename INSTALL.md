@@ -284,7 +284,7 @@ uv run python -m app.serve
 Once running, check:
 
 - setup and status: `http://your-pi-ip:8018/setup`
-- API reference: <https://docs.r9lab.io/api/rpi-cam/>
+- API reference: <https://docs.r9lab.io/api/r9cam/>
 - HLS preview: `http://your-pi-ip:8018/preview/hls/cam-preview/index.m3u8`
 
 For headless operation, read pairing status from:
