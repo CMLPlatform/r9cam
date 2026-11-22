@@ -8,11 +8,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). E
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-11-22
+
+**Upgrading:**
+
+- Update every Pi to this release before the R9lab backend that stops serving
+  `/v1/plugins/rpi-cam` is deployed; a camera paired before the rename stays online without
+  pairing again.
+
 ### Fixed
 
 - A camera paired before the R9lab rename saved its relay URL under `/v1/plugins/rpi-cam/`.
   It now moves that URL to `/v1/plugins/r9cam/` on startup, so it stays online once the backend
   drops the old path.
+- The README and INSTALL link the R9lab docs at their `r9cam` pages.
 
 ## [0.8.1] - 2026-11-15
 
@@ -402,7 +411,8 @@ and v0.2.0 tags point at commits that are not on main. The v0.3.0 tag was added 
 [0.7.0]: https://github.com/CMLPlatform/r9cam/compare/v0.6.2...v0.7.0
 [0.7.1]: https://github.com/CMLPlatform/r9cam/compare/v0.7.0...v0.7.1
 [0.7.2]: https://github.com/CMLPlatform/r9cam/compare/v0.7.1...v0.7.2
-[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.8.1...HEAD
+[unreleased]: https://github.com/CMLPlatform/r9cam/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/CMLPlatform/r9cam/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/CMLPlatform/r9cam/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/CMLPlatform/r9cam/compare/v0.7.2...v0.8.0
 [#121]: https://github.com/CMLPlatform/r9cam/issues/121

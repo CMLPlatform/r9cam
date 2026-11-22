@@ -1133,7 +1133,7 @@
       "name": "Apache-2.0"
     },
     "title": "Raspberry Pi Camera API",
-    "version": "0.8.1"
+    "version": "0.8.2"
   },
   "openapi": "3.1.0",
   "paths": {
