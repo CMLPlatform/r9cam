@@ -125,7 +125,7 @@ repos:
         # Upstream leaves repo-review unpinned.
         additional_dependencies: ["repo-review[cli]==1.3.0"]
   - repo: https://github.com/rvben/rumdl-pre-commit
-    rev: eaeb8abc646954face3eb41726f085385410f761 # frozen: v0.3.1
+    rev: df5a947a3af0dba56640e644c6b9316184749168 # frozen: v0.3.4
     hooks:
       - id: rumdl
         args: [--fix]
